@@ -39,7 +39,7 @@ var NanoEntity = function(_maxhp, _side, _width, _height, _x, _y, _sprite) {
 	/*------create the circular shape of body-----------*/
 	var fixDef = new b2FixtureDef;
 	fixDef.density = 1.0;
-	fixDef.friction = 0;
+	fixDef.friction = 1.0;
 	fixDef.restitution = 1.0;
 	fixDef.isSensor = false;
 	//var shape = new b2PolygonShape ;
@@ -193,6 +193,16 @@ var MovingEntity = function(_maxhp, _side, _width, _height, _x, _y, _oripeed, _s
 		that.destination.SetV(position);
 		
 		that.body.SetLinearVelocity(new b2Vec2(0, 0));
+		
+		noDestination = true;
+	}
+	
+	//start move backward
+	this.startMoveBackward = function()
+	{
+		var velocity = that.body.GetLinearVelocity();
+		
+		that.body.SetLinearVelocity(new b2Vec2(-velocity.x, -velocity.y));
 		
 		noDestination = true;
 	}

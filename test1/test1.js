@@ -2,7 +2,7 @@
 	
 function start() {
 	
-	Director.init("canvas", 600, 600);
+	Director.init("canvas", 600, 600, "map.xml");
 	
 	Director.initSpritesFromXML("sprites.xml");
 	

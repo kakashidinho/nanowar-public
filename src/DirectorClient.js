@@ -16,7 +16,7 @@ var   b2Vec2 = Box2D.Common.Math.b2Vec2
 /*-------Director instance-------*/	
 var Director = {};
 
-Director.init = function(canvasID, width, height)
+Director.init = function(canvasID, displayWidth, displayHeight, mapFileXML)
 {
 	//private
 	var caatDirector;
@@ -31,16 +31,16 @@ Director.init = function(canvasID, width, height)
 	/*---------graphics--------------*/
 	//renderable entity class
 	var Renderable;
+	
+	// create a CAAT director object for handling graphics
+	caatDirector = new CAAT.Foundation.Director().initialize(
+			displayWidth,    // pixels wide
+			displayHeight,    // pixels across
+			document.getElementById(canvasID)
+	);
 
 	//initially, no update callback
 	this.onUpdate = undefined;
-	
-	// create a CAAT director object
-	caatDirector = new CAAT.Foundation.Director().initialize(
-			width,    // pixels wide
-			width,    // pixels across
-			document.getElementById(canvasID)
-	);
 	
 	// create renderable entity list
 	renderableList = new Utils.List();
@@ -50,7 +50,6 @@ Director.init = function(canvasID, width, height)
 	
 	//background
 	var bg = new CAAT.Foundation.ActorContainer().
-            setBounds(0,0,caatDirector.width,caatDirector.height).
             setFillStyle('#fff');
  
     scene.addChild(bg);
@@ -78,7 +77,7 @@ Director.init = function(canvasID, width, height)
 		lastUpdateTime = director_time;
 	}
 	/*----------------------physics-----------------------------------------*/
-	
+		
 	//create physics world
 	physicsWorld = new b2World(
 		new b2Vec2(0, 0) //gravity
@@ -93,16 +92,52 @@ Director.init = function(canvasID, width, height)
 		var bodyB = contact.GetFixtureB().GetBody();
 		var entityA = bodyA.GetUserData();
 		var entityB = bodyB.GetUserData();
-		//if two entities are both moving objects
-		if (entityA != null && entityB != null 
-		&& bodyA.GetType() == b2Body.b2_dynamicBody 
-		&& bodyB.GetType() == b2Body.b2_dynamicBody)
+		if (bodyA.GetType() == b2Body.b2_dynamicBody)//A is moving object
 		{
-			contact.SetEnabled(false);//for now. allow pass through
-		}
+			if( bodyB.GetType() == b2Body.b2_dynamicBody)
+			{
+				//if two entities are both moving objects
+				contact.SetEnabled(false);//for now. allow pass through
+			}
+		}//if (bodyA.GetType() == b2Body.b2_dynamicBody)
 	}
+	contactListener.BeginContact = function(contact, manifoid)
+	{
+		var bodyA = contact.GetFixtureA().GetBody();
+		var bodyB = contact.GetFixtureB().GetBody();
+		var entityA = bodyA.GetUserData();
+		var entityB = bodyB.GetUserData();
+		if (bodyA.GetType() == b2Body.b2_dynamicBody && entityA.isMoving())//A is moving object
+		{
+			if ( bodyB.GetType() == b2Body.b2_staticBody)//B is obstacle
+				entityA.startMoveBackward();//should stop reaching destination now
+		}//if (bodyA.GetType() == b2Body.b2_dynamicBody)
+		if (bodyB.GetType() == b2Body.b2_dynamicBody && entityB.isMoving())//B is moving object
+		{
+			if ( bodyA.GetType() == b2Body.b2_staticBody)//A is obstacle
+				entityB.startMoveBackward();//should stop reaching destination now
+		}//if (bodyB.GetType() == b2Body.b2_dynamicBody)
+	}
+	contactListener.EndContact = function(contact, manifoid)
+	{
+		var bodyA = contact.GetFixtureA().GetBody();
+		var bodyB = contact.GetFixtureB().GetBody();
+		var entityA = bodyA.GetUserData();
+		var entityB = bodyB.GetUserData();
+		if (bodyA.GetType() == b2Body.b2_dynamicBody)//A is moving object
+		{
+			entityA.stop();//stop
+		}//if (bodyA.GetType() == b2Body.b2_dynamicBody)
+		if (bodyB.GetType() == b2Body.b2_dynamicBody)//B is moving object
+		{
+			entityB.stop();//stop
+		}//if (bodyB.GetType() == b2Body.b2_dynamicBody)
+	}
+	
 	physicsWorld.SetContactListener(contactListener);
 	
+	/*---------init map------*/
+	initMap(mapFileXML);
 	
 	/*---------method definitions----------------*/
 	Director.startGameLoop = function(frameRate)
@@ -212,9 +247,53 @@ Director.init = function(canvasID, width, height)
 	}
 	
 	//get animation's full name
-	var getFullAnimName = function(spriteName, animation)
+	function getFullAnimName(spriteName, animation)
 	{
 		return spriteName + "-" + animation;
+	}
+	
+	function initMap(mapFileXML)
+	{
+		var Connect = new XMLHttpRequest();
+		// define which file to open and
+		// send the request.
+		Connect.open("GET", mapFileXML, false);
+		Connect.setRequestHeader("Content-Type", "text/xml");
+		Connect.send(null);
+
+		var map = Connect.responseXML.childNodes[0];
+		var width = parseInt(map.getAttribute("width"));
+		var height = parseInt(map.getAttribute("height"));
+		
+		//set boundary
+		bg.setBounds(0,0,width,height);
+		//physics boundary
+		initPhysicsBounds(width,height);
+		
+	}
+	
+	function initPhysicsBounds(width, height) {
+		var boundBodyDef = new b2BodyDef;
+		boundBodyDef.type = b2Body.b2_staticBody;
+		boundBodyDef.position.x = 0;
+		boundBodyDef.position.y = 0;
+		
+		var worldBound = physicsWorld.CreateBody(boundBodyDef);
+		
+		var edgeShape = new b2PolygonShape;
+		var boundFixDef = new b2FixtureDef;
+		
+		boundFixDef.shape = edgeShape;
+		
+		//4 edge fixtures
+		edgeShape.SetAsEdge( new b2Vec2(0,0), new b2Vec2(width,0) );	
+		worldBound.CreateFixture(boundFixDef);
+		edgeShape.SetAsEdge( new b2Vec2(0,0), new b2Vec2(0,height) );	
+		worldBound.CreateFixture(boundFixDef);
+		edgeShape.SetAsEdge( new b2Vec2(width,0), new b2Vec2(width,height) );	
+		worldBound.CreateFixture(boundFixDef);
+		edgeShape.SetAsEdge( new b2Vec2(0,height), new b2Vec2(width,height) );	
+		worldBound.CreateFixture(boundFixDef);
 	}
 	
 	/*----------------Renderable----------*/
