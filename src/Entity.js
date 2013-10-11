@@ -2,14 +2,14 @@
 
 
 /*-----------------nano entity class--------------*/
-var NanoEntity = function(_maxhp, _side, _width, _height, _x, _y, _sprite) {
+var NanoEntity = function(_maxhp, _side, _width, _height, _x, _y, _spriteModule) {
 	this.body;//b2Body
 	this.width;//body's width
 	this.height;//body's height
-	this.collisionRadius;//radius of the circle for collision detection 
+	//this.collisionRadius;//radius of the circle for collision detection 
 	this.maxHP;//maximum hit point.
 	this.HP;//current hit point. zero => die
-	this.spriteName;
+	this.spriteModuleName;
 	this.side;
 	this.alive;
 	
@@ -21,7 +21,7 @@ var NanoEntity = function(_maxhp, _side, _width, _height, _x, _y, _sprite) {
 	this.width = _width;
 	this.height = _height;
 	
-	this.spriteName = _sprite;	
+	this.spriteModuleName = _spriteModule;	
 	this.alive = true;
 	
 	/*----------create physics body-----------*/
@@ -36,24 +36,24 @@ var NanoEntity = function(_maxhp, _side, _width, _height, _x, _y, _sprite) {
 	this.body = Director._getPhysicsWorld().CreateBody(bodyDef);//create body object
 	this.body.SetUserData(this);
 
-	/*------create the circular shape of body-----------*/
+	/*------create the shape of body-----------*/
 	var fixDef = new b2FixtureDef;
 	fixDef.density = 1.0;
 	fixDef.friction = 1.0;
 	fixDef.restitution = 1.0;
 	fixDef.isSensor = false;
-	//var shape = new b2PolygonShape ;
-	//shape.SetAsBox(_width * 0.5, _height * 0.5);
-	var shape = new b2CircleShape ;//circle shape
-	shape.m_p.Set(0, 0);
-	shape.m_radius = this.collisionRadius = new b2Vec2(_width * 0.5, _height * 0.5).Length();
+	var shape = new b2PolygonShape ;//box shape
+	shape.SetAsBox(_width * 0.5, _height * 0.5);
+	//var shape = new b2CircleShape ;//circle shape
+	//shape.m_p.Set(0, 0);
+	//shape.m_radius = this.collisionRadius = new b2Vec2(_width * 0.5, _height * 0.5).Length();
 	fixDef.shape = shape;
 	
 	this.body.CreateFixture(fixDef);//add this shape to the body
 	
 	/*----method definitions-----*/
-	this.getSpriteName = function() {
-		return that.spriteName;
+	this.getSpriteModuleName = function() {
+		return that.spriteModuleName;
 	}
 	
 	this.getHP = function() {
@@ -67,10 +67,10 @@ var NanoEntity = function(_maxhp, _side, _width, _height, _x, _y, _sprite) {
 	this.getWidth = function() {
 		return that.width;
 	}
-	
+	/*
 	this.getCollisionRadius = function(){
 		return that.collisionRadius;
-	}
+	}*/
 	
 	this.getHeight = function() {
 		return that.height;

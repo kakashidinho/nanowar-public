@@ -1,31 +1,31 @@
 <?xml version="1.0" encoding="ISO-8859-1"?>
-<elements>
-<spriteSheet 
-	id="sprites1" 
-	url="sprites1.png" 
-	cellsPerRow="2" 
-	cellsPerCol="2">
-</spriteSheet>
-<sprite 
-	name = "WarriorCell"
-	sheetID = "sprites1"
-	>
-	<animation 
-		name="normal"
-		sequence="0"
-		interval="500"
-		loop="true"
-		/>
-</sprite>
-<sprite 
-	name = "LeechVirus"
-	sheetID = "sprites1"
-	>
-	<animation 
-		name="normal"
-		sequence="1"
-		interval="500"
-		loop="true"
-		/>
-</sprite>
-</elements>
+<sprites>
+	<spriteSheet 
+		id="sprites1" 
+		imgID="sprites1"
+		cellsPerRow="2" 
+		cellsPerCol="2">
+	</spriteSheet>
+	<spriteModule 
+		name = "WarriorCell"
+		sheetID = "sprites1"
+		>
+		<animation 
+			name="normal"
+			sequence="0"
+			interval="500"
+			loop="true"
+			/>
+	</spriteModule>
+	<spriteModule 
+		name = "LeechVirus"
+		sheetID = "sprites1"
+		>
+		<animation 
+			name="normal"
+			sequence="1"
+			interval="500"
+			loop="true"
+			/>
+	</spriteModule>
+</sprites>

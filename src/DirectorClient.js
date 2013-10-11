@@ -16,21 +16,29 @@ var   b2Vec2 = Box2D.Common.Math.b2Vec2
 /*-------Director instance-------*/	
 var Director = {};
 
-Director.init = function(canvasID, displayWidth, displayHeight, mapFileXML)
+Director.init = function(canvasID, displayWidth, displayHeight, initFileXML, onInitFinished)
 {
+	/*---------Director instance definition-------------*/
 	//private
 	var caatDirector;
 	var physicsWorld;
 	var spriteSheetList;
-	var spriteList;
-	var renderableList;
+	var spriteModuleList;
+	var visualEntityList;
 	var lastUpdateTime;
+	var initXmlRequest;
 	
 	this.onUpdate;//update callback function. should be function(lastUpdateTime, currentTime)
 	
+	/*------------open connection to initializing xml file-------------------*/
+	initXmlRequest = new XMLHttpRequest();
+	// define which file to open and
+	// send the request.
+	initXmlRequest.open("GET", initFileXML, false);
+	initXmlRequest.setRequestHeader("Content-Type", "text/xml");
+	initXmlRequest.send(null);
+	
 	/*---------graphics--------------*/
-	//renderable entity class
-	var Renderable;
 	
 	// create a CAAT director object for handling graphics
 	caatDirector = new CAAT.Foundation.Director().initialize(
@@ -38,12 +46,12 @@ Director.init = function(canvasID, displayWidth, displayHeight, mapFileXML)
 			displayHeight,    // pixels across
 			document.getElementById(canvasID)
 	);
-
+	
 	//initially, no update callback
 	this.onUpdate = undefined;
 	
-	// create renderable entity list
-	renderableList = new Utils.List();
+	// create visual entity list
+	visualEntityList = new Utils.List();
 	
 	// add a scene object to the director.
 	var scene =     caatDirector.createScene();
@@ -67,14 +75,14 @@ Director.init = function(canvasID, displayWidth, displayHeight, mapFileXML)
 			Director.onUpdate(lastUpdateTime, currentTime);
 			
 		//commit changes to visual parts
-		renderableList.traverse(function(renderable) {
-			renderable.commitChange();
+		visualEntityList.traverse(function(visualEntity) {
+			visualEntity.commitChanges();
 		}
 		);
 		
 		physicsWorld.ClearForces();
 		
-		lastUpdateTime = director_time;
+		lastUpdateTime = currentTime;
 	}
 	/*----------------------physics-----------------------------------------*/
 		
@@ -136,8 +144,8 @@ Director.init = function(canvasID, displayWidth, displayHeight, mapFileXML)
 	
 	physicsWorld.SetContactListener(contactListener);
 	
-	/*---------init map------*/
-	initMap(mapFileXML);
+	/*----------start loading all images needed for the game---------*/
+	preloadImages();
 	
 	/*---------method definitions----------------*/
 	Director.startGameLoop = function(frameRate)
@@ -155,11 +163,11 @@ Director.init = function(canvasID, displayWidth, displayHeight, mapFileXML)
 			targetEntity.visualPart.mouseClick = handler;
 	}
 	
-	//initialize sprites from xml
-	Director.initSpritesFromXML = function(xmlFile)
+	//initialize sprite modules from xml
+	Director.initSpriteModulesFromXML = function(xmlFile)
 	{
 		spriteSheetList = new Array();//list of sprite sheet objects
-		spriteList = new Array();
+		spriteModuleList = new Array();//list of sprite modules
 		var Connect = new XMLHttpRequest();
  
 		// define which file to open and
@@ -178,27 +186,24 @@ Director.init = function(canvasID, displayWidth, displayHeight, mapFileXML)
 		{
 			var sheet = spriteSheets[i];
 			var id = sheet.getAttribute("id");
-			var url = sheet.getAttribute("url");
+			var imgID = sheet.getAttribute("imgID");
 			var cellsPerRow = parseInt(sheet.getAttribute("cellsPerRow"));
 			var cellsPerCol = parseInt(sheet.getAttribute("cellsPerCol"));
 			//load image and create CAAT's sprite
-			var image = new Image();
-			image.src = url;
-			spriteSheetList[id] = new CAAT.Foundation.SpriteImage().
-							initialize(image, cellsPerRow, cellsPerCol );
+			spriteSheetList[id] = createSpriteSheet(imgID, cellsPerRow, cellsPerCol );
 		}
 		
-		//get list of sprites
-		var sprites = root.getElementsByTagName("sprite");
+		//get list of sprite modules
+		var spriteModules = root.getElementsByTagName("spriteModule");
 		
-		for (var i = 0; i < sprites.length; ++i)
+		for (var i = 0; i < spriteModules.length; ++i)
 		{
-			var spriteInfo = sprites[i];
-			var name = spriteInfo.getAttribute("name");
-			var sheetID = spriteInfo.getAttribute("sheetID");
-			var animationInfos = spriteInfo.getElementsByTagName("animation");
+			var spriteModuleInfo = spriteModules[i];
+			var name = spriteModuleInfo.getAttribute("name");
+			var sheetID = spriteModuleInfo.getAttribute("sheetID");
+			var animationInfos = spriteModuleInfo.getElementsByTagName("animation");
 			
-			var newSprite = 
+			var newSpriteModule = 
 			 {
 				sheetID: sheetID,//sprite sheet id
 				animations: new Array()
@@ -216,13 +221,13 @@ Director.init = function(canvasID, displayWidth, displayHeight, mapFileXML)
 					sequence.push(parseInt(sequenceStr[j]));
 			
 				var afullName = getFullAnimName(name, aName);
-				spriteSheetList[newSprite.sheetID].addAnimation(afullName, sequence, interval);
+				spriteSheetList[newSpriteModule.sheetID].addAnimation(afullName, sequence, interval);
 				
-				newSprite.animations[aName] = afullName;//store the animation full name
+				newSpriteModule.animations[aName] = afullName;//store the animation full name
 			}//for (var a = 0; a < sprites[i].animations.length; ++a)
 			
-			//insert to sprite list
-			spriteList[name] = newSprite;
+			//insert to sprite module list
+			spriteModuleList[name] = newSpriteModule;
 		}//for (var i = 0; i < sprites.length; ++i)
 	}
 	
@@ -241,37 +246,144 @@ Director.init = function(canvasID, displayWidth, displayHeight, mapFileXML)
 	
 	Director._addEntity = function(entity)
 	{
-		var renderable = new Renderable(entity);
+		var visualEntity = new VisualEntity(entity);
 		
-		renderableList.insertBack(renderable);
+		visualEntityList.insertBack(visualEntity);
 	}
 	
 	//get animation's full name
-	function getFullAnimName(spriteName, animation)
+	function getFullAnimName(spriteModuleName, animation)
 	{
-		return spriteName + "-" + animation;
+		return spriteModuleName + "-" + animation;
 	}
 	
-	function initMap(mapFileXML)
+	//pre-load all images used in the game
+	function preloadImages()
 	{
+		var root = initXmlRequest.responseXML.childNodes[0];
+		var imageGroups = root.getElementsByTagName("images");
+		var images = new Array();
+		
+		for (var i = 0; i < imageGroups.length; ++i)
+		{
+			var imageInfos = imageGroups[i].getElementsByTagName("image");
+			for (var j = 0; j < imageInfos.length; ++j)
+			{
+				var image = {
+					id: imageInfos[j].getAttribute("id"),
+					url: imageInfos[j].getAttribute("url")
+				};
+				
+				images.push(image);
+			}//for (var j = 0; j < imageInfos.length; ++j)
+		}//for (var i = 0; i < imageGroups.length; ++i)
+		
+		new CAAT.ImagePreloader().loadImages(
+			images,
+			function (counter, images) {
+				if (counter == images.length)
+				{
+					//finish loading
+					caatDirector.setImagesCache(images);
+					
+					//init map
+					initMap();
+								
+					//now the Director is ready to be used
+					onInitFinished();
+				}
+			}
+		);
+	}
+	
+	function initMap()
+	{
+		var root = initXmlRequest.responseXML.childNodes[0];
+		var mapFileElems = root.getElementsByTagName("mapFile");
+		var mapFile = mapFileElems[0].childNodes[0].nodeValue;//get map file name
+		
 		var Connect = new XMLHttpRequest();
+ 
 		// define which file to open and
 		// send the request.
-		Connect.open("GET", mapFileXML, false);
+		Connect.open("GET", mapFile, false);
 		Connect.setRequestHeader("Content-Type", "text/xml");
 		Connect.send(null);
 
 		var map = Connect.responseXML.childNodes[0];
+		
 		var width = parseInt(map.getAttribute("width"));
 		var height = parseInt(map.getAttribute("height"));
+		var backgroundImgID = map.getAttribute("background");
+		var tilesMapStr = map.getElementsByTagName("tilesMap")[0].childNodes[0].nodeValue;
+		var tilesPerRow = parseInt(map.getAttribute("tilesPerRow"));
+		var tilesPerCol = parseInt(map.getAttribute("tilesPerCol"));
+		var tilesInfo = map.getElementsByTagName("tilesInfo")[0];
 		
+		/*----------boundary-------*/
 		//set boundary
 		bg.setBounds(0,0,width,height);
+		bg.setSize(width,height);
 		//physics boundary
 		initPhysicsBounds(width,height);
 		
+		/*----background-----------*/
+		if (backgroundImgID != null)
+		{
+			var spriteSheet = createSpriteSheet(backgroundImgID, 1, 1);
+			bg.setBackgroundImage(spriteSheet, false);
+			
+			bg.paint = function(director, time) {
+				if (this.backgroundImage) {
+					this.backgroundImage.paintScaled(director, time, 0, 0);//require the sprite image to draw using actor's size
+				}
+			}
+		}
+		
+		/*---init the tiles on the map------*/
+		initTiles(tilesMapStr, tilesPerRow, tilesPerCol, tilesInfo);
 	}
 	
+	function initTiles(tileMapStr, tilesPerRow, tilesPerCol, tilesInfo) {
+		//init tileSheet
+		var tileSheet = tilesInfo.getElementsByTagName("tileSheet")[0];
+		var tileSheetCellsPerRow = parseInt(tileSheet.getAttribute("tilesPerRow"));
+		var tileSheetCellsPerCol = parseInt(tileSheet.getAttribute("tilesPerCol"));
+		var tileSheetImg = tileSheet.getAttribute("imgID");
+		var tileSpriteSheet = createSpriteSheet(tileSheetImg, tileSheetCellsPerCol, tileSheetCellsPerRow );
+		
+		//init tile types
+		var tileTypes = new Array();
+		var tileTypeInfos = tilesInfo.getElementsByTagName("tileType");
+		for (var i = 0; i < tileTypeInfos.length; ++i)
+		{
+			var typeID = tileTypeInfos[i].getAttribute("id");
+			var tileType = {
+				sheetImgIdx: parseInt(tileTypeInfos[i].getAttribute("tileSheetIdx")),
+				isObstacle: tileTypeInfos[i].getAttribute("obstacle") == "true"
+			};
+			
+			tileTypes[typeID] = tileType;//put to the list
+		}//for (var i = 0; i < tileTypeInfos.length; ++i)
+		
+		//now init the tiles in the map
+		var tileWidth = bg.width / tilesPerRow;
+		var tileHeight = bg.height / tilesPerCol;
+		var rows = tileMapStr.split(/[\s\W]+/);
+		if (rows[0].length == 0)
+			rows.shift();
+		for (var row = 0; row < tilesPerCol; ++row)
+		{
+			for (var col = 0; col < tilesPerRow; ++col)
+			{
+				var tileID = rows[row].charAt(col);
+				if (tileTypes[tileID] != undefined)
+					createTile(row * tileWidth, col * tileHeight, tileWidth, tileHeight, tileTypes[tileID], tileSpriteSheet);
+			}//for (var col = 0; col < tilesPerRow; ++col)
+		}//for (var row = 0; row < tilesPerCol; ++row)
+	}
+	
+	//init the world boundary
 	function initPhysicsBounds(width, height) {
 		var boundBodyDef = new b2BodyDef;
 		boundBodyDef.type = b2Body.b2_staticBody;
@@ -296,40 +408,107 @@ Director.init = function(canvasID, displayWidth, displayHeight, mapFileXML)
 		worldBound.CreateFixture(boundFixDef);
 	}
 	
-	/*----------------Renderable----------*/
-	Renderable = function(_entity)
+	function createTile(x, y, width, height, tileType, tileSpriteSheet)
 	{
-		var caatActor;//visual part of the entity
+		/*
+		var tileType = {
+				sheetImgIdx: <integer>,
+				isObstacle: <boolean>
+			};
+		*/
+		var visualTile = new Renderable(tileSpriteSheet);
+		visualTile.setBounds(x, y, width, height);
+		visualTile.setSpriteIndex(tileType.sheetImgIdx);
+		
+		if (tileType.isObstacle)//need to create physical obstacle object
+		{
+			var bodyDef = new b2BodyDef;
+			bodyDef.type = b2Body.b2_staticBody;
+			bodyDef.angle = 0;
+			bodyDef.allowSleep = false;
+			//position
+			bodyDef.position.x = x + width * 0.5;
+			bodyDef.position.y = y + height * 0.5;
+			
+			var physicalTile = Director._getPhysicsWorld().CreateBody(bodyDef);//create body object
+
+			/*------create the box shape of body-----------*/
+			var fixDef = new b2FixtureDef;
+			fixDef.density = 1.0;
+			fixDef.friction = 1.0;
+			fixDef.restitution = 1.0;
+			fixDef.isSensor = false;
+			var shape = new b2PolygonShape ;
+			shape.SetAsBox(width * 0.5, height * 0.5);
+			fixDef.shape = shape;
+			
+			physicalTile.CreateFixture(fixDef);//add this shape to the body
+		}
+	}
+	
+	function createSpriteSheet(imgID, subImgsPerRow, subImgsPerCol) {
+		var spriteSheet = new CAAT.Foundation.SpriteImage().
+						initialize(caatDirector.getImage(imgID), subImgsPerRow, subImgsPerCol );
+		return spriteSheet;
+	}
+	/*----------------Renderable (extends CAAT.Foundation.Actor)----------*/
+	function Renderable(spriteSheet)
+	{
+		if (spriteSheet == undefined)
+			return;
+		//call super class constructor
+		CAAT.Foundation.Actor.call(this);
+		
+		//add to the scene
+		bg.addChild(this);
+		
+		//indicate that this actor will use the image <spriteSheet> to draw its background
+		this.setBackgroundImage(spriteSheet, false);
+	}
+	//inheritance from CAAT.Foundation.Actor
+	Renderable.prototype = new CAAT.Foundation.Actor();
+	Renderable.prototype.constructor = Renderable;
+	
+	Renderable.prototype.paint = function(director, time) {
+		if (this.backgroundImage) {
+			this.backgroundImage.paintScaled(director, time, 0, 0);//require the sprite image to draw using actor's size
+		}
+	}
+
+	/*----------------VisualEntity (extends Renderable) - visual part of an entity----------*/
+	function VisualEntity(_entity)
+	{
 		var entity;//related entity
 		
 		entity = _entity;
-		//create caat actor
-		var sprite = spriteList[entity.getSpriteName()];
-		var spriteSheet = spriteSheetList[sprite.sheetID];
+		
+		var spriteModule = spriteModuleList[entity.getSpriteModuleName()];
+		var spriteSheet = spriteSheetList[spriteModule.sheetID];
 	
-		caatActor = new CAAT.Foundation.Actor();
-		//caatActor.setSize(entity.getWidth(), entity.getHeight());
-		caatActor.setBackgroundImage(spriteSheet, true);//indicate that this actor will use the image <spriteSheet>
-		caatActor.playAnimation(sprite.animations["normal"]);//play the animation named "normal"
-		caatActor.setScale(entity.getWidth() / caatActor.width, entity.getHeight() / caatActor.height);
+		//call super class constructor
+		Renderable.call(this, spriteSheet);
+		this.setSize(entity.getWidth(), entity.getHeight());
+		this.playAnimation(spriteModule.animations["normal"]);//play the animation named "normal"
+		//caatActor.setScale(entity.getWidth() / caatActor.width, entity.getHeight() / caatActor.height);
 		
-		entity.visualPart = caatActor;//now the entity will know what is its visual part
-		
-		// add it to the scene
-		bg.addChild(caatActor);
+		entity.visualPart = this;//now the entity will know what is its visual part
 		
 		//let the visual part change to reflect its physical counterpart
-		this.commitChange = function(elapsedTime)
+		this.commitChanges = function(elapsedTime)
 		{
 			//change the visual position to reflect the physical part
 			var bodyPos = entity.getPosition();
-			caatActor.centerAt(bodyPos.x , bodyPos.y );	
+			this.centerAt(bodyPos.x , bodyPos.y );	
 		}
 		
-		this.getEnity = function(){
+		this.getEntity = function(){
 			return entity;
 		}
 	}//Renderable = function(entity)
+	
+	//inheritance from Renderable
+	VisualEntity.prototype = new Renderable();
+	VisualEntity.prototype.constructor = VisualEntity;
 }
 
 

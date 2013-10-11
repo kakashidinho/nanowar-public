@@ -2,13 +2,11 @@
 	
 function start() {
 	
-	Director.init("canvas", 600, 600, "map.xml");
-	
-	Director.initSpritesFromXML("sprites.xml");
+	Director.initSpriteModulesFromXML("sprites.xml");
 	
 	//create cell & virus object
-	var cell = new WarriorCell(150, 150);
-	cell.startMoveTo(300, 0);
+	var cell = new WarriorCell(200, 300);
+	cell.startMoveTo(300, 600);
 	
 	var virus = new LeechVirus(300, 300);
 	
@@ -26,7 +24,12 @@ function start() {
 }
 
 
-setTimeout(function() {start(); }, 500);
+setTimeout(function() {
+	//init director
+	Director.init("canvas", 600, 600, "init.xml", function() {
+		start();//start after the Director has finished its initialization
+	})
+	; }, 500);
 
 
  

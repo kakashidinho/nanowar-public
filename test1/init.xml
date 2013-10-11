@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="ISO-8859-1"?>
+<initialization>
+	<images>
+		<image id="mapBg" url="mapBg.png"/>
+		<image id="sprites1" url="sprites1.png"/>
+		<image id="mapTileSheet1" url="mapTileSheet1.png"/>
+	</images>
+	<mapFile>map.xml</mapFile>
+</initialization>

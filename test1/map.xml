@@ -1,4 +1,41 @@
 <?xml version="1.0" encoding="ISO-8859-1"?>
-<map width="600" height="600">
-	
+<map 	width="600" 
+		height="400" 
+		background="mapBg"
+		tilesPerRow="9"
+		tilesPerCol="9"
+		>
+	<tilesInfo>
+		<tilesMap>
+			111111111
+			100000001
+			100200001
+			100000001
+			100000001
+			100003001
+			100000001
+			100000001
+			111111111
+		</tilesMap>
+		<tileSheet
+			imgID="mapTileSheet1"
+			tilesPerRow="3"
+			tilesPerCol="1"
+		/>
+		<tileType 
+			id="1"
+			tileSheetIdx="0"
+			obstacle="true"
+		/>
+		<tileType 
+			id="2"
+			tileSheetIdx="1"
+			obstacle="true"
+		/>
+		<tileType 
+			id="3"
+			tileSheetIdx="2"
+			obstacle="false"
+		/>
+	</tilesInfo>
 </map>
