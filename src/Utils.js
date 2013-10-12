@@ -97,6 +97,7 @@ Utils.List = function()
 	head = null;
 	last = null;
 	numElements = 0;
+	var that = this;
 	
 	//insert to the front of the list
 	this.insertFront = function(object)
@@ -177,9 +178,9 @@ Utils.List = function()
 	this.removeNode = function(node)
 	{
 		if (node == head)
-			return popFront();
+			return that.popFront();
 		if (node == last)
-			return popBack();
+			return that.popBack();
 		if (node.next != null)
 			node.next.prev = node.prev;
 		if (node.prev != null)

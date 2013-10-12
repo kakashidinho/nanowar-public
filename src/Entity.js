@@ -33,10 +33,7 @@ var NanoEntity = function(_maxhp, _side, _width, _height, _x, _y, _spriteModule)
 	bodyDef.position.x = _x;
 	bodyDef.position.y = _y;
 	
-	this.body = Director._getPhysicsWorld().CreateBody(bodyDef);//create body object
-	this.body.SetUserData(this);
-
-	/*------create the shape of body-----------*/
+	/*------the shape of body-----------*/
 	var fixDef = new b2FixtureDef;
 	fixDef.density = 1.0;
 	fixDef.friction = 1.0;
@@ -49,7 +46,8 @@ var NanoEntity = function(_maxhp, _side, _width, _height, _x, _y, _spriteModule)
 	//shape.m_radius = this.collisionRadius = new b2Vec2(_width * 0.5, _height * 0.5).Length();
 	fixDef.shape = shape;
 	
-	this.body.CreateFixture(fixDef);//add this shape to the body
+	this.body = Director._createPhysicsBody(bodyDef, fixDef);//create body object
+	this.body.SetUserData(this);
 	
 	/*----method definitions-----*/
 	this.getSpriteModuleName = function() {
@@ -135,9 +133,8 @@ var MovingEntity = function(_maxhp, _side, _width, _height, _x, _y, _oripeed, _s
 	//start moving to destination(x, y)
 	this.startMoveTo = function (x, y) {
 		var newDestination = new b2Vec2(x, y);
-		var position = that.getPosition();
 		
-		Director._findPath(that.movingPath, position, newDestination);
+		Director._findPath(that.movingPath, that, newDestination);
 		
 		startMoveToNextPointInPath();
 	}
@@ -166,6 +163,8 @@ var MovingEntity = function(_maxhp, _side, _width, _height, _x, _y, _oripeed, _s
 		
 		if ((distance.x == 0 && distance.y == 0) || (velocity.x * distance.x + velocity.y * distance.y < 0))//already at or pass the destination
 		{
+			//snap the position to the current destination
+			that.body.SetPosition(currentPoint);
 			//remove the current destination in the path
 			that.movingPath.popFront();
 			//start moving to next destination in the path

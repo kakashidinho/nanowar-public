@@ -10,7 +10,8 @@ var   b2Vec2 = Box2D.Common.Math.b2Vec2
 	,	b2PolygonShape = Box2D.Collision.Shapes.b2PolygonShape
 	,	b2CircleShape = Box2D.Collision.Shapes.b2CircleShape
 	,	b2DebugDraw = Box2D.Dynamics.b2DebugDraw
-	, 	b2ContactListener = Box2D.Dynamics.b2ContactListener
+	, 	b2ContactListener = Box2D.Dynamics.b2ContactListener,
+		b2RayCastCallback = Object
 	
 	
 /*-------Director instance-------*/	
@@ -22,6 +23,7 @@ Director.init = function(canvasID, displayWidth, displayHeight, initFileXML, onI
 	//private
 	var caatDirector;
 	var physicsWorld;
+	var walkRayCastCallback;
 	var tiles;
 	var tilesPerRow;
 	var tilesPerCol;
@@ -150,6 +152,16 @@ Director.init = function(canvasID, displayWidth, displayHeight, initFileXML, onI
 	
 	physicsWorld.SetContactListener(contactListener);
 	
+	/*-----------ray cast call back for walking test------------*/
+	walkRayCastCallback = new b2RayCastCallback();
+	walkRayCastCallback.hitObstacle = false;
+	walkRayCastCallback.ReportFixture = function(fixture, point, normal, fraction){
+		if (fixture.GetBody().GetType() == b2Body.b2_staticBody && fraction <= 1.0 && fraction >= 0.0)//hit an obstacle
+		{
+			this.hitObstacle = true;
+		}
+	}
+	
 	/*----------start loading all images needed for the game---------*/
 	preloadImages();
 	
@@ -240,9 +252,13 @@ Director.init = function(canvasID, displayWidth, displayHeight, initFileXML, onI
 	
 	
 	
-	Director._getPhysicsWorld = function()
+	Director._createPhysicsBody = function(bodyDef, fixtureDef)
 	{
-		return physicsWorld;
+		var body = physicsWorld.CreateBody(bodyDef);
+		
+		body.CreateFixture(fixtureDef);
+		
+		return body;
 	}
 	
 	Director._getCAATDirector = function()
@@ -265,9 +281,11 @@ Director.init = function(canvasID, displayWidth, displayHeight, initFileXML, onI
 	{dR: 1, dC: -1}, {dR: 1, dC: 0} , {dR: 1, dC: 1}
 	];
 	
-	Director._findPath = function(path, from, to)
+	Director._findPath = function(path, entity, to)
 	{
 		path.removeAll();//clear the path 
+		
+		var from = entity.getPosition();
 	
 		//find the tile where the <from> is on
 		var rowFrom = Math.floor(from.y / tileHeight); 
@@ -304,7 +322,7 @@ Director.init = function(canvasID, displayWidth, displayHeight, initFileXML, onI
 			if (current == tileTo)
 			{
 				//build the path
-				buildPath(path, cameFrom, tileTo, to);
+				buildPath(path, entity, cameFrom, tileTo, to);
 				return;
 			}
 			
@@ -321,6 +339,7 @@ Director.init = function(canvasID, displayWidth, displayHeight, initFileXML, onI
 				//check if we can reach this neighbor
 				if (neighbor.isObstacle)
 					continue;
+					
 				if (neighborTileOffsets[i].dR != 0 && neighborTileOffsets[i].dC !=0)
 				{
 					//these 2 tiles are diagonal to each other
@@ -335,11 +354,13 @@ Director.init = function(canvasID, displayWidth, displayHeight, initFileXML, onI
 					var neighborH = tiles[neighborRowH][neighborColH];
 					
 					if (neighborV.isObstacle || neighborH.isObstacle)
-						continue;//cannot reach the diagonal neighbor
+						continue;//cannot reach the diagonal neighbor because 2 adjacent tiles are obstacle
 				}
 				
-				//if we can reach this line, it means we can reach this neighbor from the current tile
 				var neighborPoint = neighbor == tileFrom ? from : (neighbor == tileTo)? to : neighbor.center;
+				if (!walkable(entity, currentPoint, neighborPoint))//a more careful check if we can move the body to the neighbor tile
+					continue;
+				
 				var newgscore = gScore[current.hashKey] + distanceSqr(currentPoint, neighborPoint);
 				var newfscore = newgscore + distanceSqr(neighborPoint, to);
 				var oldfscore;
@@ -362,7 +383,7 @@ Director.init = function(canvasID, displayWidth, displayHeight, initFileXML, onI
 		}//while (openSet.getNumElements() > 0)
 	}
 	
-	function buildPath(path, cameFromMap, tileTo, dest)
+	function buildPath(path, entity, cameFromMap, tileTo, dest)
 	{
 		var currentTile = cameFromMap[tileTo.hashKey];
 		var prevTile = cameFromMap[currentTile.hashKey];
@@ -379,6 +400,108 @@ Director.init = function(canvasID, displayWidth, displayHeight, initFileXML, onI
 			prevTile = cameFromMap[currentTile.hashKey];
 			
 		}
+		//refine the path to make it smoother
+		var checkPoint = entity.getPosition();
+		var currentPointNode = path.getFirstNode();
+		
+		while (currentPointNode != null && currentPointNode.next != null)
+		{
+			if (walkable(entity, checkPoint, currentPointNode.next.item))
+			{
+				//make it straight way by removing the midpoint
+				var mid = currentPointNode;
+				currentPointNode = currentPointNode.next;
+				path.removeNode(mid);
+			}
+			else
+			{
+				checkPoint = currentPointNode.item;
+				currentPointNode = currentPointNode.next;
+			}
+		}
+	}
+	
+	function walkable(entity, from, to)
+	{
+		//first box
+		var min1 = new b2Vec2(from.x - entity.getWidth() * 0.5, from.y - entity.getHeight() * 0.5);
+		var max1 = new b2Vec2(min1.x + entity.getWidth(), min1.y + entity.getHeight());
+		
+		//2nd box
+		var min2 = new b2Vec2(to.x - entity.getWidth() * 0.5, to.y - entity.getHeight() * 0.5);
+		var max2 = new b2Vec2(min2.x + entity.getWidth(), min2.y + entity.getHeight());
+		
+		//first and 2nd ray casting test
+		var point11 = new b2Vec2();
+		var point12 = new b2Vec2();
+		var point21 = new b2Vec2();
+		var point22 = new b2Vec2();
+		
+		var dx = to.x - from.x;
+		var dy = to.y - from.y;
+		var dxdy = dx * dy;
+		
+		if (dxdy > 0)
+		{
+			point11.x = max1.x; point11.y = min1.y;
+			point12.x = max2.x; point12.y = min2.y;
+			
+			point21.x = min1.x; point21.y = max1.y;
+			point22.x = min2.x; point22.y = max2.y;
+		}
+		else if (dxdy < 0)
+		{
+			point11.SetV(min1);
+			point12.SetV(min2);
+			point21.SetV(max1);
+			point22.SetV(max2);
+		}
+		else
+		{
+			if (dx == 0)
+			{
+				if (dy < 0)
+				{
+					point11.x = min1.x; point11.y = max1.y;
+					point12.x = min2.x; point12.y = min2.y;
+					
+					point21.x = max1.x; point21.y = max1.y;
+					point22.x = max2.x; point22.y = min2.y;
+				}
+				else {
+					point11.x = min1.x; point11.y = min1.y;
+					point12.x = min2.x; point12.y = max2.y;
+					
+					point21.x = max1.x; point21.y = min1.y;
+					point22.x = max2.x; point22.y = max2.y;
+				}
+			}
+			else
+			{
+				if (dx < 0)
+				{
+					point11.x = max1.x; point11.y = min1.y;
+					point12.x = min2.x; point12.y = min2.y;
+					
+					point21.x = max1.x; point21.y = max1.y;
+					point22.x = min2.x; point22.y = max2.y;
+				}
+				else {
+					point11.x = min1.x; point11.y = min1.y;
+					point12.x = max2.x; point12.y = min2.y;
+					
+					point21.x = min1.x; point21.y = max1.y;
+					point22.x = max2.x; point22.y = max2.y;
+				}
+			}
+		}
+		
+		walkRayCastCallback.hitObstacle = false;
+		physicsWorld.RayCast(walkRayCastCallback, point11, point12);
+		if (!walkRayCastCallback.hitObstacle)
+			physicsWorld.RayCast(walkRayCastCallback, point21, point22);
+			
+		return walkRayCastCallback.hitObstacle == false;
 	}
 	
 	function isValidTile(row, col)
@@ -609,10 +732,8 @@ Director.init = function(canvasID, displayWidth, displayHeight, initFileXML, onI
 			//position
 			bodyDef.position.x = x + width * 0.5;
 			bodyDef.position.y = y + height * 0.5;
-			
-			var physicalTile = Director._getPhysicsWorld().CreateBody(bodyDef);//create body object
 
-			/*------create the box shape of body-----------*/
+			/*------define the box shape of body-----------*/
 			var fixDef = new b2FixtureDef;
 			fixDef.density = 1.0;
 			fixDef.friction = 1.0;
@@ -622,7 +743,7 @@ Director.init = function(canvasID, displayWidth, displayHeight, initFileXML, onI
 			shape.SetAsBox(width * 0.5, height * 0.5);
 			fixDef.shape = shape;
 			
-			physicalTile.CreateFixture(fixDef);//add this shape to the body
+			var physicalTile = Director._createPhysicsBody(bodyDef, fixDef);//create body object
 		}
 	}
 	
