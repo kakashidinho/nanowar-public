@@ -318,7 +318,7 @@ Director.init = function(canvasID, displayWidth, displayHeight, initFileXML, onI
 		while (openSet.getNumElements() > 0)
 		{
 			var current = openSet.getRoot();//the tile with smallest fscore in open set
-			var currentPoint = current == tileFrom? from : current.center;
+			var currentPoint = current.center;
 			if (current == tileTo)
 			{
 				//build the path
@@ -357,7 +357,7 @@ Director.init = function(canvasID, displayWidth, displayHeight, initFileXML, onI
 						continue;//cannot reach the diagonal neighbor because 2 adjacent tiles are obstacle
 				}
 				
-				var neighborPoint = neighbor == tileFrom ? from : (neighbor == tileTo)? to : neighbor.center;
+				var neighborPoint = neighbor.center;
 				if (!walkable(entity, currentPoint, neighborPoint))//a more careful check if we can move the body to the neighbor tile
 					continue;
 				
@@ -385,19 +385,18 @@ Director.init = function(canvasID, displayWidth, displayHeight, initFileXML, onI
 	
 	function buildPath(path, entity, cameFromMap, tileTo, dest)
 	{
-		var currentTile = cameFromMap[tileTo.hashKey];
-		var prevTile = cameFromMap[currentTile.hashKey];
+		var currentTile = cameFromMap[tileTo.hashKey];//the tile leading to the destination tile
 		
 		//first add the destination
 		path.insertFront(dest);
+		//then insert the center point of the destination's tile
+		path.insertFront(tileTo.center);
 		
-		while (prevTile != null)//ignore the tile that has no path leading to it since it is the starting tile
+		while (currentTile != null)
 		{
 			path.insertFront(currentTile.center);
 			
-			currentTile = prevTile;
-			
-			prevTile = cameFromMap[currentTile.hashKey];
+			currentTile = cameFromMap[currentTile.hashKey];
 			
 		}
 		//refine the path to make it smoother
