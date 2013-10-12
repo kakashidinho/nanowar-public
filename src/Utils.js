@@ -28,8 +28,8 @@ Utils.Queue = function()
 	var numElements;
 	
 	//constructor
-	head = undefined;
-	last = undefined;
+	head = null;
+	last = null;
 	numElements = 0;
 	
 	//insert to front of the queue
@@ -37,11 +37,11 @@ Utils.Queue = function()
 	{
 		var newNode = new Object;
 		newNode.item = object,
-		newNode.next = undefined,
-		newNode.prev = undefined;
+		newNode.next = null,
+		newNode.prev = null;
 	
 		newNode.next = head;
-		if (head != undefined)
+		if (head != null)
 			head.prev = newNode;
 		else//this is the first element
 			last = newNode;//last should be this new element too
@@ -58,12 +58,12 @@ Utils.Queue = function()
 			return;
 		if (last == head)
 		{
-			last = undefined;
-			head = undefined;
+			last = null;
+			head = null;
 		}
 		else 
 		{
-			last.prev.next = undefined;
+			last.prev.next = null;
 			last = last.prev;
 		}
 		
@@ -94,8 +94,8 @@ Utils.List = function()
 	var numElements;
 	
 	//constructor
-	head = undefined;
-	last = undefined;
+	head = null;
+	last = null;
 	numElements = 0;
 	
 	//insert to the front of the list
@@ -103,11 +103,11 @@ Utils.List = function()
 	{
 		var newNode = new Object;
 		newNode.item = object,
-		newNode.next = undefined,
-		newNode.prev = undefined;
+		newNode.next = null,
+		newNode.prev = null;
 	
 		newNode.next = head;
-		if (head != undefined)
+		if (head != null)
 			head.prev = newNode;
 		else//this is the first element
 			last = newNode;//last should be this new element too
@@ -122,11 +122,11 @@ Utils.List = function()
 	{
 		var newNode = new Object;
 		newNode.item = object,
-		newNode.next = undefined,
-		newNode.prev = undefined;
+		newNode.next = null,
+		newNode.prev = null;
 	
 		newNode.prev = last;
-		if (last != undefined)
+		if (last != null)
 			last.next = newNode;
 		else//this is the first element
 			head = newNode;//head should be this new element too
@@ -143,12 +143,12 @@ Utils.List = function()
 			return;
 		if (last == head)
 		{
-			last = undefined;
-			head = undefined;
+			last = null;
+			head = null;
 		}
 		else 
 		{
-			last.prev.next = undefined;
+			last.prev.next = null;
 			last = last.prev;
 		}
 		
@@ -162,12 +162,12 @@ Utils.List = function()
 			return;
 		if (last == head)
 		{
-			last = undefined;
-			head = undefined;
+			last = null;
+			head = null;
 		}
 		else 
 		{
-			head.next.prev = undefined;
+			head.next.prev = null;
 			head = head.next;
 		}
 		
@@ -180,11 +180,18 @@ Utils.List = function()
 			return popFront();
 		if (node == last)
 			return popBack();
-		if (node.next != undefined)
+		if (node.next != null)
 			node.next.prev = node.prev;
-		if (node.prev != undefined)
+		if (node.prev != null)
 			node.prev.next = node.next;
 		numElements --;
+	}
+	
+	this.removeAll = function()
+	{
+		head = null;
+		last = null;
+		numElements = 0;
 	}
 	
 	this.getLastNode = function()
@@ -202,17 +209,169 @@ Utils.List = function()
 		return numElements;
 	}
 	
+	this.getFirstElem = function()
+	{
+		if (head == null)
+			return null;
+		return head.item;
+	}
+	
+	this.getLastElem = function()
+	{
+		if (last == null)
+			return null;
+		return last.item;
+	}
+	
 	//traverse through the list
 	this.traverse = function(callbackFunc)
 	{
 		var node = head;
-		while (node != undefined)
+		while (node != null)
 		{
 			callbackFunc(node.item);
 			node = node.next;
 		}
 	}
 }
+
+
+//a binary heap which stores elements in increasing order, the first element is the one which smallest score
+Utils.BinaryHeap = function(_scoreFunction){
+	var content = [];
+	var scoreFunction = _scoreFunction;
+	
+	
+	this.getNumElements = function()
+	{
+		return content.length;
+	}
+	
+	this.insert = function(object)
+	{
+		//insert to the last place
+		var LastIdx = content.length;
+		content.push(object);
+		
+		upHeap();
+	}
+	
+	this.getRoot = function()
+	{
+		if (content.length == 0)
+			return null;
+		return content[0];
+	}
+	
+	//returns removed root
+	this.removeRoot = function()
+	{
+		if (content.length == 0)
+			return null;
+		var removedRoot = content[0];
+		//move the last element to root
+		content[0] = content[content.length - 1];
+		content.pop();
+		
+		if (content.length > 0)
+			downHeap();
+		
+		return removedRoot;
+	}
+	
+	this.doesContain = function(object)
+	{
+		for (var i = 0; i < content.length; ++i)
+		{
+			if (content[i] == object)
+				return true;
+		}
+		
+		return false;
+	}
+	
+	function upHeap()
+	{
+		//start from the last place
+		var idx = content.length - 1;
+		if (idx == 0)//this is the root
+			return;
+		var parentIdx = Math.floor((idx  - 1) / 2);
+		var object = content[idx];
+		var parent = content[parentIdx];
+		
+		while (idx > 0 && scoreFunction(object) < scoreFunction(parent)){
+			//swap parent <-> object
+			content[idx] = parent;
+			content[parentIdx] = object;
+			
+			//move to next upper level
+			idx = parentIdx;
+			parentIdx = Math.floor((idx  - 1) / 2);
+			if (idx > 0)
+			{
+				object = content[idx];
+				parent = content[parentIdx];
+			}
+		}
+	}
+	
+	function downHeap() {
+		var idx = 0;//start from the root
+		var _notBreak = true;
+		
+		
+		while (_notBreak){
+			var _2idx =  2 * idx;
+			var c1Idx = _2idx + 1;
+			var c2Idx = _2idx + 2;
+			var object = content[idx];
+			var parentScore = scoreFunction(object);
+			var childScore = -1;
+			var childIdxToSwap = -1;
+			var childToSwap = null;
+			//compare with 1st child
+			if (c1Idx < content.length)
+			{
+				var child1 = content[c1Idx];
+				var childScore1 = scoreFunction(child1);
+				if (childScore1 < parentScore)
+				{
+					//will swap with this child
+					childIdxToSwap = c1Idx;
+					childToSwap = child1;
+					childScore = childScore1;
+				}
+			}
+			
+			//compare with 2nd child
+			if (c2Idx < content.length){
+				var child2 = content[c2Idx];
+				var childScore2 = scoreFunction(child2);
+				if (childScore2 < (childToSwap == null? parentScore : childScore))
+				{
+					//will swap with this child
+					childIdxToSwap = c2Idx;
+					childToSwap = child2;
+				}
+			}
+		
+			if (childToSwap != null)
+			{
+				//swap parent <-> child
+				content[idx] = childToSwap;
+				content[childIdxToSwap] = object;
+				
+				//move to next lower level
+				idx = childIdxToSwap;
+			}
+			else
+				_notBreak = false;//stop now
+		}
+	}
+}
+
+/*------------end code from eloquentjavascript.net---*/
 
 // For node.js require
 global.Utils = Utils;
