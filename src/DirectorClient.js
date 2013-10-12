@@ -208,7 +208,7 @@ Director.init = function(canvasID, displayWidth, displayHeight, initFileXML, onI
 			var cellsPerRow = parseInt(sheet.getAttribute("cellsPerRow"));
 			var cellsPerCol = parseInt(sheet.getAttribute("cellsPerCol"));
 			//load image and create CAAT's sprite
-			spriteSheetList[id] = createSpriteSheet(imgID, cellsPerRow, cellsPerCol );
+			spriteSheetList[id] = createSpriteSheet(imgID, cellsPerCol, cellsPerRow );
 		}
 		
 		//get list of sprite modules

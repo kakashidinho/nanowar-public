@@ -2,9 +2,9 @@
 <sprites>
 	<spriteSheet 
 		id="sprites1" 
-		imgID="sprites1"
+		imgID="sprites2"
 		cellsPerRow="2" 
-		cellsPerCol="2">
+		cellsPerCol="4">
 	</spriteSheet>
 	<spriteModule 
 		name = "WarriorCell"
@@ -12,8 +12,8 @@
 		>
 		<animation 
 			name="normal"
-			sequence="0"
-			interval="500"
+			sequence="0,1"
+			interval="200"
 			loop="true"
 			/>
 	</spriteModule>
@@ -23,8 +23,8 @@
 		>
 		<animation 
 			name="normal"
-			sequence="1"
-			interval="500"
+			sequence="4,5,6,7"
+			interval="200"
 			loop="true"
 			/>
 	</spriteModule>

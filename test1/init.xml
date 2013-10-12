@@ -3,6 +3,7 @@
 	<images>
 		<image id="mapBg" url="mapBg.png"/>
 		<image id="sprites1" url="sprites1.png"/>
+		<image id="sprites2" url="sprites2.png"/>
 		<image id="mapTileSheet1" url="mapTileSheet1.png"/>
 	</images>
 	<mapFile>map.xml</mapFile>
