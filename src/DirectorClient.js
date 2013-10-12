@@ -22,6 +22,11 @@ Director.init = function(canvasID, displayWidth, displayHeight, initFileXML, onI
 	//private
 	var caatDirector;
 	var physicsWorld;
+	var tiles;
+	var tilesPerRow;
+	var tilesPerCol;
+	var tileWidth;
+	var tileHeight;
 	var spriteSheetList;
 	var spriteModuleList;
 	var visualEntityList;
@@ -69,7 +74,8 @@ Director.init = function(canvasID, displayWidth, displayHeight, initFileXML, onI
 		var currentTime = Utils.getTimestamp();
 		if (lastUpdateTime == -1)
 			lastUpdateTime = currentTime;
-		physicsWorld.Step((currentTime - lastUpdateTime)/1000.0, 1, 1);//update physics world
+		//physicsWorld.Step((currentTime - lastUpdateTime)/1000.0, 1, 1);//update physics world
+		physicsWorld.Step(1 / 60.0, 1, 1);//update physics world
 		
 		if (Director.onUpdate != undefined)//call update callback function
 			Director.onUpdate(lastUpdateTime, currentTime);
@@ -251,6 +257,161 @@ Director.init = function(canvasID, displayWidth, displayHeight, initFileXML, onI
 		visualEntityList.insertBack(visualEntity);
 	}
 	
+	//find the shortest path using A* algorithm. 
+	//return a list of points needed to move to along the path through <path> parameter
+	var neighborTileOffsets = [
+	{dR: -1, dC: -1}, {dR: -1, dC: 0} , {dR: -1, dC: 1},
+	{dR: 0, dC: -1}, {dR: 0, dC: 1},
+	{dR: 1, dC: -1}, {dR: 1, dC: 0} , {dR: 1, dC: 1}
+	];
+	
+	Director._findPath = function(path, from, to)
+	{
+		path.removeAll();//clear the path 
+	
+		//find the tile where the <from> is on
+		var rowFrom = Math.floor(from.y / tileHeight); 
+		var colFrom = Math.floor(from.x / tileWidth); 
+		var rowTo = Math.floor(to.y / tileHeight); 
+		var colTo = Math.floor(to.x / tileWidth); 
+		if (isValidTile(rowTo, colTo) == false)
+			return;//cannot reach destination
+		var tileFrom = tiles[rowFrom][colFrom];
+		var tileTo = tiles[rowTo][colTo];
+		
+		if (tileFrom == tileTo)//in the same tile
+		{
+			path.insertBack(to);//only one point to move to along the path
+			return;
+		}
+		
+		var closedSet = new Array();//the set of tiles already evaluated
+		var openSet = new Utils.BinaryHeap(function(tile) {return fScore[tile.hashKey];});//the set of tiles to be evaluated
+		var cameFrom = new Array();//map of navigated node
+		
+		var gScore = new Array();//distances from the start to the evaluated tiles
+		var fScore = new Array();//distance from the start plus distance to the destination
+		
+		cameFrom[tileFrom.hashKey] = null;
+		openSet.insert(tileFrom);
+		gScore[tileFrom.hashKey] = 0;
+		fScore[tileFrom.hashKey] = distanceSqr(from, to);
+		
+		while (openSet.getNumElements() > 0)
+		{
+			var current = openSet.getRoot();//the tile with smallest fscore in open set
+			var currentPoint = current == tileFrom? from : current.center;
+			if (current == tileTo)
+			{
+				//build the path
+				buildPath(path, cameFrom, tileTo, to);
+				return;
+			}
+			
+			openSet.removeRoot();//remove it from the open set
+			closedSet.push(current);//add it to the closed set
+			//for each neightbor tile
+			for (var i = 0; i < neighborTileOffsets.length; ++i)
+			{
+				var neighborRow = current.row + neighborTileOffsets[i].dR;
+				var neighborCol = current.col + neighborTileOffsets[i].dC;
+				if (isValidTile(neighborRow, neighborCol) == false)
+					continue;
+				var neighbor = tiles[neighborRow][neighborCol];
+				//check if we can reach this neighbor
+				if (neighbor.isObstacle)
+					continue;
+				if (neighborTileOffsets[i].dR != 0 && neighborTileOffsets[i].dC !=0)
+				{
+					//these 2 tiles are diagonal to each other
+					//vertical neighbor
+					var neighborRowV = neighborRow;
+					var neighborColV = current.col;
+					var neighborV = tiles[neighborRowV][neighborColV];
+					
+					//horizontal neighbor
+					var neighborRowH = current.row;
+					var neighborColH = neighborCol;
+					var neighborH = tiles[neighborRowH][neighborColH];
+					
+					if (neighborV.isObstacle || neighborH.isObstacle)
+						continue;//cannot reach the diagonal neighbor
+				}
+				
+				//if we can reach this line, it means we can reach this neighbor from the current tile
+				var neighborPoint = neighbor == tileFrom ? from : (neighbor == tileTo)? to : neighbor.center;
+				var newgscore = gScore[current.hashKey] + distanceSqr(currentPoint, neighborPoint);
+				var newfscore = newgscore + distanceSqr(neighborPoint, to);
+				var oldfscore;
+				if (closedSet.indexOf(neighbor) != -1 && newfscore >= (oldfscore = fScore[neighbor.hashKey]))//this path is longer than the one evaluated before
+					continue;
+				
+				var inOpenSet = openSet.doesContain(neighbor);
+				if (!inOpenSet || newfscore < oldfscore)//found a better path
+				{
+					cameFrom[neighbor.hashKey] = current;
+					gScore[neighbor.hashKey] = newgscore;
+					fScore[neighbor.hashKey] = newfscore;
+						
+					if (!inOpenSet)
+						openSet.insert(neighbor);
+				}
+				
+				
+			}//for (var i = 0; i < neighborTileOffsets.length; ++i)
+		}//while (openSet.getNumElements() > 0)
+	}
+	
+	function buildPath(path, cameFromMap, tileTo, dest)
+	{
+		var currentTile = cameFromMap[tileTo.hashKey];
+		var prevTile = cameFromMap[currentTile.hashKey];
+		
+		//first add the destination
+		path.insertFront(dest);
+		
+		while (prevTile != null)//ignore the tile that has no path leading to it since it is the starting tile
+		{
+			path.insertFront(currentTile.center);
+			
+			currentTile = prevTile;
+			
+			prevTile = cameFromMap[currentTile.hashKey];
+			
+		}
+	}
+	
+	function isValidTile(row, col)
+	{
+		return (row < tilesPerCol  && row >= 0 &&
+					col < tilesPerRow && col >=0);
+	}
+	
+	function tilesDistance(tile1, tile2) {
+		var distanceVec = new b2Vec2(tile2.center.x - tile1.center.x, tile2.center.y - tile1.center.y);
+		
+		return distanceVec.Length();
+	}
+	
+	function tilesDistanceSqr(tile1, tile2) {
+		var distanceVec = new b2Vec2(tile2.center.x - tile1.center.x, tile2.center.y - tile1.center.y);
+		
+		return distanceVec.x * distanceVec.x + distanceVec.y * distanceVec.y;
+	}
+	
+	function tileDistanceToPtSqr(tile, point) {
+		var distanceVec = new b2Vec2(point.x - tile.center.x, point.y - tile.center.y);
+		
+		return distanceVec.x * distanceVec.x + distanceVec.y * distanceVec.y;
+	}
+	
+	function distanceSqr(point1, point2)
+	{
+		var distanceVec = new b2Vec2(point2.x - point1.x, point2.y - point1.y);
+		
+		return distanceVec.x * distanceVec.x + distanceVec.y * distanceVec.y;
+	}
+	
 	//get animation's full name
 	function getFullAnimName(spriteModuleName, animation)
 	{
@@ -316,9 +477,9 @@ Director.init = function(canvasID, displayWidth, displayHeight, initFileXML, onI
 		var height = parseInt(map.getAttribute("height"));
 		var backgroundImgID = map.getAttribute("background");
 		var tilesMapStr = map.getElementsByTagName("tilesMap")[0].childNodes[0].nodeValue;
-		var tilesPerRow = parseInt(map.getAttribute("tilesPerRow"));
-		var tilesPerCol = parseInt(map.getAttribute("tilesPerCol"));
 		var tilesInfo = map.getElementsByTagName("tilesInfo")[0];
+		tilesPerRow = parseInt(map.getAttribute("tilesPerRow"));
+		tilesPerCol = parseInt(map.getAttribute("tilesPerCol"));
 		
 		/*----------boundary-------*/
 		//set boundary
@@ -341,10 +502,10 @@ Director.init = function(canvasID, displayWidth, displayHeight, initFileXML, onI
 		}
 		
 		/*---init the tiles on the map------*/
-		initTiles(tilesMapStr, tilesPerRow, tilesPerCol, tilesInfo);
+		initTiles(tilesMapStr, tilesInfo);
 	}
 	
-	function initTiles(tileMapStr, tilesPerRow, tilesPerCol, tilesInfo) {
+	function initTiles(tileMapStr, tilesInfo) {
 		//init tileSheet
 		var tileSheet = tilesInfo.getElementsByTagName("tileSheet")[0];
 		var tileSheetCellsPerRow = parseInt(tileSheet.getAttribute("tilesPerRow"));
@@ -367,18 +528,20 @@ Director.init = function(canvasID, displayWidth, displayHeight, initFileXML, onI
 		}//for (var i = 0; i < tileTypeInfos.length; ++i)
 		
 		//now init the tiles in the map
-		var tileWidth = bg.width / tilesPerRow;
-		var tileHeight = bg.height / tilesPerCol;
+		tiles = new Array();
+		tileWidth = bg.width / tilesPerRow;
+		tileHeight = bg.height / tilesPerCol;
 		var rows = tileMapStr.split(/[\s\W]+/);
 		if (rows[0].length == 0)
 			rows.shift();
 		for (var row = 0; row < tilesPerCol; ++row)
 		{
+			tiles[row] = new Array();
+			
 			for (var col = 0; col < tilesPerRow; ++col)
 			{
 				var tileID = rows[row].charAt(col);
-				if (tileTypes[tileID] != undefined)
-					createTile(row * tileWidth, col * tileHeight, tileWidth, tileHeight, tileTypes[tileID], tileSpriteSheet);
+				createTile(row, col, tileTypes[tileID], tileSpriteSheet);
 			}//for (var col = 0; col < tilesPerRow; ++col)
 		}//for (var row = 0; row < tilesPerCol; ++row)
 	}
@@ -408,7 +571,7 @@ Director.init = function(canvasID, displayWidth, displayHeight, initFileXML, onI
 		worldBound.CreateFixture(boundFixDef);
 	}
 	
-	function createTile(x, y, width, height, tileType, tileSpriteSheet)
+	function createTile(row, col, tileType, tileSpriteSheet)
 	{
 		/*
 		var tileType = {
@@ -416,6 +579,23 @@ Director.init = function(canvasID, displayWidth, displayHeight, initFileXML, onI
 				isObstacle: <boolean>
 			};
 		*/
+		
+		var x = col * tileWidth;
+		var y = row * tileHeight;
+		var width = tileWidth;
+		var height = tileHeight;
+		
+		//store info of the tile (its row, column, center point and is obstacle or not)
+		tiles[row][col] = {
+			row: row, col: col, 
+			center: new b2Vec2(x + 0.5 * width, y + 0.5 * height),
+			isObstacle: tileType == undefined ? false : tileType.isObstacle,//this tile allow walking through or not
+			hashKey: row * tilesPerRow + col
+			};
+		
+		if (tileType == undefined)
+			return;//no need to create visual tile
+		
 		var visualTile = new Renderable(tileSpriteSheet);
 		visualTile.setBounds(x, y, width, height);
 		visualTile.setSpriteIndex(tileType.sheetImgIdx);

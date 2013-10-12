@@ -119,9 +119,7 @@ var MovingEntity = function(_maxhp, _side, _width, _height, _x, _y, _oripeed, _s
 {
 	this.maxSpeed;//original speed. (in units per second)
 	this.currentSpeed;//current speed (may be slower than original speed or faster)
-	this.destination;//movement destination
-	
-	var noDestination;
+	this.movingPath;//the path this entity has to follow
 	
 	var that = this;
 	/*--------constructor---------*/
@@ -132,24 +130,16 @@ var MovingEntity = function(_maxhp, _side, _width, _height, _x, _y, _oripeed, _s
 	this.body.SetType(b2Body.b2_dynamicBody);
 
 	this.originalSpeed = this.currentSpeed = _oripeed;
-	this.destination = new b2Vec2(_x, _y);
-	
-	noDestination = true;//currently has no destination
+	this.movingPath = new Utils.List();
 	
 	//start moving to destination(x, y)
 	this.startMoveTo = function (x, y) {
-		that.destination.x = x;
-		that.destination.y = y;
-		
+		var newDestination = new b2Vec2(x, y);
 		var position = that.getPosition();
-		var velocity = new b2Vec2(that.destination.x - position.x, that.destination.y - position.y);
 		
-		velocity.Normalize();
-		velocity.Multiply(that.currentSpeed);
+		Director._findPath(that.movingPath, position, newDestination);
 		
-		that.body.SetLinearVelocity(velocity);
-		
-		noDestination = false;//now we have a destination
+		startMoveToNextPointInPath();
 	}
 	
 	//start moving along the direction (x, y)
@@ -161,27 +151,25 @@ var MovingEntity = function(_maxhp, _side, _width, _height, _x, _y, _oripeed, _s
 		
 		that.body.SetLinearVelocity(velocity);
 		
-		noDestination = true;//we have started moving without destination
+		that.removeDestination();//we have started moving without destination
 	}
 	
-	//stop the entity if it already at its destination. If this method isn't called, this entity may move forever
-	this.stopIfAtDest = function()
+	this.updateMovement = function()
 	{
-		if (noDestination)//if currently moving without destination
+		var currentPoint = that.movingPath.getFirstElem();
+		if (currentPoint == null)
 			return;
 		
 		var position = that.getPosition();
-		var distance = new b2Vec2(that.destination.x - position.x, that.destination.y - position.y);
+		var distance = new b2Vec2(currentPoint.x - position.x, currentPoint.y - position.y);
 		var velocity = that.body.GetLinearVelocity();
 		
 		if ((distance.x == 0 && distance.y == 0) || (velocity.x * distance.x + velocity.y * distance.y < 0))//already at or pass the destination
 		{
-			//stop
-			that.body.SetPosition(that.destination);
-			that.body.SetLinearVelocity(new b2Vec2(0, 0));
-			
-			
-			noDestination = true;//now we have no destination again, because we already reached it
+			//remove the current destination in the path
+			that.movingPath.popFront();
+			//start moving to next destination in the path
+			startMoveToNextPointInPath();
 		}
 		
 	}
@@ -189,12 +177,9 @@ var MovingEntity = function(_maxhp, _side, _width, _height, _x, _y, _oripeed, _s
 	//stop moving
 	this.stop = function()
 	{
-		var position = that.getPosition();
-		that.destination.SetV(position);
-		
 		that.body.SetLinearVelocity(new b2Vec2(0, 0));
 		
-		noDestination = true;
+		that.removeDestination();
 	}
 	
 	//start move backward
@@ -204,25 +189,25 @@ var MovingEntity = function(_maxhp, _side, _width, _height, _x, _y, _oripeed, _s
 		
 		that.body.SetLinearVelocity(new b2Vec2(-velocity.x, -velocity.y));
 		
-		noDestination = true;
+		that.removeDestination();
 	}
 	
 	//get destination
 	this.getDestination = function()
 	{
-		if (noDestination)//no destination
+		if (that.movingPath.getNumElements() == 0)//no destination
 		{
 			//the destination is current position itself
 			var position = that.getPosition();
-			that.destination.SetV(position);
+			return position;
 		}
-		return that.destination;
+		return that.movingPath.getLastElem();//destination is the last point in our moving path
 	}
 	
 	//make the entity move without any destination
 	this.removeDestination = function()
 	{
-		noDestination = true;
+		that.movingPath.removeAll();
 	}
 	
 	this.isMoving = function()
@@ -236,6 +221,23 @@ var MovingEntity = function(_maxhp, _side, _width, _height, _x, _y, _oripeed, _s
 	this.getSpeed = function()
 	{
 		return that.currentSpeed;
+	}
+	
+	function startMoveToNextPointInPath()
+	{
+		var nextPoint = that.movingPath.getFirstElem();
+		if (nextPoint == null)
+		{
+			that.stop();
+			return;
+		}
+		var position = that.getPosition();
+		var velocity = new b2Vec2(nextPoint.x - position.x, nextPoint.y - position.y);
+		
+		velocity.Normalize();
+		velocity.Multiply(that.currentSpeed);
+		
+		that.body.SetLinearVelocity(velocity);
 	}
 }
 
