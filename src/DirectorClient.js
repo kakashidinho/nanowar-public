@@ -140,11 +140,11 @@ Director.init = function(canvasID, displayWidth, displayHeight, initFileXML, onI
 		var bodyB = contact.GetFixtureB().GetBody();
 		var entityA = bodyA.GetUserData();
 		var entityB = bodyB.GetUserData();
-		if (bodyA.GetType() == b2Body.b2_dynamicBody)//A is moving object
+		if (bodyA.GetType() == b2Body.b2_dynamicBody && bodyB.GetType() == b2Body.b2_staticBody)//A is moving object
 		{
 			entityA.stop();//stop
 		}//if (bodyA.GetType() == b2Body.b2_dynamicBody)
-		if (bodyB.GetType() == b2Body.b2_dynamicBody)//B is moving object
+		if (bodyB.GetType() == b2Body.b2_dynamicBody && bodyA.GetType() == b2Body.b2_staticBody)//B is moving object
 		{
 			entityB.stop();//stop
 		}//if (bodyB.GetType() == b2Body.b2_dynamicBody)
@@ -722,6 +722,7 @@ Director.init = function(canvasID, displayWidth, displayHeight, initFileXML, onI
 		var visualTile = new Renderable(tileSpriteSheet);
 		visualTile.setBounds(x, y, width, height);
 		visualTile.setSpriteIndex(tileType.sheetImgIdx);
+		visualTile.enableEvents(false);
 		
 		if (tileType.isObstacle)//need to create physical obstacle object
 		{
