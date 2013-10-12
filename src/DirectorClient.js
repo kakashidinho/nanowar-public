@@ -312,8 +312,8 @@ Director.init = function(canvasID, displayWidth, displayHeight, initFileXML, onI
 		
 		cameFrom[tileFrom.hashKey] = null;
 		openSet.insert(tileFrom);
-		gScore[tileFrom.hashKey] = 0;
-		fScore[tileFrom.hashKey] = distanceSqr(from, to);
+		gScore[tileFrom.hashKey] = distanceSqr(from, tileFrom.center);
+		fScore[tileFrom.hashKey] = gScore[tileFrom.hashKey] + distanceSqr(tileFrom.center, to);
 		
 		while (openSet.getNumElements() > 0)
 		{
