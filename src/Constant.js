@@ -6,4 +6,5 @@ var Constant = {
 	VIRUS_SIZE: 40
 };
 
-global.Constant = Constant;
+if (typeof global != 'undefined')
+	global.Constant = Constant;

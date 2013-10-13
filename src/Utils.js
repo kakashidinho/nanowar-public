@@ -284,6 +284,7 @@ Utils.BinaryHeap.prototype.removeRoot = function()
 
 Utils.BinaryHeap.prototype.doesContain = function(object)
 {
+	//inefficient way
 	for (var i = 0; i < this.content.length; ++i)
 	{
 		if (this.content[i] == object)
@@ -374,4 +375,5 @@ Utils.BinaryHeap.prototype.downHeap = function() {
 }
 
 // For node.js require
-global.Utils = Utils;
+if (typeof global != 'undefined')
+	global.Utils = Utils;
