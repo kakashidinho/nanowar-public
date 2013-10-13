@@ -23,356 +23,355 @@ if (typeof window === "undefined") {
 //queue
 Utils.Queue = function()
 {
-	var head;//head element
-	var last;//last element
-	var numElements;
+	this.head;//head element
+	this.last;//last element
+	this.numElements;
 	
 	//constructor
-	head = null;
-	last = null;
-	numElements = 0;
+	this.head = null;
+	this.last = null;
+	this.numElements = 0;
 	
-	//insert to front of the queue
-	this.insert = function(object)
-	{
-		var newNode = new Object;
-		newNode.item = object,
-		newNode.next = null,
-		newNode.prev = null;
-	
-		newNode.next = head;
-		if (head != null)
-			head.prev = newNode;
-		else//this is the first element
-			last = newNode;//last should be this new element too
-			
-		head = newNode;
+}
+
+
+//insert to front of the queue
+Utils.Queue.prototype.insert = function(object)
+{
+	var newNode = new Object;
+	newNode.item = object,
+	newNode.next = null,
+	newNode.prev = null;
+
+	newNode.next = this.head;
+	if (this.head != null)
+		this.head.prev = newNode;
+	else//this is the first element
+		this.last = newNode;//this.last should be this new element too
 		
-		numElements++;
+	this.head = newNode;
+	
+	this.numElements++;
+}
+
+//remove the this.last element from the queue
+Utils.Queue.prototype.popLast = function()
+{
+	if (this.numElements == 0)
+		return;
+	if (this.last == this.head)
+	{
+		this.last = null;
+		this.head = null;
+	}
+	else 
+	{
+		this.last.prev.next = null;
+		this.last = this.last.prev;
 	}
 	
-	//remove the last element from the queue
-	this.popLast = function()
-	{
-		if (numElements == 0)
-			return;
-		if (last == head)
-		{
-			last = null;
-			head = null;
-		}
-		else 
-		{
-			last.prev.next = null;
-			last = last.prev;
-		}
-		
-		numElements --;
-	}
-	
-	this.getLastNode = function()
-	{
-		return last;
-	}
-	
-	this.getFirstNode = function()
-	{
-		return head;
-	}
-	
-	this.getNumElements = function()
-	{
-		return numElements;
-	}
+	this.numElements --;
+}
+
+Utils.Queue.prototype.getLastNode = function()
+{
+	return this.last;
+}
+
+Utils.Queue.prototype.getFirstNode = function()
+{
+	return this.head;
+}
+
+Utils.Queue.prototype.getNumElements = function()
+{
+	return this.numElements;
 }
 
 //list 
 Utils.List = function()
 {
-	var head;//head element
-	var last;//last element
-	var numElements;
+	this.head;//this.head element
+	this.last;//this.last element
+	this.numElements;
 	
 	//constructor
-	head = null;
-	last = null;
-	numElements = 0;
-	var that = this;
-	
-	//insert to the front of the list
-	this.insertFront = function(object)
-	{
-		var newNode = new Object;
-		newNode.item = object,
-		newNode.next = null,
-		newNode.prev = null;
-	
-		newNode.next = head;
-		if (head != null)
-			head.prev = newNode;
-		else//this is the first element
-			last = newNode;//last should be this new element too
-			
-		head = newNode;//new node is the head
+	this.head = null;
+	this.last = null;
+	this.numElements = 0;
+}
+
+//insert to the front of the list
+Utils.List.prototype.insertFront = function(object)
+{
+	var newNode = new Object;
+	newNode.item = object,
+	newNode.next = null,
+	newNode.prev = null;
+
+	newNode.next = this.head;
+	if (this.head != null)
+		this.head.prev = newNode;
+	else//this is the first element
+		this.last = newNode;//this.last should be this new element too
 		
-		numElements++;
-	}
+	this.head = newNode;//new node is the this.head
 	
-	//insert to the back of the list
-	this.insertBack = function(object)
-	{
-		var newNode = new Object;
-		newNode.item = object,
-		newNode.next = null,
-		newNode.prev = null;
-	
-		newNode.prev = last;
-		if (last != null)
-			last.next = newNode;
-		else//this is the first element
-			head = newNode;//head should be this new element too
-			
-		last = newNode;//new node is the last node
+	this.numElements++;
+}
+
+//insert to the back of the list
+Utils.List.prototype.insertBack = function(object)
+{
+	var newNode = new Object;
+	newNode.item = object,
+	newNode.next = null,
+	newNode.prev = null;
+
+	newNode.prev = this.last;
+	if (this.last != null)
+		this.last.next = newNode;
+	else//this is the first element
+		this.head = newNode;//this.head should be this new element too
 		
-		numElements++;
+	this.last = newNode;//new node is the this.last node
+	
+	this.numElements++;
+}
+
+//remove the this.last element from the list
+Utils.List.prototype.popBack = function()
+{
+	if (this.numElements == 0)
+		return;
+	if (this.last == this.head)
+	{
+		this.last = null;
+		this.head = null;
+	}
+	else 
+	{
+		this.last.prev.next = null;
+		this.last = this.last.prev;
 	}
 	
-	//remove the last element from the list
-	this.popBack = function()
+	this.numElements --;
+}
+
+//remove the first element from the list
+Utils.List.prototype.popFront = function()
+{
+	if (this.numElements == 0)
+		return;
+	if (this.last == this.head)
 	{
-		if (numElements == 0)
-			return;
-		if (last == head)
-		{
-			last = null;
-			head = null;
-		}
-		else 
-		{
-			last.prev.next = null;
-			last = last.prev;
-		}
-		
-		numElements --;
+		this.last = null;
+		this.head = null;
+	}
+	else 
+	{
+		this.head.next.prev = null;
+		this.head = this.head.next;
 	}
 	
-	//remove the first element from the list
-	this.popFront = function()
+	this.numElements --;
+}
+
+Utils.List.prototype.removeNode = function(node)
+{
+	if (node == this.head)
+		return this.popFront();
+	if (node == this.last)
+		return this.popBack();
+	if (node.next != null)
+		node.next.prev = node.prev;
+	if (node.prev != null)
+		node.prev.next = node.next;
+	this.numElements --;
+}
+
+Utils.List.prototype.removeAll = function()
+{
+	this.head = null;
+	this.last = null;
+	this.numElements = 0;
+}
+
+Utils.List.prototype.getLastNode = function()
+{
+	return this.last;
+}
+
+Utils.List.prototype.getFirstNode = function()
+{
+	return this.head;
+}
+
+Utils.List.prototype.getNumElements = function()
+{
+	return this.numElements;
+}
+
+Utils.List.prototype.getFirstElem = function()
+{
+	if (this.head == null)
+		return null;
+	return this.head.item;
+}
+
+Utils.List.prototype.getLastElem = function()
+{
+	if (this.last == null)
+		return null;
+	return this.last.item;
+}
+
+//traverse through the list
+Utils.List.prototype.traverse = function(callbackFunc)
+{
+	var node = this.head;
+	while (node != null)
 	{
-		if (numElements == 0)
-			return;
-		if (last == head)
-		{
-			last = null;
-			head = null;
-		}
-		else 
-		{
-			head.next.prev = null;
-			head = head.next;
-		}
-		
-		numElements --;
-	}
-	
-	this.removeNode = function(node)
-	{
-		if (node == head)
-			return that.popFront();
-		if (node == last)
-			return that.popBack();
-		if (node.next != null)
-			node.next.prev = node.prev;
-		if (node.prev != null)
-			node.prev.next = node.next;
-		numElements --;
-	}
-	
-	this.removeAll = function()
-	{
-		head = null;
-		last = null;
-		numElements = 0;
-	}
-	
-	this.getLastNode = function()
-	{
-		return last;
-	}
-	
-	this.getFirstNode = function()
-	{
-		return head;
-	}
-	
-	this.getNumElements = function()
-	{
-		return numElements;
-	}
-	
-	this.getFirstElem = function()
-	{
-		if (head == null)
-			return null;
-		return head.item;
-	}
-	
-	this.getLastElem = function()
-	{
-		if (last == null)
-			return null;
-		return last.item;
-	}
-	
-	//traverse through the list
-	this.traverse = function(callbackFunc)
-	{
-		var node = head;
-		while (node != null)
-		{
-			callbackFunc(node.item);
-			node = node.next;
-		}
+		callbackFunc(node.item);
+		node = node.next;
 	}
 }
 
 
 //a binary heap which stores elements in increasing order, the first element is the one which smallest score
 Utils.BinaryHeap = function(_scoreFunction){
-	var content = [];
-	var scoreFunction = _scoreFunction;
+	this.content = [];
+	this.scoreFunction = _scoreFunction;
+}
+
+
+Utils.BinaryHeap.prototype.getNumElements = function()
+{
+	return this.content.length;
+}
+
+Utils.BinaryHeap.prototype.insert = function(object)
+{
+	//insert to the last place
+	var LastIdx = this.content.length;
+	this.content.push(object);
 	
+	this.upHeap();
+}
+
+Utils.BinaryHeap.prototype.getRoot = function()
+{
+	if (this.content.length == 0)
+		return null;
+	return this.content[0];
+}
+
+//returns removed root
+Utils.BinaryHeap.prototype.removeRoot = function()
+{
+	if (this.content.length == 0)
+		return null;
+	var removedRoot = this.content[0];
+	//move the last element to root
+	this.content[0] = this.content[this.content.length - 1];
+	this.content.pop();
 	
-	this.getNumElements = function()
+	if (this.content.length > 0)
+		this.downHeap();
+	
+	return removedRoot;
+}
+
+Utils.BinaryHeap.prototype.doesContain = function(object)
+{
+	for (var i = 0; i < this.content.length; ++i)
 	{
-		return content.length;
+		if (this.content[i] == object)
+			return true;
 	}
 	
-	this.insert = function(object)
-	{
-		//insert to the last place
-		var LastIdx = content.length;
-		content.push(object);
+	return false;
+}
+
+Utils.BinaryHeap.prototype.upHeap = function()
+{
+	//start from the last place
+	var idx = this.content.length - 1;
+	if (idx == 0)//this is the root
+		return;
+	var parentIdx = Math.floor((idx  - 1) / 2);
+	var object = this.content[idx];
+	var parent = this.content[parentIdx];
+	
+	while (idx > 0 && this.scoreFunction(object) < this.scoreFunction(parent)){
+		//swap parent <-> object
+		this.content[idx] = parent;
+		this.content[parentIdx] = object;
 		
-		upHeap();
-	}
-	
-	this.getRoot = function()
-	{
-		if (content.length == 0)
-			return null;
-		return content[0];
-	}
-	
-	//returns removed root
-	this.removeRoot = function()
-	{
-		if (content.length == 0)
-			return null;
-		var removedRoot = content[0];
-		//move the last element to root
-		content[0] = content[content.length - 1];
-		content.pop();
-		
-		if (content.length > 0)
-			downHeap();
-		
-		return removedRoot;
-	}
-	
-	this.doesContain = function(object)
-	{
-		for (var i = 0; i < content.length; ++i)
+		//move to next upper level
+		idx = parentIdx;
+		parentIdx = Math.floor((idx  - 1) / 2);
+		if (idx > 0)
 		{
-			if (content[i] == object)
-				return true;
-		}
-		
-		return false;
-	}
-	
-	function upHeap()
-	{
-		//start from the last place
-		var idx = content.length - 1;
-		if (idx == 0)//this is the root
-			return;
-		var parentIdx = Math.floor((idx  - 1) / 2);
-		var object = content[idx];
-		var parent = content[parentIdx];
-		
-		while (idx > 0 && scoreFunction(object) < scoreFunction(parent)){
-			//swap parent <-> object
-			content[idx] = parent;
-			content[parentIdx] = object;
-			
-			//move to next upper level
-			idx = parentIdx;
-			parentIdx = Math.floor((idx  - 1) / 2);
-			if (idx > 0)
-			{
-				object = content[idx];
-				parent = content[parentIdx];
-			}
-		}
-	}
-	
-	function downHeap() {
-		var idx = 0;//start from the root
-		var _notBreak = true;
-		
-		
-		while (_notBreak){
-			var _2idx =  2 * idx;
-			var c1Idx = _2idx + 1;
-			var c2Idx = _2idx + 2;
-			var object = content[idx];
-			var parentScore = scoreFunction(object);
-			var childScore = -1;
-			var childIdxToSwap = -1;
-			var childToSwap = null;
-			//compare with 1st child
-			if (c1Idx < content.length)
-			{
-				var child1 = content[c1Idx];
-				var childScore1 = scoreFunction(child1);
-				if (childScore1 < parentScore)
-				{
-					//will swap with this child
-					childIdxToSwap = c1Idx;
-					childToSwap = child1;
-					childScore = childScore1;
-				}
-			}
-			
-			//compare with 2nd child
-			if (c2Idx < content.length){
-				var child2 = content[c2Idx];
-				var childScore2 = scoreFunction(child2);
-				if (childScore2 < (childToSwap == null? parentScore : childScore))
-				{
-					//will swap with this child
-					childIdxToSwap = c2Idx;
-					childToSwap = child2;
-				}
-			}
-		
-			if (childToSwap != null)
-			{
-				//swap parent <-> child
-				content[idx] = childToSwap;
-				content[childIdxToSwap] = object;
-				
-				//move to next lower level
-				idx = childIdxToSwap;
-			}
-			else
-				_notBreak = false;//stop now
+			object = this.content[idx];
+			parent = this.content[parentIdx];
 		}
 	}
 }
 
-/*------------end code from eloquentjavascript.net---*/
+Utils.BinaryHeap.prototype.downHeap = function() {
+	var idx = 0;//start from the root
+	var _notBreak = true;
+	
+	
+	while (_notBreak){
+		var _2idx =  2 * idx;
+		var c1Idx = _2idx + 1;
+		var c2Idx = _2idx + 2;
+		var object = this.content[idx];
+		var parentScore = this.scoreFunction(object);
+		var childScore = -1;
+		var childIdxToSwap = -1;
+		var childToSwap = null;
+		//compare with 1st child
+		if (c1Idx < this.content.length)
+		{
+			var child1 = this.content[c1Idx];
+			var childScore1 = this.scoreFunction(child1);
+			if (childScore1 < parentScore)
+			{
+				//will swap with this child
+				childIdxToSwap = c1Idx;
+				childToSwap = child1;
+				childScore = childScore1;
+			}
+		}
+		
+		//compare with 2nd child
+		if (c2Idx < this.content.length){
+			var child2 = this.content[c2Idx];
+			var childScore2 = this.scoreFunction(child2);
+			if (childScore2 < (childToSwap == null? parentScore : childScore))
+			{
+				//will swap with this child
+				childIdxToSwap = c2Idx;
+				childToSwap = child2;
+			}
+		}
+	
+		if (childToSwap != null)
+		{
+			//swap parent <-> child
+			this.content[idx] = childToSwap;
+			this.content[childIdxToSwap] = object;
+			
+			//move to next lower level
+			idx = childIdxToSwap;
+		}
+		else
+			_notBreak = false;//stop now
+	}
+}
 
 // For node.js require
 global.Utils = Utils;
