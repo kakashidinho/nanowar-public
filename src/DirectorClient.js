@@ -303,12 +303,12 @@ Director.init = function(canvasID, displayWidth, displayHeight, initFileXML, onI
 			return;
 		}
 		
-		var closedSet = new Array();//the set of tiles already evaluated
+		var closedSet = new Object();//the set of tiles already evaluated
 		var openSet = new Utils.BinaryHeap(function(tile) {return fScore[tile.hashKey];});//the set of tiles to be evaluated
-		var cameFrom = new Array();//map of navigated node
+		var cameFrom = new Object();//map of navigated node
 		
-		var gScore = new Array();//distances from the start to the evaluated tiles
-		var fScore = new Array();//distance from the start plus distance to the destination
+		var gScore = new Object();//distances from the start to the evaluated tiles
+		var fScore = new Object();//distance from the start plus distance to the destination
 		
 		cameFrom[tileFrom.hashKey] = null;
 		openSet.insert(tileFrom);
@@ -327,7 +327,7 @@ Director.init = function(canvasID, displayWidth, displayHeight, initFileXML, onI
 			}
 			
 			openSet.removeRoot();//remove it from the open set
-			closedSet.push(current);//add it to the closed set
+			closedSet[current.hashKey] = true;//add it to the closed set
 			//for each neightbor tile
 			for (var i = 0; i < neighborTileOffsets.length; ++i)
 			{
@@ -364,7 +364,7 @@ Director.init = function(canvasID, displayWidth, displayHeight, initFileXML, onI
 				var newgscore = gScore[current.hashKey] + distanceSqr(currentPoint, neighborPoint);
 				var newfscore = newgscore + distanceSqr(neighborPoint, to);
 				var oldfscore;
-				if (closedSet.indexOf(neighbor) != -1 && newfscore >= (oldfscore = fScore[neighbor.hashKey]))//this path is longer than the one evaluated before
+				if ((neighbor.hashKey in closedSet) && newfscore >= (oldfscore = fScore[neighbor.hashKey]))//this path is longer than the one evaluated before
 					continue;
 				
 				var inOpenSet = openSet.doesContain(neighbor);
@@ -712,7 +712,7 @@ Director.init = function(canvasID, displayWidth, displayHeight, initFileXML, onI
 			row: row, col: col, 
 			center: new b2Vec2(x + 0.5 * width, y + 0.5 * height),
 			isObstacle: tileType == undefined ? false : tileType.isObstacle,//this tile allow walking through or not
-			hashKey: row * tilesPerRow + col
+			hashKey: (row * tilesPerRow + col).toString()
 			};
 		
 		if (tileType == undefined)
