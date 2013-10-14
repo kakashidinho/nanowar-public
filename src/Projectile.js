@@ -29,20 +29,16 @@ var Projectile = function (_target, width, height, x, y, oriSpeed, spriteModule)
         var _px = _pp.x;
         var _py = _pp.y;
         //change the velocity direction
-        var _pv = new b2Vec2(_tx-_px,_ty-_py);
-        _pv.Normalize();
-        _pv.Multiply(that.currentSpeed);
-        that.body.SetLinearVelocity(_pv);
+     //   var _pv = new b2Vec2(_tx-_px,_ty-_py);
+      //  _pv.Normalize();
+      //  _pv.Multiply(that.currentSpeed);
+        //  that.body.SetLinearVelocity(_pv);
+        that.startMoveDir(_tx - _px, _ty - _py);
     }
 
 
-    this.onHitTarget = function () {
-        //decrease the HP of the target
-        that.Target.decreaseHP(20);
-        //stop the projectile since it hits the target
-        that.stop();
-        //kill the projectile since it hits the target
-        that.setAlive(false);
-    }
+   // this.onHitTarget = function () {
+      
+   // }
 
 }
