@@ -284,13 +284,44 @@ Utils.BinaryHeap.prototype.removeRoot = function()
 
 Utils.BinaryHeap.prototype.doesContain = function(object)
 {
+	/*
+	//inefficient way
 	for (var i = 0; i < this.content.length; ++i)
 	{
 		if (this.content[i] == object)
 			return true;
-	}
+	}*/
+	var objScore = this.scoreFunction(object);
+	if (this.content.length > 0)
+		return this.doesContainInSubTree(0, object, objScore);
+}
+
+Utils.BinaryHeap.prototype.doesContainInSubTree = function(subtreeNodeIdx, object, objScore)
+{
+	var node = this.content[subtreeNodeIdx];
+	var score = this.scoreFunction(node);
 	
-	return false;
+	if (objScore < score)
+		return false;//no way this tree branch can contain this object
+	else if (objScore == score && node == object)
+		return true;
+		
+	var _2idx =  2 * subtreeNodeIdx;
+	var c1Idx = _2idx + 1;
+	var inChildTree = false;
+	//first child
+	if (c1Idx < this.content.length)
+		inChildTree = this.doesContainInSubTree(c1Idx, object, objScore);
+	
+	if (inChildTree)
+		return true;
+	
+	//second child
+	var c2Idx = _2idx + 2;
+	if (c2Idx < this.content.length)
+		inChildTree = this.doesContainInSubTree(c2Idx, object, objScore);
+		
+	return inChildTree;
 }
 
 Utils.BinaryHeap.prototype.upHeap = function()
@@ -373,5 +404,23 @@ Utils.BinaryHeap.prototype.downHeap = function() {
 	}
 }
 
+//testing
+if (false)
+{
+	var heap = new Utils.BinaryHeap(function(a) {return a;});
+	
+	heap.insert(5);
+	heap.insert(4);
+	heap.insert(3);
+	heap.insert(6);
+	heap.insert(6);
+	heap.insert(1);
+	heap.insert(9);
+	
+	var found = heap.doesContain(2);
+	found = heap.doesContain(6);
+}
+
 // For node.js require
-global.Utils = Utils;
+if (typeof global != 'undefined')
+	global.Utils = Utils;
