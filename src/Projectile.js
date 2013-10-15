@@ -55,7 +55,7 @@ var Acid = function (_producer, _target, x, y) {
 
     this.onHitTarget = function () {
 
-        var effect = new AcidEffect();
+        var effect = new AcidEffect(that.producer);
         this.Target.addEffect(effect);
 
 
