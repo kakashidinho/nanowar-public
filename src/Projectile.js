@@ -28,17 +28,45 @@ var Projectile = function (_target, width, height, x, y, oriSpeed, spriteModule)
         var _pp = that.getPosition();
         var _px = _pp.x;
         var _py = _pp.y;
-        //change the velocity direction
-     //   var _pv = new b2Vec2(_tx-_px,_ty-_py);
-      //  _pv.Normalize();
-      //  _pv.Multiply(that.currentSpeed);
-        //  that.body.SetLinearVelocity(_pv);
+     
         that.startMoveDir(_tx - _px, _ty - _py);
     }
 
 
-   // this.onHitTarget = function () {
-      
-   // }
+
+}
+
+
+/*-----------Acid class (extends Projectile)--------------*/
+
+var Acid = function (_producer, _target, x, y) {
+    this.producer;
+    
+    var that = this;
+    /*------constructor---------*/
+    //call super class's constructor method
+
+    Projectile.call(this,_target,10,10,x,y,100,"AcidProjectile");
+
+
+
+
+    //call when acid hit the target, new an acideffect, 
+
+    this.onHitTarget = function () {
+
+        var effect = new AcidEffect();
+        this.Target.addEffect(effect);
+
+
+    }
+
+
+
+
+
+
+
+
 
 }
