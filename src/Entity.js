@@ -3,6 +3,8 @@
 
 /*-----------------nano entity class--------------*/
 var NanoEntity = function(_maxhp, _side, _width, _height, _x, _y, _spriteModule) {
+	if (_maxhp == undefined)//this may be called by prototype inheritance
+		return;
 	this.body;//b2Body
 	this.width;//body's width
 	this.height;//body's height
@@ -14,7 +16,6 @@ var NanoEntity = function(_maxhp, _side, _width, _height, _x, _y, _spriteModule)
 	this.effect;
 	this.alive;
 	
-	var that = this;
 	/*---------------------------constructor-------------------------------------*/
 	
 	this.maxHP = this.HP = _maxhp;
@@ -52,107 +53,107 @@ var NanoEntity = function(_maxhp, _side, _width, _height, _x, _y, _spriteModule)
 	this.body = Director._createPhysicsBody(bodyDef, fixDef);//create body object
 	this.body.SetUserData(this);
 	
-	/*----method definitions-----*/
-	this.getSpriteModuleName = function() {
-		return that.spriteModuleName;
-	}
-	
-	this.getHP = function() {
-		return that.HP;
-	}
-	
-	this.getSide = function() {
-		return that.side;
-	}
-	
-	this.getWidth = function() {
-		return that.width;
-	}
-	/*
-	this.getCollisionRadius = function(){
-		return that.collisionRadius;
-	}*/
-	
-	this.getHeight = function() {
-		return that.height;
-	}
-	
-	//return b2Vec2
-	this.getPosition = function() {
-		return that.body.GetPosition();
-	}
-	
-	this.setPosition = function(newPos) {
-		that.body.SetPosition(newPos);
-	}
-	
-	//get distance vector between <anotherPoint> and current position
-	this.distanceVecTo = function(anotherPoint)
-	{
-		var position = that.getPosition();
-		return new b2Vec2(anotherPoint.x - position.x, anotherPoint.y - position.y);
-	}
-	
-	//get distance vector between <entity>'s position and current position
-	this.distanceVecToEntity = function(entity)
-	{
-		return that.distanceVecTo(entity.getPosition());	
-	}
-	
-	this.isAlive = function()
-	{
-		return that.alive;
-	}
-	
-	this.setAlive = function(_alive)
-	{
-		that.alive = _alive;
-	}
-	
-	this.addEffect(effect)
-	{
-		this.effects.insertBack(effect);
-	}
-	
-	this.increaseHP = function(dhp){
-		if (this.HP < this.maxHP){
-			this.HP += dhp;
-			if (this.HP > this.maxHP)
-				this.HP = this.maxHP;
-		}
-	}
-	
-	this.decreaseHP = function(dhp){
-		if (this.HP > 0){
-			this.HP -= dhp;
-			if (this.HP < 0)
-				this.HP = 0;
-		}
-	}
-	
-	function updateEffects(elapsedTime){
-		var node = this.effects. getFirstNode();
-		while (node != null)
-		{
-			if (node.item.affect(this, elapsedTime))
-			{
-				//the duration of effect has ended
-				var del = node;
-				node = node.next;
-				this.effects.removeNode(del);//remove the effect
-			}
-			else
-			{
-				//stick the effect to its affected target
-			    node.item.setPosition(that.getPosition());
-				
-				node = node.next;
-			}
-		}
-	}
-	
 	//add to director's managed list
 	Director._addEntity(this);
+}
+
+/*----method definitions-----*/
+NanoEntity.prototype.getSpriteModuleName = function() {
+	return this.spriteModuleName;
+}
+
+NanoEntity.prototype.getHP = function() {
+	return this.HP;
+}
+
+NanoEntity.prototype.getSide = function() {
+	return this.side;
+}
+
+NanoEntity.prototype.getWidth = function() {
+	return this.width;
+}
+/*
+NanoEntity.prototype.getCollisionRadius = function(){
+	return this.collisionRadius;
+}*/
+
+NanoEntity.prototype.getHeight = function() {
+	return this.height;
+}
+
+//return b2Vec2
+NanoEntity.prototype.getPosition = function() {
+	return this.body.GetPosition();
+}
+
+NanoEntity.prototype.setPosition = function(newPos) {
+	this.body.SetPosition(newPos);
+}
+
+//get distance vector between <anotherPoint> and current position
+NanoEntity.prototype.distanceVecTo = function(anotherPoint)
+{
+	var position = this.getPosition();
+	return new b2Vec2(anotherPoint.x - position.x, anotherPoint.y - position.y);
+}
+
+//get distance vector between <entity>'s position and current position
+NanoEntity.prototype.distanceVecToEntity = function(entity)
+{
+	return this.distanceVecTo(entity.getPosition());	
+}
+
+NanoEntity.prototype.isAlive = function()
+{
+	return this.alive;
+}
+
+NanoEntity.prototype.setAlive = function(_alive)
+{
+	this.alive = _alive;
+}
+
+NanoEntity.prototype.addEffect = function(effect)
+{
+	this.effects.insertBack(effect);
+}
+
+NanoEntity.prototype.increaseHP = function(dhp){
+	if (this.HP < this.maxHP){
+		this.HP += dhp;
+		if (this.HP > this.maxHP)
+			this.HP = this.maxHP;
+	}
+}
+
+NanoEntity.prototype.decreaseHP = function(dhp){
+	if (this.HP > 0){
+		this.HP -= dhp;
+		if (this.HP < 0)
+			this.HP = 0;
+	}
+}
+
+NanoEntity.prototype.updateEffects = function(elapsedTime){
+	var node = this.effects. getFirstNode();
+	while (node != null)
+	{
+		if (node.item.affect(this, elapsedTime))
+		{
+			//the duration of effect has ended
+			var del = node;
+			node = node.next;
+			this.effects.removeNode(del);//remove the effect
+		}
+		else
+		{
+			//stick the effect to its affected target
+			node.item.setPosition(this.getPosition());
+			
+			node = node.next;
+		}
+	}
 }
 
 
@@ -160,11 +161,12 @@ var NanoEntity = function(_maxhp, _side, _width, _height, _x, _y, _spriteModule)
 
 var MovingEntity = function(_maxhp, _side, _width, _height, _x, _y, _oripeed, _sprite)
 {
+	if (_maxhp == undefined)//this may be called by prototype inheritance
+		return;
 	this.maxSpeed;//original speed. (in units per second)
 	this.currentSpeed;//current speed (may be slower than original speed or faster)
 	this.movingPath;//the path this entity has to follow
 	
-	var that = this;
 	/*--------constructor---------*/
 	//call super class's constructor method
 	NanoEntity.call(this, _maxhp, _side, _width, _height, _x, _y, _sprite);
@@ -174,115 +176,119 @@ var MovingEntity = function(_maxhp, _side, _width, _height, _x, _y, _oripeed, _s
 
 	this.originalSpeed = this.currentSpeed = _oripeed;
 	this.movingPath = new Utils.List();
+}
+
+//inheritance from NanoEntity
+MovingEntity.prototype = new NanoEntity();
+MovingEntity.prototype.constructor = MovingEntity;
+
+//start moving to destination(x, y)
+MovingEntity.prototype.startMoveTo = function (x, y) {
+	var newDestination = new b2Vec2(x, y);
 	
-	//start moving to destination(x, y)
-	this.startMoveTo = function (x, y) {
-		var newDestination = new b2Vec2(x, y);
-		
-		Director._findPath(that.movingPath, that, newDestination);
-		
-		startMoveToNextPointInPath();
-	}
+	Director._findPath(this.movingPath, this, newDestination);
 	
-	//start moving along the direction (x, y)
-	this.startMoveDir = function(x, y) {
-		var velocity = new b2Vec2(x, y);
-		
-		velocity.Normalize();
-		velocity.Multiply(that.currentSpeed);
-		
-		that.body.SetLinearVelocity(velocity);
-		
-		that.removeDestination();//we have started moving without destination
-	}
+	this.startMoveToNextPointInPath();
+}
+
+//start moving along the direction (x, y)
+MovingEntity.prototype.startMoveDir = function(x, y) {
+	var velocity = new b2Vec2(x, y);
 	
-	this.updateMovement = function()
+	velocity.Normalize();
+	velocity.Multiply(this.currentSpeed);
+	
+	this.body.SetLinearVelocity(velocity);
+	
+	this.removeDestination();//we have started moving without destination
+}
+
+MovingEntity.prototype.updateMovement = function()
+{
+	var currentPoint = this.movingPath.getFirstElem();
+	if (currentPoint == null)
+		return;
+	
+	var position = this.getPosition();
+	var distance = new b2Vec2(currentPoint.x - position.x, currentPoint.y - position.y);
+	var velocity = this.body.GetLinearVelocity();
+	
+	if ((distance.x == 0 && distance.y == 0) || (velocity.x * distance.x + velocity.y * distance.y < 0))//already at or pass the destination
 	{
-		var currentPoint = that.movingPath.getFirstElem();
-		if (currentPoint == null)
-			return;
-		
-		var position = that.getPosition();
-		var distance = new b2Vec2(currentPoint.x - position.x, currentPoint.y - position.y);
-		var velocity = that.body.GetLinearVelocity();
-		
-		if ((distance.x == 0 && distance.y == 0) || (velocity.x * distance.x + velocity.y * distance.y < 0))//already at or pass the destination
-		{
-			//snap the position to the current destination
-			that.body.SetPosition(currentPoint);
-			//remove the current destination in the path
-			that.movingPath.popFront();
-			//start moving to next destination in the path
-			startMoveToNextPointInPath();
-		}
-		
+		//snap the position to the current destination
+		this.body.SetPosition(currentPoint);
+		//remove the current destination in the path
+		this.movingPath.popFront();
+		//start moving to next destination in the path
+		this.startMoveToNextPointInPath();
 	}
 	
-	//stop moving
-	this.stop = function()
-	{
-		that.body.SetLinearVelocity(new b2Vec2(0, 0));
-		
-		that.removeDestination();
-	}
+}
+
+//stop moving
+MovingEntity.prototype.stop = function()
+{
+	this.body.SetLinearVelocity(new b2Vec2(0, 0));
 	
-	//start move backward
-	this.startMoveBackward = function()
-	{
-		var velocity = that.body.GetLinearVelocity();
-		
-		that.body.SetLinearVelocity(new b2Vec2(-velocity.x, -velocity.y));
-		
-		that.removeDestination();
-	}
+	this.removeDestination();
+}
+
+//start move backward
+MovingEntity.prototype.startMoveBackward = function()
+{
+	var velocity = this.body.GetLinearVelocity();
 	
-	//get destination
-	this.getDestination = function()
-	{
-		if (that.movingPath.getNumElements() == 0)//no destination
-		{
-			//the destination is current position itself
-			var position = that.getPosition();
-			return position;
-		}
-		return that.movingPath.getLastElem();//destination is the last point in our moving path
-	}
+	this.body.SetLinearVelocity(new b2Vec2(-velocity.x, -velocity.y));
 	
-	//make the entity move without any destination
-	this.removeDestination = function()
+	this.removeDestination();
+}
+
+//get destination
+MovingEntity.prototype.getDestination = function()
+{
+	if (this.movingPath.getNumElements() == 0)//no destination
 	{
-		that.movingPath.removeAll();
+		//the destination is current position itself
+		var position = this.getPosition();
+		return position;
 	}
+	return this.movingPath.getLastElem();//destination is the last point in our moving path
+}
+
+//make the entity move without any destination
+MovingEntity.prototype.removeDestination = function()
+{
+	this.movingPath.removeAll();
+}
+
+MovingEntity.prototype.isMoving = function()
+{
+	var velocity = this.body.GetLinearVelocity();
 	
-	this.isMoving = function()
+	return velocity.x != 0 || velocity.y != 0;
+}
+
+//get current speed
+MovingEntity.prototype.getSpeed = function()
+{
+	return this.currentSpeed;
+}
+
+MovingEntity.prototype.startMoveToNextPointInPath = function()
+{
+	var nextPoint = this.movingPath.getFirstElem();
+	if (nextPoint == null)
 	{
-		var velocity = that.body.GetLinearVelocity();
-		
-		return velocity.x != 0 || velocity.y != 0;
+		this.stop();
+		return;
 	}
+	var position = this.getPosition();
+	var velocity = new b2Vec2(nextPoint.x - position.x, nextPoint.y - position.y);
 	
-	//get current speed
-	this.getSpeed = function()
-	{
-		return that.currentSpeed;
-	}
+	velocity.Normalize();
+	velocity.Multiply(this.currentSpeed);
 	
-	function startMoveToNextPointInPath()
-	{
-		var nextPoint = that.movingPath.getFirstElem();
-		if (nextPoint == null)
-		{
-			that.stop();
-			return;
-		}
-		var position = that.getPosition();
-		var velocity = new b2Vec2(nextPoint.x - position.x, nextPoint.y - position.y);
-		
-		velocity.Normalize();
-		velocity.Multiply(that.currentSpeed);
-		
-		that.body.SetLinearVelocity(velocity);
-	}
+	this.body.SetLinearVelocity(velocity);
 }
 
 
@@ -291,43 +297,49 @@ var MovingEntity = function(_maxhp, _side, _width, _height, _x, _y, _oripeed, _s
 
 var PlayableEntity = function( _maxhp, _side, _width, _height, _x, _y, _oriSpeed, _sprite)
 {
+	if (_maxhp == undefined)//this may be called by prototype inheritance
+		return;
 	this.skills;//skills set
 	this.activeSkill;//current active skill
 	
-	var that = this;
 	/*------constructor---------*/
 	//call super class's constructor method
 	MovingEntity.call(this, _maxhp, _side, _width, _height, _x, _y, _oriSpeed, _sprite);
 	
 	this.skills = new Array();
 	this.activeSkill = -1;
+}
+
+//inheritance from MovingEntity
+PlayableEntity.prototype = new MovingEntity();
+PlayableEntity.prototype.constructor = PlayableEntity;
+
+//current active skill
+PlayableEntity.prototype.getCurrentSkill = function()
+{
+	return this.activeSkill;
+}
+
+//cycle to next skill
+PlayableEntity.prototype.nextSkill = function()
+{
+	this.activeSkill = (this.activeSkill + 1) % this.skills.length;
+}
+
+PlayableEntity.prototype.getCurrentSkill = function()
+{
+	return this.skills[this.activeSkill];
+}
+
+PlayableEntity.prototype.attack = function(target){
+	var dist = this.distanceVecToEntity(target)
+				   .Length();
+	var skill = this.getCurrentSkill();
+	var range = skill.getRange();
 	
-	//current active skill
-	this.getCurrentSkill = function()
+	if (dist <= range && target.getSide() != Constant.NEUTRAL && this.getSide() != target.getSide())
 	{
-		return that.activeSkill;
-	}
-	
-	//cycle to next skill
-	this.nextSkill = function()
-	{
-		that.activeSkill = (that.activeSkill + 1) % that.skills.length
-	}
-	
-	this.getCurrentSkill = function()
-	{
-		return that.skills[that.activeSkill];
-	}
-	
-	this.attack = function(target){
-		var dist = that.distanceVecToEntity(target).Length();
-		var skill = that.getCurrentSkill();
-		var range = skill.getRange();
-		
-		if (dist <= range && target.getSide() != Constant.NEUTRAL && that.getSide() != target.getSide())
-		{
-			skill.fire(target);
-		}
+		skill.fire(target);
 	}
 }
 

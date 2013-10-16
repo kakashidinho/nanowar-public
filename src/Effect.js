@@ -4,10 +4,11 @@
 /*-----------Effect class (extends NanoEntity)--------------*/
 
 var Effect = function (_duration, width, height, x, y, spriteModule) {
-
+	if (_duration == undefined)
+		return;//this may be called by prototype inheritance
+	
     this.duration;
-
-    var that = this;
+	
     /*--------constructor---------*/
     //call super class's constructor method
     NanoEntity.call(this, 0, Constant.NEUTRAL, width, height, x, y, spriteModule);
@@ -19,15 +20,20 @@ var Effect = function (_duration, width, height, x, y, spriteModule) {
     //there is an abstract method called affect
 }
 
+//inheritance from NanoEntity
+Effect.prototype = new NanoEntity();
+Effect.prototype.constructor = Effect;
+
 
 
 /*-----------AcidEffect class (extends Effect)--------------*/
 
 var AcidEffect = function (_producer) {
+	if (_producer == undefined)
+		return;//this may be called by prototype inheritance
+		
     this.producer;
-    var damPerMs;//damage per millisecond
-	
-    var that = this;
+    this.damPerMs;//damage per millisecond
 
     /*--------constructor---------*/
     //call super class's constructor method
@@ -36,34 +42,34 @@ var AcidEffect = function (_producer) {
 	this.producer = _producer;
 	var damageDuration = this.producer.getEffectDuration();
 	var totalDamage=this.producer.getDamage();
-    damPerMs=totalDamage/damageDuration;
+    this.damPerMs=totalDamage/damageDuration;
+}
+
+//inheritance from Effect
+AcidEffect.prototype = new NanoEntity();
+AcidEffect.prototype.constructor = AcidEffect;
 
 
-	//return true if the effect has ended
-    this.affect = function (target,elapsedTime) {
-		var effectElapsedTime ;
-		if (this.duration > elapsedTime)
-		{
-			effectElapsedTime = elapsedTime;
-			that.duration -= effectElapsedTime;
-		}
-		else//because the current time already pass the end time of the effect
-		{
-			effectElapsedTime = duration;//effect's elapsed time is the remaining duration of it
-			that.duration = 0;
-		}
-        //can define the affect later, maybe add more function in the nanoentity
-        //since affect will be called in a frequency(framerate), we divide the total damage into piece according to the elapse time
-       
-        var damage=damPerMs*effectElapsedTime;
-        target.decreaseHP(damage);
-		
-		if (that.duration == 0)
-			return true;
-		return false;
-    }
-
-
-
-
+//return true if the effect has ended
+AcidEffect.prototype.affect = function (target,elapsedTime) {
+	var effectElapsedTime ;
+	if (this.duration > elapsedTime)
+	{
+		effectElapsedTime = elapsedTime;
+		this.duration -= effectElapsedTime;
+	}
+	else//because the current time already pass the end time of the effect
+	{
+		effectElapsedTime = duration;//effect's elapsed time is the remaining duration of it
+		this.duration = 0;
+	}
+	//can define the affect later, maybe add more function in the nanoentity
+	//since affect will be called in a frequency(framerate), we divide the total damage into piece according to the elapse time
+   
+	var damage=this.damPerMs*effectElapsedTime;
+	target.decreaseHP(damage);
+	
+	if (this.duration == 0)
+		return true;
+	return false;
 }

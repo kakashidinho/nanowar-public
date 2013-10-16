@@ -3,8 +3,9 @@
 
 var WarriorCell = function(x, y)
 {
-	var that = this;
-
+	if (x == undefined)
+		return;//this may be called by prototype inheritance
+	
 	//call super class's initializing method
 	PlayableEntity.call( this,
 				100, //hit point
@@ -20,3 +21,8 @@ var WarriorCell = function(x, y)
 	
 	this.activeSkill = 0;
 }
+
+
+//inheritance from PlayableEntity
+WarriorCell.prototype = new PlayableEntity();
+WarriorCell.prototype.constructor = WarriorCell;

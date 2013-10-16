@@ -3,7 +3,8 @@
 
 var LeechVirus = function(x, y)
 {
-	var that = this;
+	if (x == undefined)
+		return;//this may be called by prototype inheritance
 
 	//call super class's initializing method
 	PlayableEntity.call( this,
@@ -20,3 +21,7 @@ var LeechVirus = function(x, y)
 	
 	this.activeSkill = 0;
 }
+
+//inheritance from PlayableEntity
+LeechVirus.prototype = new PlayableEntity();
+LeechVirus.prototype.constructor = LeechVirus;
