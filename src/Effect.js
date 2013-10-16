@@ -16,6 +16,8 @@ var Effect = function (_duration, width, height, x, y, spriteModule) {
 	
 	//change the body's fixture type to sensor
 	this.body.GetFixtureList().SetSensor(true);
+	//change the body type to kinematic
+	this.body.SetType(b2Body.b2_kinematicBody);
 	
     //there is an abstract method called affect
 }
@@ -60,7 +62,7 @@ AcidEffect.prototype.affect = function (target,elapsedTime) {
 	}
 	else//because the current time already pass the end time of the effect
 	{
-		effectElapsedTime = duration;//effect's elapsed time is the remaining duration of it
+		effectElapsedTime = this.duration;//effect's elapsed time is the remaining duration of it
 		this.duration = 0;
 	}
 	//can define the affect later, maybe add more function in the nanoentity

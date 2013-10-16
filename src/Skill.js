@@ -68,7 +68,7 @@ AcidWeapon.prototype.getEffectDuration = function() {
 AcidWeapon.prototype.fire = function(target) {
 	var ownerPos = this.owner.getPosition();
 	//shoot the acid projectile starting from the skill owner's position
-	var acid = new Acid(that, target, ownerPos.x, ownerPos.y);
+	var acid = new Acid(this, target, ownerPos.x, ownerPos.y);
 }
 
 /**

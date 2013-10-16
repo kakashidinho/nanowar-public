@@ -13,7 +13,7 @@ var NanoEntity = function(_maxhp, _side, _width, _height, _x, _y, _spriteModule)
 	this.HP;//current hit point. zero => die
 	this.spriteModuleName;
 	this.side;
-	this.effect;
+	this.effects;
 	this.alive;
 	
 	/*---------------------------constructor-------------------------------------*/
@@ -26,7 +26,7 @@ var NanoEntity = function(_maxhp, _side, _width, _height, _x, _y, _spriteModule)
 	this.spriteModuleName = _spriteModule;	
 	this.alive = true;
 	
-	this.effect = new Utils.List();
+	this.effects = new Utils.List();
 	
 	/*----------create physics body-----------*/
 	var bodyDef = new b2BodyDef;
@@ -62,9 +62,23 @@ NanoEntity.prototype.getSpriteModuleName = function() {
 	return this.spriteModuleName;
 }
 
+NanoEntity.prototype.getPhysicsBody = function() {
+	return this.body;
+}
+
 NanoEntity.prototype.getHP = function() {
 	return this.HP;
 }
+
+NanoEntity.prototype.getMaxHP = function() {
+	return this.maxHP;
+}
+
+//return value between [0-1]
+NanoEntity.prototype.getPercentHP = function() {
+	return this.HP / this.maxHP;
+}
+
 
 NanoEntity.prototype.getSide = function() {
 	return this.side;
@@ -114,6 +128,19 @@ NanoEntity.prototype.setAlive = function(_alive)
 	this.alive = _alive;
 }
 
+NanoEntity.prototype.destroy = function()
+{
+	Director._destroyEntity(this);
+	
+	//destroy all effects
+	this.effects.traverse(function(effect)
+	{
+		effect.destroy();
+	}
+	);
+	this.effects.removeAll();
+}
+
 NanoEntity.prototype.addEffect = function(effect)
 {
 	this.effects.insertBack(effect);
@@ -145,6 +172,8 @@ NanoEntity.prototype.updateEffects = function(elapsedTime){
 			var del = node;
 			node = node.next;
 			this.effects.removeNode(del);//remove the effect
+			
+			del.item.destroy();//destroy the effect
 		}
 		else
 		{
@@ -154,6 +183,14 @@ NanoEntity.prototype.updateEffects = function(elapsedTime){
 			node = node.next;
 		}
 	}
+}
+
+//update the entity after <elapsedTime>
+NanoEntity.prototype.update = function(elapsedTime){
+	this.updateEffects(elapsedTime);
+	
+	if (this.maxHP > 0 && this.HP <= 0)
+		this.destroy();
 }
 
 
@@ -203,7 +240,7 @@ MovingEntity.prototype.startMoveDir = function(x, y) {
 	this.removeDestination();//we have started moving without destination
 }
 
-MovingEntity.prototype.updateMovement = function()
+MovingEntity.prototype.updateMovement = function(elapsedTime)
 {
 	var currentPoint = this.movingPath.getFirstElem();
 	if (currentPoint == null)
@@ -291,6 +328,13 @@ MovingEntity.prototype.startMoveToNextPointInPath = function()
 	this.body.SetLinearVelocity(velocity);
 }
 
+
+//update the entity after <elapsedTime>
+MovingEntity.prototype.update = function(elapsedTime){
+	this.updateMovement(elapsedTime);
+	//super class update
+	NanoEntity.prototype.update.call(this, elapsedTime);
+}
 
 
 /*-----------PlayableEntity class (extends MovingEntity)--------------*/

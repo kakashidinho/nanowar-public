@@ -12,13 +12,15 @@ function start() {
 	
 	//update function
 	Director.onUpdate = function(lastTime, currentTime) {
-		cell.updateMovement();
 	}
 	
 	//on click event handler
-	Director.setOnClick ( function(mouseEvent) {
-		cell.startMoveTo(mouseEvent.x, mouseEvent.y);
-	});
+	Director.onClick = function(x, y, target) {
+		if (target == null)
+			cell.startMoveTo(x, y);
+		else
+			cell.attack(target);
+	};
 	  
 	Director.startGameLoop(60);//60 frames per second
 }

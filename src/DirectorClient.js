@@ -32,10 +32,13 @@ Director.init = function(canvasID, displayWidth, displayHeight, initFileXML, onI
 	var spriteSheetList;
 	var spriteModuleList;
 	var visualEntityList;
+	var deleteBodyList;//list of bodies waiting for being deleted
 	var lastUpdateTime;
+	var currentUpdateTime;//for using during update
 	var initXmlRequest;
 	
-	this.onUpdate;//update callback function. should be function(lastUpdateTime, currentTime)
+	Director.onClick;//on mouse click callback function. should be function(mouseX, mouseY, clickedEntity)
+	Director.onUpdate;//update callback function. should be function(lastUpdateTime, currentTime)
 	
 	/*------------open connection to initializing xml file-------------------*/
 	initXmlRequest = new XMLHttpRequest();
@@ -54,11 +57,15 @@ Director.init = function(canvasID, displayWidth, displayHeight, initFileXML, onI
 			document.getElementById(canvasID)
 	);
 	
-	//initially, no update callback
-	this.onUpdate = undefined;
+	//initially, no callbacks
+	Director.onClick = function(x, y, target) {};//do nothing
+	Director.onUpdate = undefined;
 	
 	// create visual entity list
 	visualEntityList = new Utils.List();
+	
+	//create being deleted bodies list
+	deleteBodyList = new Utils.List();
 	
 	// add a scene object to the director.
 	var scene =     caatDirector.createScene();
@@ -66,31 +73,44 @@ Director.init = function(canvasID, displayWidth, displayHeight, initFileXML, onI
 	//background
 	var bg = new CAAT.Foundation.ActorContainer().
             setFillStyle('#fff');
+	bg.mouseClick = function(mouse){
+		Director.onClick(mouse.x, mouse.y, null);
+	};
  
     scene.addChild(bg);
 	
 	/*-------rendering loop------------------*/
 	lastUpdateTime = -1;
 	
-	caatDirector.onRenderStart = function(director_time) {
-		var currentTime = Utils.getTimestamp();
+	scene.onRenderStart = function(scene_time) {
+		currentUpdateTime = scene_time;
 		if (lastUpdateTime == -1)
-			lastUpdateTime = currentTime;
-		//physicsWorld.Step((currentTime - lastUpdateTime)/1000.0, 1, 1);//update physics world
-		physicsWorld.Step(1 / 60.0, 1, 1);//update physics world
+			lastUpdateTime = currentUpdateTime;
+		var elapsedTime = currentUpdateTime - lastUpdateTime;
+		//var elapsedTime = 1000/60.0;
+		physicsWorld.Step(elapsedTime/1000.0, 1, 1);//update physics world
 		
 		if (Director.onUpdate != undefined)//call update callback function
-			Director.onUpdate(lastUpdateTime, currentTime);
+			Director.onUpdate(lastUpdateTime, currentUpdateTime);
 			
-		//commit changes to visual parts
+		//update the entities and commit changes to their visual parts
 		visualEntityList.traverse(function(visualEntity) {
+			visualEntity.getEntity().update(elapsedTime);
 			visualEntity.commitChanges();
 		}
 		);
 		
 		physicsWorld.ClearForces();
 		
-		lastUpdateTime = currentTime;
+		//delete all pending bodies
+		deleteBodyList.traverse(function(body)
+		{
+			physicsWorld.DestroyBody(body);
+		});
+		
+		deleteBodyList.removeAll();
+		
+		lastUpdateTime = currentUpdateTime;
 	}
 	/*----------------------physics-----------------------------------------*/
 		
@@ -119,19 +139,41 @@ Director.init = function(canvasID, displayWidth, displayHeight, initFileXML, onI
 	}
 	contactListener.BeginContact = function(contact, manifoid)
 	{
-		var bodyA = contact.GetFixtureA().GetBody();
-		var bodyB = contact.GetFixtureB().GetBody();
+		var fixtureA = contact.GetFixtureA();
+		var fixtureB = contact.GetFixtureB();
+		var bodyA = fixtureA.GetBody();
+		var bodyB = fixtureB.GetBody();
 		var entityA = bodyA.GetUserData();
 		var entityB = bodyB.GetUserData();
 		if (bodyA.GetType() == b2Body.b2_dynamicBody && entityA.isMoving())//A is moving object
 		{
+			var isProjectile = fixtureA.IsSensor();
 			if ( bodyB.GetType() == b2Body.b2_staticBody)//B is obstacle
-				entityA.startMoveBackward();//should stop reaching destination now
+			{
+				if (isProjectile)//projectile
+					entityA.destroy();
+				else
+					entityA.startMoveBackward();//should stop reaching destination now
+			}
+			else if (isProjectile && entityB == entityA.getTarget())
+			{
+				entityA.onHitTarget();//projectile has hit is target
+			}
 		}//if (bodyA.GetType() == b2Body.b2_dynamicBody)
 		if (bodyB.GetType() == b2Body.b2_dynamicBody && entityB.isMoving())//B is moving object
 		{
+			var isProjectile = fixtureB.IsSensor();
 			if ( bodyA.GetType() == b2Body.b2_staticBody)//A is obstacle
-				entityB.startMoveBackward();//should stop reaching destination now
+			{
+				if (isProjectile)//projectile
+					entityB.destroy();
+				else
+					entityB.startMoveBackward();//should stop reaching destination now
+			}
+			else if (isProjectile && entityA == entityB.getTarget())
+			{
+				entityB.onHitTarget();//projectile has hit is target
+			}
 		}//if (bodyB.GetType() == b2Body.b2_dynamicBody)
 	}
 	contactListener.EndContact = function(contact, manifoid)
@@ -169,16 +211,6 @@ Director.init = function(canvasID, displayWidth, displayHeight, initFileXML, onI
 	Director.startGameLoop = function(frameRate)
 	{
 		CAAT.loop(frameRate);
-	}
-	
-	//set the handler that will be fired whenever the mouse clicks on <targetEntity>.
-	//if <targetEntity> = undefined, handler will be fired when the mouse clicks on the screen
-	Director.setOnClick = function(handler, targetEntity)
-	{
-		if (targetEntity == undefined)
-			bg.mouseClick = handler;
-		else
-			targetEntity.visualPart.mouseClick = handler;
 	}
 	
 	//initialize sprite modules from xml
@@ -233,13 +265,23 @@ Director.init = function(canvasID, displayWidth, displayHeight, initFileXML, onI
 				var aName = animationInfos[a].getAttribute("name");//animation name
 				var sequenceStr = animationInfos[a].getAttribute("sequence").split(",");//cell sequence of the animation
 				var interval = parseInt(animationInfos[a].getAttribute("interval"));//animation interval
+				var loop = animationInfos[a].getAttribute("loop") == "true";
 				var sequence = new Array();
 				//convert to integer array
 				for (var j = 0; j < sequenceStr.length; ++j)
 					sequence.push(parseInt(sequenceStr[j]));
 			
 				var afullName = getFullAnimName(name, aName);
-				spriteSheetList[newSpriteModule.sheetID].addAnimation(afullName, sequence, interval);
+				if (!loop)
+				{
+					spriteSheetList[newSpriteModule.sheetID].addAnimation(afullName, sequence, interval, function(spriteImage, time) {
+						//stop at last sub-image
+						spriteImage.setAnimationImageIndex([spriteImage.animationImageIndex[spriteImage.animationImageIndex.length - 1]]);
+						spriteImage.callback = null;
+					});
+				}//if (!loop)
+				else
+					spriteSheetList[newSpriteModule.sheetID].addAnimation(afullName, sequence, interval);
 				
 				newSpriteModule.animations[aName] = afullName;//store the animation full name
 			}//for (var a = 0; a < sprites[i].animations.length; ++a)
@@ -270,7 +312,22 @@ Director.init = function(canvasID, displayWidth, displayHeight, initFileXML, onI
 	{
 		var visualEntity = new VisualEntity(entity);
 		
-		visualEntityList.insertBack(visualEntity);
+		visualEntity.listNode = visualEntityList.insertBack(visualEntity);
+	}
+	
+	Director._destroyEntity = function(entity){
+		var body = entity.getPhysicsBody();
+		var visualEntity = entity.visualPart;
+		
+		body.SetActive(false);//disable physics simulation
+		deleteBodyList.insertBack(body);//add to being deleted list
+		
+		visualEntityList.removeNode(visualEntity.listNode );//remove this entity from the managed list
+		
+		visualEntity.playAnimation("die");//play dying animation
+		visualEntity.enableEvents(false);//disable mouse click
+		visualEntity.setDiscardable(true);
+		visualEntity.setFrameTime(currentUpdateTime, 1000);//dying in 1s
 	}
 	
 	//find the shortest path using A* algorithm. 
@@ -779,37 +836,75 @@ Director.init = function(canvasID, displayWidth, displayHeight, initFileXML, onI
 	/*----------------VisualEntity (extends Renderable) - visual part of an entity----------*/
 	function VisualEntity(_entity)
 	{
-		var entity;//related entity
+		this.entity;//related entity
+		this.healthBar;//health bar
 		
-		entity = _entity;
+		this.entity = _entity;
 		
-		var spriteModule = spriteModuleList[entity.getSpriteModuleName()];
-		var spriteSheet = spriteSheetList[spriteModule.sheetID];
+		this.spriteModule = spriteModuleList[this.entity.getSpriteModuleName()];
+		var spriteSheet = spriteSheetList[this.spriteModule.sheetID];
 	
 		//call super class constructor
 		Renderable.call(this, spriteSheet);
-		this.setSize(entity.getWidth(), entity.getHeight());
-		this.playAnimation(spriteModule.animations["normal"]);//play the animation named "normal"
+		this.setSize(this.entity.getWidth(), this.entity.getHeight());
+		this.playAnimation("normal");//play the animation named "normal"
 		//caatActor.setScale(entity.getWidth() / caatActor.width, entity.getHeight() / caatActor.height);
 		
-		entity.visualPart = this;//now the entity will know what is its visual part
-		
-		//let the visual part change to reflect its physical counterpart
-		this.commitChanges = function(elapsedTime)
+		//add mouse click event listener
+		if (this.entity.getHP() > 0)
 		{
-			//change the visual position to reflect the physical part
-			var bodyPos = entity.getPosition();
-			this.centerAt(bodyPos.x , bodyPos.y );	
+			this.mouseClick = function(mouse){
+				Director.onClick(mouse.x, mouse.y, this.entity);
+			};
 		}
+		else//hp = 0 is not an interactive entity
+			this.enableEvents(false);
 		
-		this.getEntity = function(){
-			return entity;
+		//create health bar
+		if (this.entity.getHP() > 0)
+		{
+			this.healthBar = new CAAT.Foundation.UI.ShapeActor();
+			this.healthBar.setShape(CAAT.Foundation.UI.ShapeActor.SHAPE_RECTANGLE);
+			this.healthBar.enableEvents(false);
+			this.healthBar.setFillStyle('#ff0000');
+			
+			bg.addChild(this.healthBar);
 		}
+		else
+			this.healthBar = null;
+		
+		this.entity.visualPart = this;//now the entity will know what is its visual part
+		
 	}//Renderable = function(entity)
 	
 	//inheritance from Renderable
 	VisualEntity.prototype = new Renderable();
 	VisualEntity.prototype.constructor = VisualEntity;
+	
+	//let the visual part change to reflect its physical counterpart
+	VisualEntity.prototype.commitChanges = function(elapsedTime)
+	{
+		//change the visual position to reflect the physical part
+		var bodyPos = this.entity.getPosition();
+		this.centerAt(bodyPos.x , bodyPos.y );	
+		
+		//update health bar
+		if (this.healthBar != null)
+		{
+			this.healthBar.setLocation(this.x, this.y - Constant.HEALTH_BAR_HEIGHT - 1 );
+			this.healthBar.setSize(this.entity.getPercentHP() * this.width, Constant.HEALTH_BAR_HEIGHT);
+		}
+	}
+	
+	//override playAnimation method, because we are using the different animation name
+	VisualEntity.prototype.playAnimation = function(name)
+	{
+		CAAT.Foundation.Actor.prototype.playAnimation.call(this, this.spriteModule.animations[name]);
+	}
+	
+	VisualEntity.prototype.getEntity = function(){
+		return this.entity;
+	}
 }
 
 

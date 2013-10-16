@@ -5,6 +5,7 @@
 		<image id="sprites1" url="sprites1.png"/>
 		<image id="sprites2" url="sprites2.png"/>
 		<image id="mapTileSheet1" url="mapTileSheet1.png"/>
+		<image id="projectiles" url="projectiles.png"/>
 	</images>
 	<mapFile>map.xml</mapFile>
 </initialization>

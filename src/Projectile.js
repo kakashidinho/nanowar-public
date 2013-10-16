@@ -42,19 +42,28 @@ Projectile.prototype.seekTarget = function () {
 	this.startMoveDir(_tx - _px, _ty - _py);
 }
 
+//update the entity after <elapsedTime>
+Projectile.prototype.update = function(elapsedTime){
+	this.seekTarget();
+	//super class update
+	MovingEntity.prototype.update.call(this, elapsedTime);
+}
+
+
 /*-----------Acid class (extends Projectile)--------------*/
 
 var Acid = function (_producer, _target, x, y) {
 	if (_producer == undefined)
 		return;
     this.producer;
-    
-    var that = this;
+	this.hit ;//does it hit target yet?
     /*------constructor---------*/
     //call super class's constructor method
-	this.producer = _producer;
 
     Projectile.call(this,_target,10,10,x,y,Constant.SPEED_VERY_FAST,"Acid");
+	
+	this.producer = _producer;
+	this.hit = false;
 
 }
 
@@ -62,13 +71,24 @@ var Acid = function (_producer, _target, x, y) {
 Acid.prototype = new Projectile();
 Acid.prototype.constructor = Acid;
 
-
+//update the entity after <elapsedTime>
+Acid.prototype.update = function(elapsedTime){
+	if (this.hit)//hit
+	{
+		var effect = new AcidEffect(this.producer);
+		this.Target.addEffect(effect);
+		this.destroy();
+	}
+	else
+	{	
+		//super class update
+		Projectile.prototype.update.call(this, elapsedTime);
+	}
+}
 
 //call when acid hit the target, new an acideffect, 
 
 Acid.prototype.onHitTarget = function () {
-
-	var effect = new AcidEffect(this.producer);
-	this.Target.addEffect(effect);
-
+	
+	this.hit = true;//set the "hit" flag, so that next update will do something based on this flag
 }

@@ -101,7 +101,7 @@ Utils.List = function()
 	this.numElements = 0;
 }
 
-//insert to the front of the list
+//insert to the front of the list. return newly created node
 Utils.List.prototype.insertFront = function(object)
 {
 	var newNode = new Object;
@@ -118,9 +118,11 @@ Utils.List.prototype.insertFront = function(object)
 	this.head = newNode;//new node is the this.head
 	
 	this.numElements++;
+	
+	return newNode;
 }
 
-//insert to the back of the list
+//insert to the back of the list. return newly created node
 Utils.List.prototype.insertBack = function(object)
 {
 	var newNode = new Object;
@@ -137,6 +139,8 @@ Utils.List.prototype.insertBack = function(object)
 	this.last = newNode;//new node is the this.last node
 	
 	this.numElements++;
+	
+	return newNode;
 }
 
 //remove the this.last element from the list
