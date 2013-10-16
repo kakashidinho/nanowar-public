@@ -11,6 +11,7 @@ var NanoEntity = function(_maxhp, _side, _width, _height, _x, _y, _spriteModule)
 	this.HP;//current hit point. zero => die
 	this.spriteModuleName;
 	this.side;
+	this.effect;
 	this.alive;
 	
 	var that = this;
@@ -23,6 +24,8 @@ var NanoEntity = function(_maxhp, _side, _width, _height, _x, _y, _spriteModule)
 	
 	this.spriteModuleName = _spriteModule;	
 	this.alive = true;
+	
+	this.effect = new Utils.List();
 	
 	/*----------create physics body-----------*/
 	var bodyDef = new b2BodyDef;
@@ -104,6 +107,48 @@ var NanoEntity = function(_maxhp, _side, _width, _height, _x, _y, _spriteModule)
 	this.setAlive = function(_alive)
 	{
 		that.alive = _alive;
+	}
+	
+	this.addEffect(effect)
+	{
+		this.effects.insertBack(effect);
+	}
+	
+	this.increaseHP = function(dhp){
+		if (this.HP < this.maxHP){
+			this.HP += dhp;
+			if (this.HP > this.maxHP)
+				this.HP = this.maxHP;
+		}
+	}
+	
+	this.decreaseHP = function(dhp){
+		if (this.HP > 0){
+			this.HP -= dhp;
+			if (this.HP < 0)
+				this.HP = 0;
+		}
+	}
+	
+	function updateEffects(elapsedTime){
+		var node = this.effects. getFirstNode();
+		while (node != null)
+		{
+			if (node.item.affect(this, elapsedTime))
+			{
+				//the duration of effect has ended
+				var del = node;
+				node = node.next;
+				this.effects.removeNode(del);//remove the effect
+			}
+			else
+			{
+				//stick the effect to its affected target
+			    node.item.setPosition(that.getPosition());
+				
+				node = node.next;
+			}
+		}
 	}
 	
 	//add to director's managed list
@@ -266,7 +311,23 @@ var PlayableEntity = function( _maxhp, _side, _width, _height, _x, _y, _oriSpeed
 	//cycle to next skill
 	this.nextSkill = function()
 	{
-		//TO DO
+		that.activeSkill = (that.activeSkill + 1) % that.skills.length
+	}
+	
+	this.getCurrentSkill = function()
+	{
+		return that.skills[that.activeSkill];
+	}
+	
+	this.attack = function(target){
+		var dist = that.distanceVecToEntity(target).Length();
+		var skill = that.getCurrentSkill();
+		var range = skill.getRange();
+		
+		if (dist <= range && target.getSide() != Constant.NEUTRAL && that.getSide() != target.getSide())
+		{
+			skill.fire(target);
+		}
 	}
 }
 

@@ -11,7 +11,12 @@ var WarriorCell = function(x, y)
 				Constant.CELL, //this object is on cell's side 
 				Constant.CELL_SIZE, Constant.CELL_SIZE, //the size of the object
 				x, y,//position
-				100,//max speed = 100 units/ second
+				Constant.SPEED_NORMAL,//max speed (units/second)
 				"WarriorCell"
 				);
+				
+	//add AcidWeapon skill
+	this.skills.push(new AcidWeapon(this));
+	
+	this.activeSkill = 0;
 }

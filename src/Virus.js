@@ -11,7 +11,12 @@ var LeechVirus = function(x, y)
 				Constant.VIRUS, //this object is on virus's side 
 				Constant.VIRUS_SIZE, Constant.VIRUS_SIZE, //the size of the object
 				x, y,//position
-				100,//max speed = 100 units/ second
+				Constant.SPEED_NORMAL,//units/ second
 				"LeechVirus"
 				);
+				
+	//add LifeLeech skill
+	this.skills.push(new LifeLeech(this));
+	
+	this.activeSkill = 0;
 }

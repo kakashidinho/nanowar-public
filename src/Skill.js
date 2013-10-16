@@ -39,14 +39,19 @@ var Skill = function(_range, _damage, _owner) {
  * AcidWeapon Class
  * A skill used by WarriorCell
  */
-var AcidWeapon = function (_range, _damage, _owner, _effectDuration) {
+var AcidWeapon = function ( _owner) {
 	// public fields
 	this.effectDuration; // Duration of the damaging effect
 	
 	// calls superclass constructor
-	Skill.call(this, _range, _damage, _owner);
+	Skill.call(this, Constant.SKILL_RANGE_LONG, 30, _owner);//range = 240, total damage = 30
 	
 	var that = this;
+	this.effectDuration = 3000;//3s
+	
+	this.getEffectDuration = function() {
+		return that.effectDuration;
+	}
 	
 	/**
 	 * Implements Skill.fire(target)
@@ -54,8 +59,9 @@ var AcidWeapon = function (_range, _damage, _owner, _effectDuration) {
 	 * @param target A NanoEntity to fire at
 	 */
 	this.fire = function(target) {
-		// TODO match arguments of Acid API
-		var acid = new Acid(that, target, that.effectDuration);
+		var ownerPos = that.owner.getPosition();
+		//shoot the acid projectile starting from the skill owner's position
+		var acid = new Acid(that, target, ownerPos.x, ownerPos.y);
 	}
 }
 
@@ -63,9 +69,9 @@ var AcidWeapon = function (_range, _damage, _owner, _effectDuration) {
  * LifeLeech Class
  * A skill used by LeechVirus
  */
-var LifeLeech = function (_range, _damage, _owner) {
+var LifeLeech = function (_owner) {
 	// calls superclass constructor
-	Skill.call(this, _range, _damage, _owner);
+	Skill.call(this, Constant.SKILL_RANGE_MED, 20, _owner);
 	
 	var that = this;
 	

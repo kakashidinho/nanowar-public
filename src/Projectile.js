@@ -8,10 +8,12 @@ var Projectile = function (_target, width, height, x, y, oriSpeed, spriteModule)
 
     /*------constructor---------*/
     //call super class's constructor method
-    MovingEntity.call(this, 100, Constant.NEUTRAL, width, height, x, y, oriSpeed, spriteModule);
+    MovingEntity.call(this, 0, Constant.NEUTRAL, width, height, x, y, oriSpeed, spriteModule);
     this.Target = _target;
 
-
+	//change the body's fixture type to sensor
+	this.body.GetFixtureList().SetSensor(true);
+	
 
     this.getTarget = function () {
 
@@ -46,10 +48,7 @@ var Acid = function (_producer, _target, x, y) {
     /*------constructor---------*/
     //call super class's constructor method
 
-    Projectile.call(this,_target,10,10,x,y,100,"AcidProjectile");
-
-
-
+    Projectile.call(this,_target,10,10,x,y,Constant.SPEED_VERY_FAST,"Acid");
 
     //call when acid hit the target, new an acideffect, 
 
@@ -58,15 +57,6 @@ var Acid = function (_producer, _target, x, y) {
         var effect = new AcidEffect(that.producer);
         this.Target.addEffect(effect);
 
-
     }
-
-
-
-
-
-
-
-
 
 }
