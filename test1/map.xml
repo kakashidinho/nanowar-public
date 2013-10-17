@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="ISO-8859-1"?>
-<map 	width="600" 
+<map 	width="650" 
 		height="400" 
 		background="mapBg"
 		tilesPerRow="9"
@@ -9,7 +9,7 @@
 		<tilesMap>
 			000000000
 			000000000
-			000200000
+			000200001
 			000010000
 			000000100
 			000003000

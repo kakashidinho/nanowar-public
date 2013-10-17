@@ -33,12 +33,16 @@ Director.init = function(canvasID, displayWidth, displayHeight, initFileXML, onI
 	var spriteModuleList;
 	var visualEntityList;
 	var deleteBodyList;//list of bodies waiting for being deleted
+	var msgQueueList;//message queue
 	var lastUpdateTime;
 	var currentUpdateTime;//for using during update
 	var initXmlRequest;
 	
+	var followTarget;//the entity that camera will follow
+	
 	Director.onClick;//on mouse click callback function. should be function(mouseX, mouseY, clickedEntity)
 	Director.onUpdate;//update callback function. should be function(lastUpdateTime, currentTime)
+	
 	
 	/*------------open connection to initializing xml file-------------------*/
 	initXmlRequest = new XMLHttpRequest();
@@ -56,6 +60,8 @@ Director.init = function(canvasID, displayWidth, displayHeight, initFileXML, onI
 			displayHeight,    // pixels across
 			document.getElementById(canvasID)
 	);
+	//no target to follow
+	followTarget = null;
 	
 	//initially, no callbacks
 	Director.onClick = function(x, y, target) {};//do nothing
@@ -66,6 +72,9 @@ Director.init = function(canvasID, displayWidth, displayHeight, initFileXML, onI
 	
 	//create being deleted bodies list
 	deleteBodyList = new Utils.List();
+	
+	//create message queue
+	msgQueueList = new Utils.List();
 	
 	// add a scene object to the director.
 	var scene =     caatDirector.createScene();
@@ -87,10 +96,16 @@ Director.init = function(canvasID, displayWidth, displayHeight, initFileXML, onI
 		if (lastUpdateTime == -1)
 			lastUpdateTime = currentUpdateTime;
 		var elapsedTime = currentUpdateTime - lastUpdateTime;
+		
+		//process pending messages first
+		processMessages();
+		
+		/*------update physics---------*/
 		//var elapsedTime = 1000/60.0;
 		physicsWorld.Step(elapsedTime/1000.0, 1, 1);//update physics world
 		
-		if (Director.onUpdate != undefined)//call update callback function
+		//call update callback function
+		if (Director.onUpdate != undefined)
 			Director.onUpdate(lastUpdateTime, currentUpdateTime);
 			
 		//update the entities and commit changes to their visual parts
@@ -99,6 +114,13 @@ Director.init = function(canvasID, displayWidth, displayHeight, initFileXML, onI
 			visualEntity.commitChanges();
 		}
 		);
+		
+		//move camera to follow target
+		if (followTarget != null)
+		{
+			var pos = followTarget.getPosition();
+			bg.setLocation(displayWidth * 0.5 - pos.x, displayHeight * 0.5 - pos.y);
+		}
 		
 		physicsWorld.ClearForces();
 		
@@ -291,7 +313,17 @@ Director.init = function(canvasID, displayWidth, displayHeight, initFileXML, onI
 		}//for (var i = 0; i < sprites.length; ++i)
 	}
 	
+	//make camera follow an entity
+	Director.makeCameraFollow = function(entity)
+	{
+		followTarget = entity;
+	}
 	
+	//post message to queue
+	Director.postMessage = function(msg)
+	{
+		msgQueueList.insertBack(msg);
+	}
 	
 	
 	Director._createPhysicsBody = function(bodyDef, fixtureDef)
@@ -306,6 +338,11 @@ Director.init = function(canvasID, displayWidth, displayHeight, initFileXML, onI
 	Director._getCAATDirector = function()
 	{
 		return caatDirector;
+	}
+	
+	//notification from an entity telling that is hp has changed
+	Director._onHPChanged = function(entity, dhp){
+		entity.visualPart.cumulateHPChange(dhp);
 	}
 	
 	Director._addEntity = function(entity)
@@ -809,6 +846,29 @@ Director.init = function(canvasID, displayWidth, displayHeight, initFileXML, onI
 						initialize(caatDirector.getImage(imgID), subImgsPerRow, subImgsPerCol );
 		return spriteSheet;
 	}
+	
+	
+	
+	//process all messages in queue
+	function processMessages()
+	{
+		msgQueueList.traverse(function(msg) {
+			switch(msg.type)
+			{
+			case MsgType.MOVING:
+				msg.entity.startMoveTo(msg.destx, msg.desty);
+				break;
+			case MsgType.ATTACK:
+				msg.entity.attack(msg.target);
+				break;
+			}
+		}
+		);
+		
+		msgQueueList.removeAll();
+	}
+	
+	
 	/*----------------Renderable (extends CAAT.Foundation.Actor)----------*/
 	function Renderable(spriteSheet)
 	{
@@ -838,8 +898,14 @@ Director.init = function(canvasID, displayWidth, displayHeight, initFileXML, onI
 	{
 		this.entity;//related entity
 		this.healthBar;//health bar
+		this.hpChangePosTxt;//positive health changing notifying text
+		this.hpChangeNegTxt;//positive health changing notifying text
+		this.dHPPos;//positive change in HP per frame
+		this.dHPNeg;//negative change in HP per frame
+		this.spriteModule;
 		
 		this.entity = _entity;
+		this.dHPPos = this.dHPNeg = 0;
 		
 		this.spriteModule = spriteModuleList[this.entity.getSpriteModuleName()];
 		var spriteSheet = spriteSheetList[this.spriteModule.sheetID];
@@ -860,18 +926,45 @@ Director.init = function(canvasID, displayWidth, displayHeight, initFileXML, onI
 		else//hp = 0 is not an interactive entity
 			this.enableEvents(false);
 		
-		//create health bar
 		if (this.entity.getHP() > 0)
 		{
+			//create health bar
 			this.healthBar = new CAAT.Foundation.UI.ShapeActor();
 			this.healthBar.setShape(CAAT.Foundation.UI.ShapeActor.SHAPE_RECTANGLE);
 			this.healthBar.enableEvents(false);
 			this.healthBar.setFillStyle('#ff0000');
 			
 			bg.addChild(this.healthBar);
+			
+			var font= "13px sans-serif";
+			//create health notification texts
+			this.hpChangePosTxt = new CAAT.Foundation.UI.TextActor()
+										.setFont(font)
+										.setAlign("center")
+										.setTextFillStyle('#00ff00')
+										//.setOutline(true)
+										//.setOutlineColor('white')
+										.setVisible(false)
+										.enableEvents(false)
+										;
+			bg.addChild(this.hpChangePosTxt);							
+			
+			this.hpChangeNegTxt = new CAAT.Foundation.UI.TextActor()
+										.setFont(font)
+										.setAlign("center")
+										.setTextFillStyle('#ff0000')
+										//.setOutline(true)
+										//.setOutlineColor('white')
+										.setVisible(false)
+										.enableEvents(false)
+										;
+			bg.addChild(this.hpChangeNegTxt);	
 		}
 		else
+		{
 			this.healthBar = null;
+		}
+			
 		
 		this.entity.visualPart = this;//now the entity will know what is its visual part
 		
@@ -894,6 +987,37 @@ Director.init = function(canvasID, displayWidth, displayHeight, initFileXML, onI
 			this.healthBar.setLocation(this.x, this.y - Constant.HEALTH_BAR_HEIGHT - 1 );
 			this.healthBar.setSize(this.entity.getPercentHP() * this.width, Constant.HEALTH_BAR_HEIGHT);
 		}
+		//update health notification
+		if (this.dHPPos > 0)
+		{
+			//random the coordinate of the text
+			var randx = Math.random();
+			var randy = Math.random();
+			var x = randx * this.x + (1 - randx) * (this.x + this.width);
+			var y = randy * (this.y - Constant.HEALTH_BAR_HEIGHT - 26) + (1 - randy) * (this.y - Constant.HEALTH_BAR_HEIGHT - 13);
+			
+			this.hpChangePosTxt.setText(Math.floor(this.dHPPos).toString());
+			this.hpChangePosTxt.setLocation(x, y);
+			this.hpChangeNegTxt.setVisible(true);
+			this.hpChangePosTxt.setFrameTime(currentUpdateTime, 500);//appear in 0.5s
+			
+			
+			this.dHPPos = 0;
+		}
+		if (this.dHPNeg < 0)
+		{
+			//random the coordinates of the text
+			var randx = Math.random();
+			var randy = Math.random();
+			var x = randx * this.x + (1 - randx) * (this.x + this.width);
+			var y = randy * (this.y - Constant.HEALTH_BAR_HEIGHT - 26) + (1 - randy) * (this.y - Constant.HEALTH_BAR_HEIGHT - 13);
+			
+			this.hpChangeNegTxt.setText(Math.floor(this.dHPNeg).toString());
+			this.hpChangeNegTxt.setLocation(x, y);
+			this.hpChangeNegTxt.setVisible(true);
+			this.hpChangeNegTxt.setFrameTime(currentUpdateTime, 500);//appear in 0.5s
+			this.dHPNeg = 0;
+		}
 	}
 	
 	//override playAnimation method, because we are using the different animation name
@@ -904,6 +1028,17 @@ Director.init = function(canvasID, displayWidth, displayHeight, initFileXML, onI
 	
 	VisualEntity.prototype.getEntity = function(){
 		return this.entity;
+	}
+	
+	VisualEntity.prototype.cumulateHPChange = function(dHP) {
+		if (dHP > 0)//positive change
+		{
+			this.dHPPos += dHP;
+		}
+		else if (dHP <0)//negative change
+		{
+			this.dHPNeg += dHP;
+		}
 	}
 }
 

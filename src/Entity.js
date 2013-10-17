@@ -148,17 +148,26 @@ NanoEntity.prototype.addEffect = function(effect)
 
 NanoEntity.prototype.increaseHP = function(dhp){
 	if (this.HP < this.maxHP){
-		this.HP += dhp;
-		if (this.HP > this.maxHP)
-			this.HP = this.maxHP;
+		var newHP = this.HP + dhp;
+		if (newHP > this.maxHP)
+			newHP = this.maxHP;
+		
+		var realdDHP = newHP - this.HP;
+		this.HP = newHP;
+		
+		Director._onHPChanged(this, realdDHP);//notify director
 	}
 }
 
 NanoEntity.prototype.decreaseHP = function(dhp){
 	if (this.HP > 0){
-		this.HP -= dhp;
-		if (this.HP < 0)
-			this.HP = 0;
+		var newHP = this.HP - dhp;
+		if (newHP < 0)
+			newHP = 0;
+		var realdDHP = newHP - this.HP;
+		this.HP = newHP;
+		
+		Director._onHPChanged(this, realdDHP);//notify director
 	}
 }
 
