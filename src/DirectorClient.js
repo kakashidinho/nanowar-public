@@ -959,10 +959,12 @@ Director.init = function(canvasID, displayWidth, displayHeight, initFileXML, onI
 										.enableEvents(false)
 										;
 			bg.addChild(this.hpChangeNegTxt);	
-		}
+		}//if (this.entity.getHP() > 0)
 		else
 		{
 			this.healthBar = null;
+			this.hpChangePosTxt = null;
+			this.hpChangeNegTxt = null;
 		}
 			
 		
@@ -1003,7 +1005,7 @@ Director.init = function(canvasID, displayWidth, displayHeight, initFileXML, onI
 			
 			
 			this.dHPPos = 0;
-		}
+		}//if (this.dHPPos > 0)
 		if (this.dHPNeg < 0)
 		{
 			//random the coordinates of the text
@@ -1017,13 +1019,38 @@ Director.init = function(canvasID, displayWidth, displayHeight, initFileXML, onI
 			this.hpChangeNegTxt.setVisible(true);
 			this.hpChangeNegTxt.setFrameTime(currentUpdateTime, 500);//appear in 0.5s
 			this.dHPNeg = 0;
-		}
+		}//if (this.dHPNeg < 0)
 	}
 	
 	//override playAnimation method, because we are using the different animation name
 	VisualEntity.prototype.playAnimation = function(name)
 	{
 		CAAT.Foundation.Actor.prototype.playAnimation.call(this, this.spriteModule.animations[name]);
+	}
+	
+	//override setFrameTime method
+	VisualEntity.prototype.setFrameTime = function(start, end){
+		CAAT.Foundation.Actor.prototype.setFrameTime.call(this, start, end);
+		
+		//also set frame time for the health bar 
+		if (this.healthBar != null)
+			this.healthBar.setFrameTime(start, end);
+	}
+	
+	//override setDiscardable method
+	VisualEntity.prototype.setDiscardable = function(discardable){
+		CAAT.Foundation.Actor.prototype.setDiscardable.call(this, discardable);
+		
+		//also set discardable for the health bar 
+		if (this.healthBar != null)
+			this.healthBar.setDiscardable(discardable);
+		
+		//set discardable for the hp change notifying texts
+		if (this.hpChangePosTxt != null)
+			this.hpChangePosTxt.setDiscardable(discardable);
+		
+		if (this.hpChangeNegTxt != null)
+			this.hpChangeNegTxt.setDiscardable(discardable);
 	}
 	
 	VisualEntity.prototype.getEntity = function(){
