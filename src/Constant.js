@@ -11,7 +11,7 @@ var Constant = {
 	SKILL_RANGE_LONG: 240,
 	HEALTH_BAR_HEIGHT: 5,
 	SERVER_MAX_CONNECTIONS: 4,
-	SERVER_PORT
+	SERVER_PORT: 8001
 };
 
 if (typeof global != 'undefined')
