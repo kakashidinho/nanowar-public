@@ -10,7 +10,8 @@ var Constant = {
 	SKILL_RANGE_MED: 120,
 	SKILL_RANGE_LONG: 240,
 	HEALTH_BAR_HEIGHT: 5,
-	MAX_PLAYERS: 4
+	SERVER_MAX_CONNECTIONS: 4,
+	SERVER_PORT
 };
 
 if (typeof global != 'undefined')
