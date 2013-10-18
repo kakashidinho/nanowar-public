@@ -5,10 +5,10 @@ function start() {
 	Director.initSpriteModulesFromXML("sprites.xml");
 	
 	//create cell & virus object
-	var cell = new WarriorCell(200, 300);
+	var cell = new WarriorCell(0, 200, 300);
 	//cell.startMoveTo(300, 600);
 	
-	var virus = new LeechVirus(300, 300);
+	var virus = new LeechVirus(1, 300, 300);
 	
 	//update function
 	Director.onUpdate = function(lastTime, currentTime) {

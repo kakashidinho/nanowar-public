@@ -11,7 +11,7 @@ var Projectile = function (_target, width, height, x, y, oriSpeed, spriteModule)
 
     /*------constructor---------*/
     //call super class's constructor method
-    MovingEntity.call(this, 0, Constant.NEUTRAL, width, height, x, y, oriSpeed, spriteModule);
+    MovingEntity.call(this, -1, 0, Constant.NEUTRAL, width, height, x, y, oriSpeed, spriteModule);
     this.Target = _target;
 
 	//change the body's fixture type to sensor

@@ -11,7 +11,7 @@ var Effect = function (_duration, width, height, x, y, spriteModule) {
 	
     /*--------constructor---------*/
     //call super class's constructor method
-    NanoEntity.call(this, 0, Constant.NEUTRAL, width, height, x, y, spriteModule);
+    NanoEntity.call(this, -1, 0, Constant.NEUTRAL, width, height, x, y, spriteModule);
     this.duration = _duration;
 	
 	//change the body's fixture type to sensor

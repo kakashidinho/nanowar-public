@@ -2,9 +2,10 @@
 
 
 /*-----------------nano entity class--------------*/
-var NanoEntity = function(_maxhp, _side, _width, _height, _x, _y, _spriteModule) {
-	if (_maxhp == undefined)//this may be called by prototype inheritance
+var NanoEntity = function(_id, _maxhp, _side, _width, _height, _x, _y, _spriteModule) {
+	if (_id == undefined)//this may be called by prototype inheritance
 		return;
+	this.id;//unique id
 	this.body;//b2Body
 	this.width;//body's width
 	this.height;//body's height
@@ -17,7 +18,7 @@ var NanoEntity = function(_maxhp, _side, _width, _height, _x, _y, _spriteModule)
 	this.alive;
 	
 	/*---------------------------constructor-------------------------------------*/
-	
+	this.id = _id;
 	this.maxHP = this.HP = _maxhp;
 	this.side = _side;
 	this.width = _width;
@@ -64,6 +65,18 @@ NanoEntity.prototype.getSpriteModuleName = function() {
 
 NanoEntity.prototype.getPhysicsBody = function() {
 	return this.body;
+}
+
+//has ID?
+NanoEntity.prototype.hasID = function()
+{
+	return this.id != -1;
+}
+
+//get ID
+NanoEntity.prototype.getID = function()
+{
+	return this.id;
 }
 
 NanoEntity.prototype.getHP = function() {
@@ -205,9 +218,9 @@ NanoEntity.prototype.update = function(elapsedTime){
 
 /*-----------------MovingEntity class (extends NanoEntity)--------------*/
 
-var MovingEntity = function(_maxhp, _side, _width, _height, _x, _y, _oripeed, _sprite)
+var MovingEntity = function(_id, _maxhp, _side, _width, _height, _x, _y, _oripeed, _sprite)
 {
-	if (_maxhp == undefined)//this may be called by prototype inheritance
+	if (_id == undefined)//this may be called by prototype inheritance
 		return;
 	this.maxSpeed;//original speed. (in units per second)
 	this.currentSpeed;//current speed (may be slower than original speed or faster)
@@ -215,7 +228,7 @@ var MovingEntity = function(_maxhp, _side, _width, _height, _x, _y, _oripeed, _s
 	
 	/*--------constructor---------*/
 	//call super class's constructor method
-	NanoEntity.call(this, _maxhp, _side, _width, _height, _x, _y, _sprite);
+	NanoEntity.call(this, _id, _maxhp, _side, _width, _height, _x, _y, _sprite);
 	
 	//change the body type to dynamic
 	this.body.SetType(b2Body.b2_dynamicBody);
@@ -348,16 +361,16 @@ MovingEntity.prototype.update = function(elapsedTime){
 
 /*-----------PlayableEntity class (extends MovingEntity)--------------*/
 
-var PlayableEntity = function( _maxhp, _side, _width, _height, _x, _y, _oriSpeed, _sprite)
+var PlayableEntity = function( _id, _maxhp, _side, _width, _height, _x, _y, _oriSpeed, _sprite)
 {
-	if (_maxhp == undefined)//this may be called by prototype inheritance
+	if (_id == undefined)//this may be called by prototype inheritance
 		return;
 	this.skills;//skills set
 	this.activeSkill;//current active skill
 	
 	/*------constructor---------*/
 	//call super class's constructor method
-	MovingEntity.call(this, _maxhp, _side, _width, _height, _x, _y, _oriSpeed, _sprite);
+	MovingEntity.call(this, _id, _maxhp, _side, _width, _height, _x, _y, _oriSpeed, _sprite);
 	
 	this.skills = new Array();
 	this.activeSkill = -1;

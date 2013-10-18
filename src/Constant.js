@@ -9,7 +9,8 @@ var Constant = {
 	SPEED_VERY_FAST: 300,//typically, bullet's speed
 	SKILL_RANGE_MED: 120,
 	SKILL_RANGE_LONG: 240,
-	HEALTH_BAR_HEIGHT: 5
+	HEALTH_BAR_HEIGHT: 5,
+	MAX_PLAYERS: 4
 };
 
 if (typeof global != 'undefined')

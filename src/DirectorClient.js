@@ -32,6 +32,7 @@ Director.init = function(canvasID, displayWidth, displayHeight, initFileXML, onI
 	var spriteSheetList;
 	var spriteModuleList;
 	var visualEntityList;
+	var knownEntity;//list of entities that have their own ID
 	var deleteBodyList;//list of bodies waiting for being deleted
 	var msgQueueList;//message queue
 	var lastUpdateTime;
@@ -69,6 +70,9 @@ Director.init = function(canvasID, displayWidth, displayHeight, initFileXML, onI
 	
 	// create visual entity list
 	visualEntityList = new Utils.List();
+	
+	//create known entity list
+	knownEntity = new Object();
 	
 	//create being deleted bodies list
 	deleteBodyList = new Utils.List();
@@ -350,6 +354,12 @@ Director.init = function(canvasID, displayWidth, displayHeight, initFileXML, onI
 		var visualEntity = new VisualEntity(entity);
 		
 		visualEntity.listNode = visualEntityList.insertBack(visualEntity);
+		
+		if (entity.hasID())//this entity has an ID
+		{
+			//put it to the known entity list
+			knownEntity[entity.getID()] = entity;
+		}
 	}
 	
 	Director._destroyEntity = function(entity){
@@ -360,6 +370,12 @@ Director.init = function(canvasID, displayWidth, displayHeight, initFileXML, onI
 		deleteBodyList.insertBack(body);//add to being deleted list
 		
 		visualEntityList.removeNode(visualEntity.listNode );//remove this entity from the managed list
+		
+		if (entity.hasID())//this entity has an ID
+		{
+			//remove it from the known entity list
+			knownEntity[entity.getID()] = null;
+		}
 		
 		visualEntity.playAnimation("die");//play dying animation
 		visualEntity.enableEvents(false);//disable mouse click
@@ -856,10 +872,10 @@ Director.init = function(canvasID, displayWidth, displayHeight, initFileXML, onI
 			switch(msg.type)
 			{
 			case MsgType.MOVING:
-				msg.entity.startMoveTo(msg.destx, msg.desty);
+				knownEntity[msg.entityID].startMoveTo(msg.destx, msg.desty);
 				break;
 			case MsgType.ATTACK:
-				msg.entity.attack(msg.target);
+				knownEntity[msg.entityID].attack(knownEntity[msg.targetID]);
 				break;
 			}
 		}

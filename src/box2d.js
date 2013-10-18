@@ -10873,3 +10873,7 @@ Box2D.postDefs = [];
 var i;
 for (i = 0; i < Box2D.postDefs.length; ++i) Box2D.postDefs[i]();
 delete Box2D.postDefs;
+
+//for nodejs
+if (typeof global != 'undefined')
+	global.Box2D = Box2D;

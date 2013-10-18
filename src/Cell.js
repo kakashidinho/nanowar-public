@@ -1,13 +1,14 @@
 "use strict";
 /*----------WarriorCell class (extends PlayableEntity)------------*/
 
-var WarriorCell = function(x, y)
+var WarriorCell = function(id, x, y)
 {
-	if (x == undefined)
+	if (id == undefined)
 		return;//this may be called by prototype inheritance
 	
 	//call super class's initializing method
 	PlayableEntity.call( this,
+				id, //unique ID
 				100, //hit point
 				Constant.CELL, //this object is on cell's side 
 				Constant.CELL_SIZE, Constant.CELL_SIZE, //the size of the object
