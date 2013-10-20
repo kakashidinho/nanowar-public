@@ -5,7 +5,7 @@ var LeechVirus = function(id, x, y)
 {
 	if (id == undefined)
 		return;//this may be called by prototype inheritance
-
+	
 	//call super class's initializing method
 	PlayableEntity.call( this,
 				id, //unique id
@@ -21,8 +21,16 @@ var LeechVirus = function(id, x, y)
 	this.skills.push(new LifeLeech(this));
 	
 	this.activeSkill = 0;
+	
+	this.className = "LeechVirus";
 }
 
 //inheritance from PlayableEntity
 LeechVirus.prototype = new PlayableEntity();
 LeechVirus.prototype.constructor = LeechVirus;
+
+// For node.js require
+if (typeof global != 'undefined')
+{
+	global.LeechVirus = LeechVirus;
+}

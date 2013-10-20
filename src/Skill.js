@@ -98,6 +98,17 @@ LifeLeech.prototype.constructor = LifeLeech;
  * @param target A NanoEntity to fire at
  */
 LifeLeech.prototype.fire = function(target) {
+	if (Director.dummyClient)
+		return;//do nothing
 	target.decreaseHP(this.damage);
 	this.owner.increaseHP(this.damage);
+}
+
+
+// For node.js require
+if (typeof global != 'undefined')
+{
+	global.Skill = Skill;
+	global.AcidWeapon = AcidWeapon;
+	global.LifeLeech = LifeLeech;
 }

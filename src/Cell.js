@@ -21,9 +21,15 @@ var WarriorCell = function(id, x, y)
 	this.skills.push(new AcidWeapon(this));
 	
 	this.activeSkill = 0;
+	
+	this.className = "WarriorCell";
 }
 
 
 //inheritance from PlayableEntity
 WarriorCell.prototype = new PlayableEntity();
 WarriorCell.prototype.constructor = WarriorCell;
+
+// For node.js require
+if (typeof global != 'undefined')
+	global.WarriorCell = WarriorCell;

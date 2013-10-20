@@ -1,6 +1,18 @@
 // JavaScript source code
 
 "use strict";
+
+/*short-form of box2d's functions and classes-------*/
+var   b2Vec2 = Box2D.Common.Math.b2Vec2
+	,	b2BodyDef = Box2D.Dynamics.b2BodyDef
+	,	b2Body = Box2D.Dynamics.b2Body
+	,	b2FixtureDef = Box2D.Dynamics.b2FixtureDef
+	,	b2Fixture = Box2D.Dynamics.b2Fixture
+	,	b2World = Box2D.Dynamics.b2World
+	,	b2MassData = Box2D.Collision.Shapes.b2MassData
+	,	b2PolygonShape = Box2D.Collision.Shapes.b2PolygonShape
+	,	b2CircleShape = Box2D.Collision.Shapes.b2CircleShape
+
 /*-----------Effect class (extends NanoEntity)--------------*/
 
 var Effect = function (_duration, width, height, x, y, spriteModule) {
@@ -68,10 +80,22 @@ AcidEffect.prototype.affect = function (target,elapsedTime) {
 	//can define the affect later, maybe add more function in the nanoentity
 	//since affect will be called in a frequency(framerate), we divide the total damage into piece according to the elapse time
    
-	var damage=this.damPerMs*effectElapsedTime;
-	target.decreaseHP(damage);
+	if (Director.dummyClient == false)
+	{
+		//dummy client will not do this damage effect. Instead, it will be done by server
+		var damage=this.damPerMs*effectElapsedTime;
+		target.decreaseHP(damage);
+	}
 	
 	if (this.duration == 0)
 		return true;
 	return false;
+}
+
+
+// For node.js require
+if (typeof global != 'undefined')
+{
+	global.Effect = Effect;
+	global.AcidEffect = AcidEffect;
 }

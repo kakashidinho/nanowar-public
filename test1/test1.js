@@ -2,8 +2,6 @@
 	
 function start() {
 	
-	Director.initSpriteModulesFromXML("sprites.xml");
-	
 	//create cell & virus object
 	var cell = new WarriorCell(0, 200, 300);
 	//cell.startMoveTo(300, 600);
@@ -18,7 +16,7 @@ function start() {
 	Director.onClick = function(x, y, target) {
 		if (target == null)
 		{
-			Director.postMessage(new MovingMsg(cell, x, y));
+			Director.postMessage(new MoveToMsg(cell, x, y));
 		}
 		else
 			Director.postMessage(new AttackMsg(cell, target));
@@ -32,7 +30,7 @@ function start() {
 
 setTimeout(function() {
 	//init director
-	Director.init("canvas", 600, 400, "init.xml", function() {
+	Director.init(document.getElementById("canvas"), 600, 400, "init.xml", function() {
 		start();//start after the Director has finished its initialization
 	})
 	; }, 500);

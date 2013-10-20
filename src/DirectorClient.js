@@ -1,8 +1,11 @@
-	
-/*-------Director instance-------*/	
+/*
+this code is used by client
+*/	
+
+/*-------Director instance on client side-------*/	
 var Director = {};
 
-Director.init = function(canvasID, displayWidth, displayHeight, initFileXML, onInitFinished)
+Director.init = function(canvas, displayWidth, displayHeight, initFileXML, onInitFinished)
 {
 	/*---------Director instance definition-------------*/
 	//private
@@ -37,7 +40,7 @@ Director.init = function(canvasID, displayWidth, displayHeight, initFileXML, onI
 	caatDirector = new CAAT.Foundation.Director().initialize(
 			displayWidth,    // pixels wide
 			displayHeight,    // pixels across
-			document.getElementById(canvasID)
+			canvas
 	);
 	//no target to follow
 	followTarget = null;
@@ -95,17 +98,115 @@ Director.init = function(canvasID, displayWidth, displayHeight, initFileXML, onI
 		lastUpdateTime = currentUpdateTime;
 	}
 	
-	/*----------start loading all images needed for the game---------*/
-	preloadImages();
-	
 	/*---------method definitions----------------*/
 	Director.startGameLoop = function(frameRate)
 	{
 		CAAT.loop(frameRate);
 	}
 	
+	Director.endGameLoop = function()
+	{
+		CAAT.endLoop();
+	}
+	
+	//make camera follow an entity
+	Director.makeCameraFollow = function(entity)
+	{
+		followTarget = entity;
+	}
+	
+	Director._getCAATDirector = function()
+	{
+		return caatDirector;
+	}
+	
+	//notification from an entity telling that is hp has changed
+	Director._onHPChanged = function(entity, dhp, isNegative){
+		entity.visualPart.cumulateHPChange(isNegative? -dhp : dhp);
+	}
+	
+	Director._addEntity = function(entity)
+	{
+		this._baseAddEntity(entity);//call base method
+		
+		var visualEntity = new VisualEntity(entity);
+		
+		visualEntity.listNode = visualEntityList.insertBack(visualEntity);
+		
+		//stop following this target
+		if (entity == followTarget)
+			followTarget = null;
+	}
+	
+	Director._destroyEntity = function(entity){
+		this._baseDestroyEntity(entity);//call base method
+		
+		var visualEntity = entity.visualPart;
+		
+		visualEntityList.removeNode(visualEntity.listNode );//remove this entity from the managed list
+		
+		visualEntity.playAnimation("die");//play dying animation
+		visualEntity.enableEvents(false);//disable mouse click
+		visualEntity.setDiscardable(true);
+		visualEntity.setFrameTime(currentUpdateTime, 1000);//dying in 1s
+	}
+	
+	//get animation's full name
+	function getFullAnimName(spriteModuleName, animation)
+	{
+		return spriteModuleName + "-" + animation;
+	}
+	
+	//init the game using the initXMLFile
+	function readInitFile()
+	{
+		//pre-load all images used in the game
+		var root = initXmlRequest.responseXML.childNodes[0];
+		var imageGroups = root.getElementsByTagName("images");
+		var images = new Array();
+		
+		for (var i = 0; i < imageGroups.length; ++i)
+		{
+			var imageInfos = imageGroups[i].getElementsByTagName("image");
+			for (var j = 0; j < imageInfos.length; ++j)
+			{
+				var image = {
+					id: imageInfos[j].getAttribute("id"),
+					url: imageInfos[j].getAttribute("url")
+				};
+				
+				images.push(image);
+			}//for (var j = 0; j < imageInfos.length; ++j)
+		}//for (var i = 0; i < imageGroups.length; ++i)
+		
+		new CAAT.ImagePreloader().loadImages(
+			images,
+			function (counter, images) {
+				if (counter == images.length)
+				{
+					//finish loading images
+					caatDirector.setImagesCache(images);
+					
+					var spritesFileElems = root.getElementsByTagName("spritesFile");
+					var spritesFile = spritesFileElems[0].childNodes[0].nodeValue;//get sprites information file name
+					var mapFileElems = root.getElementsByTagName("mapFile");
+					var mapFile = mapFileElems[0].childNodes[0].nodeValue;//get map file name
+					
+					//init sprites
+					initSpriteModules(spritesFile);
+					
+					//init map
+					initMap(mapFile);	
+								
+					//now the Director is ready to be used
+					onInitFinished();
+				}
+			}
+		);
+	}
+	
 	//initialize sprite modules from xml
-	Director.initSpriteModulesFromXML = function(xmlFile)
+	function initSpriteModules(xmlFile)
 	{
 		spriteSheetList = new Array();//list of sprite sheet objects
 		spriteModuleList = new Array();//list of sprite modules
@@ -182,99 +283,8 @@ Director.init = function(canvasID, displayWidth, displayHeight, initFileXML, onI
 		}//for (var i = 0; i < sprites.length; ++i)
 	}
 	
-	//make camera follow an entity
-	Director.makeCameraFollow = function(entity)
+	function initMap(mapFile)
 	{
-		followTarget = entity;
-	}
-	
-	Director._getCAATDirector = function()
-	{
-		return caatDirector;
-	}
-	
-	//notification from an entity telling that is hp has changed
-	Director._onHPChanged = function(entity, dhp){
-		entity.visualPart.cumulateHPChange(dhp);
-	}
-	
-	Director._addEntity = function(entity)
-	{
-		this._baseAddEntity(entity);//call base method
-		
-		var visualEntity = new VisualEntity(entity);
-		
-		visualEntity.listNode = visualEntityList.insertBack(visualEntity);
-	}
-	
-	Director._destroyEntity = function(entity){
-		this._baseDestroyEntity(entity);//call base method
-	
-		var body = entity.getPhysicsBody();
-		var visualEntity = entity.visualPart;
-		
-		body.SetActive(false);//disable physics simulation
-		this.deleteBodyList.insertBack(body);//add to being deleted list
-		
-		visualEntityList.removeNode(visualEntity.listNode );//remove this entity from the managed list
-		
-		visualEntity.playAnimation("die");//play dying animation
-		visualEntity.enableEvents(false);//disable mouse click
-		visualEntity.setDiscardable(true);
-		visualEntity.setFrameTime(currentUpdateTime, 1000);//dying in 1s
-	}
-	
-	//get animation's full name
-	function getFullAnimName(spriteModuleName, animation)
-	{
-		return spriteModuleName + "-" + animation;
-	}
-	
-	//pre-load all images used in the game
-	function preloadImages()
-	{
-		var root = initXmlRequest.responseXML.childNodes[0];
-		var imageGroups = root.getElementsByTagName("images");
-		var images = new Array();
-		
-		for (var i = 0; i < imageGroups.length; ++i)
-		{
-			var imageInfos = imageGroups[i].getElementsByTagName("image");
-			for (var j = 0; j < imageInfos.length; ++j)
-			{
-				var image = {
-					id: imageInfos[j].getAttribute("id"),
-					url: imageInfos[j].getAttribute("url")
-				};
-				
-				images.push(image);
-			}//for (var j = 0; j < imageInfos.length; ++j)
-		}//for (var i = 0; i < imageGroups.length; ++i)
-		
-		new CAAT.ImagePreloader().loadImages(
-			images,
-			function (counter, images) {
-				if (counter == images.length)
-				{
-					//finish loading
-					caatDirector.setImagesCache(images);
-					
-					//init map
-					initMap();
-								
-					//now the Director is ready to be used
-					onInitFinished();
-				}
-			}
-		);
-	}
-	
-	function initMap()
-	{
-		var root = initXmlRequest.responseXML.childNodes[0];
-		var mapFileElems = root.getElementsByTagName("mapFile");
-		var mapFile = mapFileElems[0].childNodes[0].nodeValue;//get map file name
-		
 		var Connect = new XMLHttpRequest();
  
 		// define which file to open and
@@ -370,41 +380,19 @@ Director.init = function(canvasID, displayWidth, displayHeight, initFileXML, onI
 		
 		that._createPhysicsTile(row, col, tileType == undefined ? false : tileType.isObstacle);
 		
+		if (tileType == undefined || tileType.sheetImgIdx == -1 || tileType.sheetImgIdx == null)//no sprite image for this tile
+			return;//no need to create visual tile
+		
+		/*-------create visual tile---------*/
 		var x = col * that.tileWidth;
 		var y = row * that.tileHeight;
 		var width = that.tileWidth;
 		var height = that.tileHeight;
 		
-		if (tileType == undefined)
-			return;//no need to create visual tile
-		
 		var visualTile = new Renderable(tileSpriteSheet);
 		visualTile.setBounds(x, y, width, height);
 		visualTile.setSpriteIndex(tileType.sheetImgIdx);
 		visualTile.enableEvents(false);
-		
-		if (tileType.isObstacle)//need to create physical obstacle object
-		{
-			var bodyDef = new b2BodyDef;
-			bodyDef.type = b2Body.b2_staticBody;
-			bodyDef.angle = 0;
-			bodyDef.allowSleep = false;
-			//position
-			bodyDef.position.x = x + width * 0.5;
-			bodyDef.position.y = y + height * 0.5;
-
-			/*------define the box shape of body-----------*/
-			var fixDef = new b2FixtureDef;
-			fixDef.density = 1.0;
-			fixDef.friction = 1.0;
-			fixDef.restitution = 1.0;
-			fixDef.isSensor = false;
-			var shape = new b2PolygonShape ;
-			shape.SetAsBox(width * 0.5, height * 0.5);
-			fixDef.shape = shape;
-			
-			var physicalTile = Director._createPhysicsBody(bodyDef, fixDef);//create body object
-		}
 	}
 	
 	function createSpriteSheet(imgID, subImgsPerRow, subImgsPerCol) {
@@ -519,7 +507,7 @@ Director.init = function(canvasID, displayWidth, displayHeight, initFileXML, onI
 		
 		this.entity.visualPart = this;//now the entity will know what is its visual part
 		
-	}//Renderable = function(entity)
+	}//VisualEntity = function(entity)
 	
 	//inheritance from Renderable
 	VisualEntity.prototype = new Renderable();
@@ -616,6 +604,11 @@ Director.init = function(canvasID, displayWidth, displayHeight, initFileXML, onI
 			this.dHPNeg += dHP;
 		}
 	}
+	
+	
+	/*----------all functions and member properties are ready ------*/
+	/*----------start loading the game---------*/
+	readInitFile();
 }
 
 

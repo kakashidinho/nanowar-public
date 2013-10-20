@@ -17,6 +17,7 @@ var   b2Vec2 = Box2D.Common.Math.b2Vec2
 		
 function DirectorBase()
 {
+	this.dummyClient;//flag indicates that the client will only do certain processing, the others will be done by server
 	this.physicsWorld;
 	this.walkRayCastCallback;
 	this.tiles;
@@ -24,11 +25,15 @@ function DirectorBase()
 	this.tilesPerCol;
 	this.tileWidth;
 	this.tileHeight;
+	this.onMessageHandling;//callback function(msg) called when Director is handling a message
+	this.onEntityDestroyed;//callback function(entityID) called when a known entity has been destroyed
 	this.knownEntity;//list of entities that have their own ID
 	this.deleteBodyList;//list of bodies waiting for being deleted
 	this.msgQueueList;//message queue
 	
 	var that = this;
+	
+	this.dummyClient = false;//by default, all processing will be done.
 	
 	//create known entity list
 	this.knownEntity = new Object();
@@ -38,6 +43,10 @@ function DirectorBase()
 	
 	//create message queue
 	this.msgQueueList = new Utils.List();
+	
+	//no callbacks by default
+	this.onMessageHandling = function(msg) {/*do nothing*/}
+	this.onEntityDestroyed = function(id) {}
 	
 	/*----------------------physics-----------------------------------------*/
 		
@@ -131,7 +140,11 @@ function DirectorBase()
 		}
 	}
 	
-	/*---------methods-----------------*/	
+	/*---------methods-----------------*/
+	//get list of known entities
+	this.getKnownEntities = function(){
+		return this.knownEntity;
+	}
 	//post message to queue
 	this.postMessage = function(msg)
 	{
@@ -160,19 +173,54 @@ function DirectorBase()
 	//process all messages in queue
 	this._processMessages = function()
 	{
+		var that = this;
 		this.msgQueueList.traverse(function(msg) {
+			that.onMessageHandling(msg);
 			switch(msg.type)
 			{
-			case MsgType.MOVING:
+			case MsgType.MOVE_ALONG:
 				{
-					that.knownEntity[msg.entityID].startMoveTo(msg.destx, msg.desty);
+					if (msg.entityID in that.knownEntity)
+						that.knownEntity[msg.entityID].startMoveDir(msg.dirx, msg.diry);
+				}
+				break;
+			case MsgType.MOVE_TO:
+				{
+					if (msg.entityID in that.knownEntity)
+						that.knownEntity[msg.entityID].startMoveTo(msg.destx, msg.desty);
+				}
+				break;
+			case MsgType.ENTITY_MOVEMENT_UPDATE:
+				{
+					if (msg.entityID in that.knownEntity)
+						that.knownEntity[msg.entityID].correctMovement(msg.x, msg.y, msg.dirx, msg.diry);
 				}
 				break;
 			case MsgType.ATTACK:
 				{
-					that.knownEntity[msg.entityID].attack(that.knownEntity[msg.targetID]);
+					if (msg.entityID in that.knownEntity && msg.targetID in that.knownEntity)
+						that.knownEntity[msg.entityID].attack(that.knownEntity[msg.targetID]);
 				}
 				break;
+			case MsgType.ENTITY_HP_CHANGE:
+				{
+					if (msg.entityID in that.knownEntity)
+					{
+						var entity = that.knownEntity[msg.entityID];
+						if (msg.dHPPos != 0)
+							entity.increaseHP(msg.dHPPos);
+						if (msg.dHPNeg != 0)
+							entity.decreaseHP(msg.dHPNeg);
+					}
+				}	
+				break;
+			case MsgType.ENTITY_DEATH:
+				if (msg.entityID in that.knownEntity)
+				{
+					that.knownEntity[msg.entityID].destroy();
+				}
+				break;
+			default:
 			}
 		}
 		);
@@ -190,10 +238,18 @@ function DirectorBase()
 	}
 	
 	this._baseDestroyEntity = function(entity){
+		var body = entity.getPhysicsBody();
+		
+		body.SetActive(false);//disable physics simulation
+		this.deleteBodyList.insertBack(body);//add to being deleted list
+	
 		if (entity.hasID())//this entity has an ID
 		{
+			//notify outsider
+			this.onEntityDestroyed(entity.getID());
+			
 			//remove it from the known entity list
-			this.knownEntity[entity.getID()] = null;
+			delete this.knownEntity[entity.getID()];
 		}
 	}
 	
@@ -213,13 +269,41 @@ function DirectorBase()
 		var width = this.tileWidth;
 		var height = this.tileHeight;
 		
+		var newTile = null;
+		
 		//store info of the tile (its row, column, center point and is obstacle or not)
-		this.tiles[row][col] = {
+		newTile = this.tiles[row][col] = {
 			row: row, col: col, 
 			center: new b2Vec2(x + 0.5 * width, y + 0.5 * height),
 			isObstacle: _isObstacle,//this tile allow walking through or not
 			hashKey: (row * this.tilesPerRow + col).toString()
 			};
+			
+		
+		if (_isObstacle)//need to create physical obstacle object
+		{
+			var bodyDef = new b2BodyDef;
+			bodyDef.type = b2Body.b2_staticBody;
+			bodyDef.angle = 0;
+			bodyDef.allowSleep = false;
+			//position
+			bodyDef.position.x = x + width * 0.5;
+			bodyDef.position.y = y + height * 0.5;
+
+			/*------define the box shape of body-----------*/
+			var fixDef = new b2FixtureDef;
+			fixDef.density = 1.0;
+			fixDef.friction = 1.0;
+			fixDef.restitution = 1.0;
+			fixDef.isSensor = false;
+			var shape = new b2PolygonShape ;
+			shape.SetAsBox(width * 0.5, height * 0.5);
+			fixDef.shape = shape;
+			
+			var physicalTile = this._createPhysicsBody(bodyDef, fixDef);//create body object
+		}
+		
+		return newTile;
 	}
 	
 	
@@ -509,5 +593,12 @@ function DirectorBase()
 		return distanceVec.x * distanceVec.x + distanceVec.y * distanceVec.y;
 	}
 	
+}
+
+
+// For node.js require
+if (typeof global != 'undefined')
+{
+	global.DirectorBase = DirectorBase;
 }
 	

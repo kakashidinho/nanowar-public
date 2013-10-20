@@ -1,5 +1,16 @@
 
 "use strict";
+/*short-form of box2d's functions and classes-------*/
+var   b2Vec2 = Box2D.Common.Math.b2Vec2
+	,	b2BodyDef = Box2D.Dynamics.b2BodyDef
+	,	b2Body = Box2D.Dynamics.b2Body
+	,	b2FixtureDef = Box2D.Dynamics.b2FixtureDef
+	,	b2Fixture = Box2D.Dynamics.b2Fixture
+	,	b2World = Box2D.Dynamics.b2World
+	,	b2MassData = Box2D.Collision.Shapes.b2MassData
+	,	b2PolygonShape = Box2D.Collision.Shapes.b2PolygonShape
+	,	b2CircleShape = Box2D.Collision.Shapes.b2CircleShape
+
 /*-----------Projectile class (extends MovingEntity)--------------*/
 
 var Projectile = function (_target, width, height, x, y, oriSpeed, spriteModule) {
@@ -91,4 +102,12 @@ Acid.prototype.update = function(elapsedTime){
 Acid.prototype.onHitTarget = function () {
 	
 	this.hit = true;//set the "hit" flag, so that next update will do something based on this flag
+}
+
+
+// For node.js require
+if (typeof global != 'undefined')
+{
+	global.Projectile = Projectile;
+	global.Acid = Acid;
 }

@@ -1,5 +1,14 @@
 "use strict";
-
+//init box2d short-form of functions and classes
+var   b2Vec2 = Box2D.Common.Math.b2Vec2
+	,	b2BodyDef = Box2D.Dynamics.b2BodyDef
+	,	b2Body = Box2D.Dynamics.b2Body
+	,	b2FixtureDef = Box2D.Dynamics.b2FixtureDef
+	,	b2Fixture = Box2D.Dynamics.b2Fixture
+	,	b2World = Box2D.Dynamics.b2World
+	,	b2MassData = Box2D.Collision.Shapes.b2MassData
+	,	b2PolygonShape = Box2D.Collision.Shapes.b2PolygonShape
+	,	b2CircleShape = Box2D.Collision.Shapes.b2CircleShape
 
 /*-----------------nano entity class--------------*/
 var NanoEntity = function(_id, _maxhp, _side, _width, _height, _x, _y, _spriteModule) {
@@ -16,6 +25,7 @@ var NanoEntity = function(_id, _maxhp, _side, _width, _height, _x, _y, _spriteMo
 	this.side;
 	this.effects;
 	this.alive;
+	this.className;//the class name
 	
 	/*---------------------------constructor-------------------------------------*/
 	this.id = _id;
@@ -66,6 +76,11 @@ NanoEntity.prototype.getSpriteModuleName = function() {
 NanoEntity.prototype.getPhysicsBody = function() {
 	return this.body;
 }
+//may return undefined
+NanoEntity.prototype.getClassName = function()
+{
+	return this.className;
+}
 
 //has ID?
 NanoEntity.prototype.hasID = function()
@@ -77,6 +92,10 @@ NanoEntity.prototype.hasID = function()
 NanoEntity.prototype.getID = function()
 {
 	return this.id;
+}
+
+NanoEntity.prototype.setHP = function(hp) {
+	this.HP = hp;
 }
 
 NanoEntity.prototype.getHP = function() {
@@ -114,6 +133,7 @@ NanoEntity.prototype.getPosition = function() {
 	return this.body.GetPosition();
 }
 
+//newPos is b2Vec2
 NanoEntity.prototype.setPosition = function(newPos) {
 	this.body.SetPosition(newPos);
 }
@@ -143,7 +163,9 @@ NanoEntity.prototype.setAlive = function(_alive)
 
 NanoEntity.prototype.destroy = function()
 {
-	Director._destroyEntity(this);
+	this.setAlive(false);
+	
+	Director._destroyEntity(this);//notify director
 	
 	//destroy all effects
 	this.effects.traverse(function(effect)
@@ -168,7 +190,7 @@ NanoEntity.prototype.increaseHP = function(dhp){
 		var realdDHP = newHP - this.HP;
 		this.HP = newHP;
 		
-		Director._onHPChanged(this, realdDHP);//notify director
+		Director._onHPChanged(this, realdDHP, false);//notify director
 	}
 }
 
@@ -177,10 +199,10 @@ NanoEntity.prototype.decreaseHP = function(dhp){
 		var newHP = this.HP - dhp;
 		if (newHP < 0)
 			newHP = 0;
-		var realdDHP = newHP - this.HP;
+		var realdDHP = this.HP - newHP;
 		this.HP = newHP;
 		
-		Director._onHPChanged(this, realdDHP);//notify director
+		Director._onHPChanged(this, realdDHP, true);//notify director
 	}
 }
 
@@ -225,6 +247,7 @@ var MovingEntity = function(_id, _maxhp, _side, _width, _height, _x, _y, _oripee
 	this.maxSpeed;//original speed. (in units per second)
 	this.currentSpeed;//current speed (may be slower than original speed or faster)
 	this.movingPath;//the path this entity has to follow
+	this.velChangeListener;// velocity change listener
 	
 	/*--------constructor---------*/
 	//call super class's constructor method
@@ -235,11 +258,30 @@ var MovingEntity = function(_id, _maxhp, _side, _width, _height, _x, _y, _oripee
 
 	this.originalSpeed = this.currentSpeed = _oripeed;
 	this.movingPath = new Utils.List();
+	
+	this.setVelChangeListener(null);
 }
 
 //inheritance from NanoEntity
 MovingEntity.prototype = new NanoEntity();
 MovingEntity.prototype.constructor = MovingEntity;
+
+
+//set a listener to be notified via onVelChanged(entity) method 
+//whenever the entity changes its velocity.
+MovingEntity.prototype.setVelChangeListener = function(listener){
+	if (listener == null || listener == undefined)
+	{
+		//default dummy listener
+		this.velChangeListener = {
+			onVelocityChanged: function(entity) {}
+		};
+	}
+	else
+	{
+		this.velChangeListener = listener;
+	}
+}
 
 //start moving to destination(x, y)
 MovingEntity.prototype.startMoveTo = function (x, y) {
@@ -254,12 +296,17 @@ MovingEntity.prototype.startMoveTo = function (x, y) {
 MovingEntity.prototype.startMoveDir = function(x, y) {
 	var velocity = new b2Vec2(x, y);
 	
-	velocity.Normalize();
-	velocity.Multiply(this.currentSpeed);
+	if (velocity.x != 0 && velocity.y != 0)
+	{
+		velocity.Normalize();
+		velocity.Multiply(this.currentSpeed);
+	}
 	
 	this.body.SetLinearVelocity(velocity);
 	
 	this.removeDestination();//we have started moving without destination
+	
+	this.velChangeListener.onVelocityChanged(this);//notify listener
 }
 
 MovingEntity.prototype.updateMovement = function(elapsedTime)
@@ -290,6 +337,8 @@ MovingEntity.prototype.stop = function()
 	this.body.SetLinearVelocity(new b2Vec2(0, 0));
 	
 	this.removeDestination();
+	
+	this.velChangeListener.onVelocityChanged(this);//notify listener
 }
 
 //start move backward
@@ -300,6 +349,8 @@ MovingEntity.prototype.startMoveBackward = function()
 	this.body.SetLinearVelocity(new b2Vec2(-velocity.x, -velocity.y));
 	
 	this.removeDestination();
+	
+	this.velChangeListener.onVelocityChanged(this);//notify listener
 }
 
 //get destination
@@ -327,6 +378,11 @@ MovingEntity.prototype.isMoving = function()
 	return velocity.x != 0 || velocity.y != 0;
 }
 
+//return b2Vec2
+MovingEntity.prototype.getVelocity = function(){
+	return this.body.GetLinearVelocity();
+}
+
 //get current speed
 MovingEntity.prototype.getSpeed = function()
 {
@@ -348,6 +404,14 @@ MovingEntity.prototype.startMoveToNextPointInPath = function()
 	velocity.Multiply(this.currentSpeed);
 	
 	this.body.SetLinearVelocity(velocity);
+	
+	this.velChangeListener.onVelocityChanged(this);//notify listener
+}
+
+//change the position and velocity of the entity to reflect the correct state indicated in parameters
+MovingEntity.prototype.correctMovement = function(posx, posy, dirx, diry){
+	this.setPosition(new b2Vec2(posx, posy));
+	this.startMoveDir(dirx, diry);
 }
 
 
@@ -397,15 +461,25 @@ PlayableEntity.prototype.getCurrentSkill = function()
 	return this.skills[this.activeSkill];
 }
 
+
 PlayableEntity.prototype.attack = function(target){
 	var dist = this.distanceVecToEntity(target)
 				   .Length();
 	var skill = this.getCurrentSkill();
 	var range = skill.getRange();
 	
-	if (dist <= range && target.getSide() != Constant.NEUTRAL && this.getSide() != target.getSide())
+	if (Director.dummyClient || //dummy client will do whatever it is told to do
+		(dist <= range && target.getSide() != Constant.NEUTRAL && this.getSide() != target.getSide()))
 	{
 		skill.fire(target);
 	}
+}
+
+// For node.js require
+if (typeof global != 'undefined')
+{
+	global.NanoEntity = NanoEntity;
+	global.MovingEntity = MovingEntity;
+	global.PlayableEntity = PlayableEntity;
 }
 
