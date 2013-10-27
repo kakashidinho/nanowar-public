@@ -17,10 +17,11 @@ Director.init = function(canvas, displayWidth, displayHeight, initFileXML, onIni
 	var currentUpdateTime;//for using during update
 	var initXmlRequest;
 	var followTarget;//the entity that camera will follow
-	
+	//var ontarget;
 	var that = this;
 	
 	Director.onClick;//on mouse click callback function. should be function(mouseX, mouseY, clickedEntity)
+	Director.onMove;//on move callback fucntion, should be function(onTarget) ontarget is a boolean attribute
 	Director.onUpdate;//update callback function. should be function(lastUpdateTime, currentTime)
 	
 	//init base instance
@@ -46,7 +47,8 @@ Director.init = function(canvas, displayWidth, displayHeight, initFileXML, onIni
 	followTarget = null;
 	
 	//initially, no callbacks
-	Director.onClick = function(x, y, target) {};//do nothing
+	Director.onClick = function (x, y, target) { };//do nothing
+	Director.onMove = function (target,flag) { };//do nothing
 	Director.onUpdate = undefined;
 	
 	// create visual entity list
@@ -149,6 +151,8 @@ Director.init = function(canvas, displayWidth, displayHeight, initFileXML, onIni
 		visualEntity.enableEvents(false);//disable mouse click
 		visualEntity.setDiscardable(true);
 		visualEntity.setFrameTime(currentUpdateTime, 1000);//dying in 1s
+
+	   
 	}
 	
 	//get animation's full name
@@ -456,9 +460,28 @@ Director.init = function(canvas, displayWidth, displayHeight, initFileXML, onIni
 		//add mouse click event listener
 		if (this.entity.getHP() > 0)
 		{
+
+		 //   alert("add listener");
 			this.mouseClick = function(mouse){
-				Director.onClick(mouse.x, mouse.y, this.entity);
+			    Director.onClick(mouse.x, mouse.y, this.entity);
+			   // alert(mouse.x);
 			};
+           //mouse move listener
+			this.mouseEnter = function (mouse) {
+			    var flag = true;
+			    Director.onMove(this.entity,flag);
+			   // alert(mouse.x);
+
+			};
+
+
+			this.mouseExit = function (mouse) {
+			    var flag = false;
+                Director.onMove(this.entity,flag)
+
+			}
+
+            
 		}
 		else//hp = 0 is not an interactive entity
 			this.enableEvents(false);

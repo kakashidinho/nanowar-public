@@ -21,7 +21,15 @@ Client.prototype.startGame = function()
 	this.sendToServer(new PlayerReadyMsg(this.playerID));//notify server that we are ready to receive in-game messages
 	
 	Director.onClick = function(x, y, target){
-		that.onClick(x, y, target); 
+	    that.onClick(x, y, target);
+	   // console.log(target);
+	}
+
+	Director.onMove = function (target,flag) {
+
+	    that.onMove(target,flag);
+	   // console.log(target);
+
 	}
 	Director.startGameLoop(Constant.FRAME_RATE);
 }
@@ -74,14 +82,56 @@ Client.prototype.onClick = function(x, y, target){
 	if (target == null)
 	{
 		//will start moving to new destination
-		Director.postMessage(new MoveToMsg(this.character, x, y));
+	    Director.postMessage(new MoveToMsg(this.character, x, y));
+	  //  alert("moving ");
 	}
 	else
 	{
-		//send to server
-		this.sendToServer(new AttackMsg(this.character, target))
+	    //send to server
+
+	   
+	    this.sendToServer(new AttackMsg(this.character, target));
+	 //   alert("attacking");
 	}
 }
+
+//handle mouse move, flag=true means mouse cover enemy, =flase otherwise
+Client.prototype.onMove = function (target,flag) {
+    //  alert("moving"+target);
+    var firstClass = this.character.getClassName();
+    var secondClass = target.getClassName();
+    console.log(firstClass);
+    console.log(secondClass);
+    var underFlag;
+    if (firstClass == secondClass) {
+        underFlag = false;
+    }
+    else {
+        underFlag = true;
+    }
+    var context = document.getElementById("canvas");
+
+   
+    if (flag== false) {
+       // console.log(target);
+        //cursor is move cursor
+        context.style.cursor = "url(http://cur.cursors-4u.net/games/gam-15/gam1422.ani), url(http://cur.cursors-4u.net/games/gam-15/gam1422.gif), progress";
+      //  alert("you are off target");
+    }
+  
+    if (flag == true&&underFlag) {
+        
+        //cursor is fire cursor
+       // console.log(target);
+      //  console.log(this.character);
+        context.style.cursor = "url(http://cur.cursors-4u.net/games/gam-11/gam1077.ani), url(http://cur.cursors-4u.net/games/gam-11/gam1077.png), progress";
+       // alert("you are on target");
+    }
+
+}
+
+//handle mouse move event, for changing the mouse cursor
+
 
 //receiving message from server
 Client.prototype.onMessage = function(msg){
