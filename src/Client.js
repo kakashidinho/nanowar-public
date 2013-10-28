@@ -25,9 +25,9 @@ Client.prototype.startGame = function()
 	   // console.log(target);
 	}
 
-	Director.onMove = function (target,flag) {
+	Director.onMove = function (target,flag,x,y) {
 
-	    that.onMove(target,flag);
+	    that.onMove(target,flag,x,y);
 	   // console.log(target);
 
 	}
@@ -83,7 +83,7 @@ Client.prototype.onClick = function(x, y, target){
 	{
 		//will start moving to new destination
 	    Director.postMessage(new MoveToMsg(this.character, x, y));
-	  //  alert("moving ");
+	
 	}
 	else
 	{
@@ -91,18 +91,18 @@ Client.prototype.onClick = function(x, y, target){
 
 	   
 	    this.sendToServer(new AttackMsg(this.character, target));
-	 //   alert("attacking");
+
 	}
 }
 
 //handle mouse move, flag=true means mouse cover enemy, =flase otherwise
-Client.prototype.onMove = function (target,flag) {
-    //  alert("moving"+target);
-    var firstClass = this.character.getClassName();
-    var secondClass = target.getClassName();
-    console.log(firstClass);
-    console.log(secondClass);
+Client.prototype.onMove = function (target,flag,x,y) {
+   
+    var firstClass = this.character.getSide();
+    var secondClass = target.getSide();
     var underFlag;
+    var leaveTarget = false;
+    var onTarget = true;
     if (firstClass == secondClass) {
         underFlag = false;
     }
@@ -112,20 +112,19 @@ Client.prototype.onMove = function (target,flag) {
     var context = document.getElementById("canvas");
 
    
-    if (flag== false) {
-       // console.log(target);
+    if (flag== leaveTarget) {
+      
         //cursor is move cursor
         context.style.cursor = "url(http://cur.cursors-4u.net/games/gam-15/gam1422.ani), url(http://cur.cursors-4u.net/games/gam-15/gam1422.gif), progress";
-      //  alert("you are off target");
+        Director.drawTargetMarker(x,y,leaveTarget);
     }
   
-    if (flag == true&&underFlag) {
+    if (flag == onTarget&&underFlag) {
         
         //cursor is fire cursor
-       // console.log(target);
-      //  console.log(this.character);
+        Director.drawTargetMarker(x,y, onTarget);
         context.style.cursor = "url(http://cur.cursors-4u.net/games/gam-11/gam1077.ani), url(http://cur.cursors-4u.net/games/gam-11/gam1077.png), progress";
-       // alert("you are on target");
+      
     }
 
 }

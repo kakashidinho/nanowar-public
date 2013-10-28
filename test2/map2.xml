@@ -45,7 +45,7 @@
 		/>
 		<tileType 
 			id="5"
-			tileSheetIdx="-1"
+			tileSheetIdx="2"
 			obstacle="false"
 			spawnCell="true"
 		/>
