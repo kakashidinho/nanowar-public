@@ -61,6 +61,7 @@ Director.init = function(canvas, displayWidth, displayHeight, initFileXML, onIni
 	    onEnemyMarker.setShape(CAAT.Foundation.UI.ShapeActor.SHAPE_CIRCLE);
 	    onEnemyMarker.enableEvents(false);
 	    onEnemyMarker.setFillStyle('#ffff00');
+	    onEnemyMarker.setAlpha(0.2);
 	    onEnemyMarker.setStrokeStyle('#000');
 	    onEnemyMarker.setSize(50, 50);
 	    onEnemyMarker.setLocation(x, y);
@@ -70,13 +71,15 @@ Director.init = function(canvas, displayWidth, displayHeight, initFileXML, onIni
         setCycle(true).
         setFrameTime(0, 2000);
 
+
+
 	    var scaleMarker = new CAAT.Behavior.ScaleBehavior().
         setPingPong().
         setValues(1, 2, 1, 2, .50, .50).
         setFrameTime(0, 2000);
 
 	    cycleDraw.addBehavior(scaleMarker);
-
+	  
 	    onEnemyMarker.addBehavior(cycleDraw);
 	      
 	        if (flag) {
