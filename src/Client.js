@@ -22,15 +22,17 @@ Client.prototype.startGame = function()
 	
 	Director.onClick = function(x, y, target){
 	    that.onClick(x, y, target);
-	   // console.log(target);
+	   
 	}
 
 	Director.onMove = function (target,flag,x,y) {
 
 	    that.onMove(target,flag,x,y);
-	   // console.log(target);
-
+	  
+      
 	}
+
+	
 	Director.startGameLoop(Constant.FRAME_RATE);
 }
 
@@ -81,9 +83,13 @@ Client.prototype.onClick = function(x, y, target){
 		return;
 	if (target == null)
 	{
-		//will start moving to new destination
+	    //will start moving to new destination
+	 
 	    Director.postMessage(new MoveToMsg(this.character, x, y));
-	
+	    Director.marker = false;
+	   // marker will be drawn to mouse click position
+	    Director.clickX = x;
+	    Director.clickY = y;
 	}
 	else
 	{
@@ -91,6 +97,11 @@ Client.prototype.onClick = function(x, y, target){
 
 	   
 	    this.sendToServer(new AttackMsg(this.character, target));
+        //marker will be drawn to where your lock target is
+	    Director.marker = true;
+	    Director.enemy = target;
+	   
+	  
 
 	}
 }
@@ -115,21 +126,20 @@ Client.prototype.onMove = function (target,flag,x,y) {
     if (flag== leaveTarget) {
       
         //cursor is move cursor
-        context.style.cursor = "url(http://cur.cursors-4u.net/games/gam-15/gam1422.ani), url(http://cur.cursors-4u.net/games/gam-15/gam1422.gif), progress";
-        Director.drawTargetMarker(x,y,leaveTarget);
+        context.style.cursor = "url(...\test2\moveCursor.ani), url(...\test2\moveCursor.gif), progress";
+   
     }
   
     if (flag == onTarget&&underFlag) {
         
         //cursor is fire cursor
-        Director.drawTargetMarker(x,y, onTarget);
-        context.style.cursor = "url(http://cur.cursors-4u.net/games/gam-11/gam1077.ani), url(http://cur.cursors-4u.net/games/gam-11/gam1077.png), progress";
+  
+        context.style.cursor = "url(...\test2\attackCursor.ani), url(...\test2\attackCursor.png), progress";
       
     }
 
 }
 
-//handle mouse move event, for changing the mouse cursor
 
 
 //receiving message from server
