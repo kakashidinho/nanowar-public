@@ -121,7 +121,7 @@ Client.prototype.onMouseEnterExit = function (target,enter,x,y) {
     if (!enemy || !enter) {
       
         //cursor is move cursor
-        context.style.cursor = "url(./moveCursor.ani), url(./moveCursor.gif), progress";
+        context.style.cursor = "url(./moveCursor.ani) 16 16, url(./moveCursor.gif) 16 16, progress";
    
     }
   
@@ -129,7 +129,7 @@ Client.prototype.onMouseEnterExit = function (target,enter,x,y) {
         
         //cursor is attack cursor
   
-        context.style.cursor = "url(./attackCursor.ani), url(./attackCursor.png), progress";
+        context.style.cursor = "url(./attackCursor.ani) 16 16, url(./attackCursor.png) 16 16, progress";
       
     }
 
