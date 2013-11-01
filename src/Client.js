@@ -8,7 +8,7 @@ function Client(canvasElementID)
 	this.playerID;
 	this.character;//my character
 	
-	while(document.readyState !== "complete") {console.log("loading...");};
+	//while(document.readyState !== "complete") {console.log("loading...");};
 		
 	this.canvas = document.getElementById(canvasElementID);
 }
@@ -25,13 +25,17 @@ Client.prototype.startGame = function()
 	   
 	}
 
-	Director.onMove = function (target,flag,x,y) {
+	Director.onMouseEnterExit = function (target,enter,x,y) {
 
-	    that.onMove(target,flag,x,y);
+	    that.onMouseEnterExit(target,enter,x,y);
 	  
       
 	}
 
+	Director.preUpdate = function(lastTime, currentTime){
+		that.preUpdate(lastTime, currentTime);
+	}
+	
 	
 	Director.startGameLoop(Constant.FRAME_RATE);
 }
@@ -67,7 +71,7 @@ Client.prototype.spawnEntity = function(msg){
 		this.character = spawn_entity;
 		this.character.setVelChangeListener(this);//listen to the change in the character's movement
 		
-		Director.makeCameraFollow(this.character);
+		Director.setMainCharacter(this.character);
 	}
 }
 
@@ -86,61 +90,54 @@ Client.prototype.onClick = function(x, y, target){
 	    //will start moving to new destination
 	 
 	    Director.postMessage(new MoveToMsg(this.character, x, y));
-	    Director.marker = false;
-	   // marker will be drawn to mouse click position
-	    Director.clickX = x;
-	    Director.clickY = y;
+	    
+		//mark the destination, just for the visual indication
+		Director.markDestination(x, y);
 	}
 	else
-	{
-	    //send to server
-
+	{	
+		if (target.getSide() != Constant.NEUTRAL && target.getSide() != 
+			this.character.getSide())
+		{
 	   
-	    this.sendToServer(new AttackMsg(this.character, target));
-        //marker will be drawn to where your lock target is
-	    Director.marker = true;
-	    Director.enemy = target;
-	   
-	  
+			//send attacking message to server
+			this.sendToServer(new AttackMsg(this.character, target));
+		
+			//mark the target, just for the visual indication
+			Director.markTarget(target);
+		}
 
 	}
 }
 
-//handle mouse move, flag=true means mouse cover enemy, =flase otherwise
-Client.prototype.onMove = function (target,flag,x,y) {
+//handle mouse enters or exits a target
+Client.prototype.onMouseEnterExit = function (target,enter,x,y) {
    
-    var firstClass = this.character.getSide();
-    var secondClass = target.getSide();
-    var underFlag;
-    var leaveTarget = false;
-    var onTarget = true;
-    if (firstClass == secondClass) {
-        underFlag = false;
-    }
-    else {
-        underFlag = true;
-    }
-    var context = document.getElementById("canvas");
+    var enemy = target.getSide() != Constant.NEUTRAL && target.getSide() != this.character.getSide();
+   
+    var context = this.canvas;
 
    
-    if (flag== leaveTarget) {
+    if (!enemy || !enter) {
       
         //cursor is move cursor
-        context.style.cursor = "url(...\test2\moveCursor.ani), url(...\test2\moveCursor.gif), progress";
+        context.style.cursor = "url(./moveCursor.ani), url(./moveCursor.gif), progress";
    
     }
   
-    if (flag == onTarget&&underFlag) {
+    else {
         
-        //cursor is fire cursor
+        //cursor is attack cursor
   
-        context.style.cursor = "url(...\test2\attackCursor.ani), url(...\test2\attackCursor.png), progress";
+        context.style.cursor = "url(./attackCursor.ani), url(./attackCursor.png), progress";
       
     }
 
 }
 
-
+//a function called by Director before the game's update is executed
+Client.prototype.preUpdate = function(lastTime, currentTime){
+}
 
 //receiving message from server
 Client.prototype.onMessage = function(msg){

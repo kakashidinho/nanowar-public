@@ -16,39 +16,19 @@ Director.init = function(canvas, displayWidth, displayHeight, initFileXML, onIni
 	var lastUpdateTime;
 	var currentUpdateTime;//for using during update
 	var initXmlRequest;
-	var followTarget;//the entity that camera will follow
+	var mainCharacter;//the main entity in the game
+	var targetEntity;//the attacking target of main character
+	//movement's destination mark
+	var destMark ;
+    //target mark
+	var targetMark;
 	
-	
-	//var ontarget;
 	var that = this;
-	Director.marker;
-	Director.clickX;
-	Director.clickY;
-	Director.enemy;
-    //initialize the marker
-	Director.enemyMarker;
-	Director.enemyMarker = new CAAT.Foundation.UI.ShapeActor();
-	Director.enemyMarker.setShape(CAAT.Foundation.UI.ShapeActor.SHAPE_CIRCLE);
-	Director.enemyMarker.enableEvents(false);
-	Director.enemyMarker.setFillStyle('#ffff00');
-	Director.enemyMarker.setAlpha(0.2);
-	Director.enemyMarker.setStrokeStyle('#000');
-	Director.enemyMarker.setSize(20, 20);
-	var cycleDraw = new CAAT.Behavior.ContainerBehavior().
-    setCycle(true).
-    setFrameTime(0, 2000);
-	var scaleMarker = new CAAT.Behavior.ScaleBehavior().
-    setPingPong().
-    setValues(1, 2, 1, 2, .50, .50).
-    setFrameTime(0, 2000);
-	cycleDraw.addBehavior(scaleMarker);
-	Director.enemyMarker.addBehavior(cycleDraw);
-	//initialize the marker
 
 	Director.onClick;//on mouse click callback function. should be function(mouseX, mouseY, clickedEntity)
-	Director.onMove;//on move callback fucntion, should be function(onTarget) ontarget is a boolean attribute
+	Director.onMouseEnterExit;//on mouse enter/exit callback function
 	Director.onUpdate;//update callback function. should be function(lastUpdateTime, currentTime)
-
+	Director.preUpdate;//pre-update callback function
 	
 	//init base instance
 	DirectorBase.call(this);
@@ -61,6 +41,11 @@ Director.init = function(canvas, displayWidth, displayHeight, initFileXML, onIni
 	initXmlRequest.setRequestHeader("Content-Type", "text/xml");
 	initXmlRequest.send(null);
 	
+	/*-------------------------------*/
+	//no target to follow
+	mainCharacter = null;
+	targetEntity = null;
+	
 	/*---------graphics--------------*/
 	
 	// create a CAAT director object for handling graphics
@@ -69,13 +54,12 @@ Director.init = function(canvas, displayWidth, displayHeight, initFileXML, onIni
 			displayHeight,    // pixels across
 			canvas
 	);
-	//no target to follow
-	followTarget = null;
 	
 	//initially, no callbacks
 	Director.onClick = function (x, y, target) { };//do nothing
-	Director.onMove = function (target, flag,x,y) { };//do nothing
+	Director.onMouseEnterExit = function (target, enter,x,y) { };//do nothing
 	Director.onUpdate = undefined;
+	Director.preUpdate = undefined;
 	
 	// create visual entity list
 	visualEntityList = new Utils.List();
@@ -89,10 +73,46 @@ Director.init = function(canvas, displayWidth, displayHeight, initFileXML, onIni
 	bg.mouseClick = function(mouse){
 		Director.onClick(mouse.x, mouse.y, null);
 	};
-    //add the marker to the background
-	bg.addChild(Director.enemyMarker);
  
     scene.addChild(bg);
+	
+	/*----init movement mark and target mark-------*/
+	//animations for the 2 marks
+	var cycleDraw = new CAAT.Behavior.ContainerBehavior().
+    setCycle(true).
+	setFrameTime(0, 1000);
+	var scaleMarker = new CAAT.Behavior.ScaleBehavior().
+    setPingPong().
+	setFrameTime(0, 1000).
+    setValues(1, 2, 1, 2, .50, .50);
+	cycleDraw.addBehavior(scaleMarker);
+	
+	//movement's destination mark
+	destMark = new CAAT.Foundation.UI.ShapeActor();
+	destMark.setShape(CAAT.Foundation.UI.ShapeActor.SHAPE_CIRCLE);
+	destMark.enableEvents(false);
+	destMark.setFillStyle('#00ff00');
+	destMark.setAlpha(0.2);
+	destMark.setStrokeStyle('#000');
+	destMark.setSize(15, 15);
+	destMark.setVisible(false);//initially invisible
+	destMark.addBehavior(cycleDraw);
+	
+	bg.addChild(destMark);
+	
+	
+    //initialize the target mark
+	targetMark = new CAAT.Foundation.UI.ShapeActor();
+	targetMark.setShape(CAAT.Foundation.UI.ShapeActor.SHAPE_CIRCLE);
+	targetMark.enableEvents(false);
+	targetMark.setFillStyle('#ffff00');
+	targetMark.setAlpha(0.2);
+	targetMark.setStrokeStyle('#000');
+	targetMark.setSize(25, 25);
+	targetMark.setVisible(false);//initially invisible
+	targetMark.addBehavior(cycleDraw);
+	
+	bg.addChild(targetMark);
 	
 	/*-------rendering loop------------------*/
 	lastUpdateTime = -1;
@@ -104,6 +124,10 @@ Director.init = function(canvas, displayWidth, displayHeight, initFileXML, onIni
 		
 		//var elapsedTime = currentUpdateTime - lastUpdateTime;
 		var elapsedTime = 1000/60.0;
+		
+		//call pre-update callback function
+		if (Director.preUpdate != undefined)
+			Director.preUpdate(lastUpdateTime, currentUpdateTime);
 		
 		that._baseGameLoop(elapsedTime);//call base game update method
 		
@@ -119,10 +143,29 @@ Director.init = function(canvas, displayWidth, displayHeight, initFileXML, onIni
 		);
 		
 		//move camera to follow target
-		if (followTarget != null)
+		if (mainCharacter != null)
 		{
-			var pos = followTarget.getPosition();
+			var pos = mainCharacter.getPosition();
 			bg.setLocation(displayWidth * 0.5 - pos.x, displayHeight * 0.5 - pos.y);
+		}
+		
+		//update the destination mark
+		if (mainCharacter == null || mainCharacter.isMoving() == false)
+		{
+			//hide the mark
+			destMark.setVisible(false);
+		}
+		
+		//update the target mark
+		if (targetEntity != null && targetEntity.isAlive()){
+			//we currently have a marked target
+			targetMark.setVisible(true);
+			targetMark.centerAt(targetEntity.getPosition().x, targetEntity.getPosition().y);
+		}
+		else//dont have any marked target
+		{
+			//hide the mark
+			targetMark.setVisible(false);
 		}
 		
 		lastUpdateTime = currentUpdateTime;
@@ -140,9 +183,25 @@ Director.init = function(canvas, displayWidth, displayHeight, initFileXML, onIni
 	}
 	
 	//make camera follow an entity
-	Director.makeCameraFollow = function(entity)
+	Director.setMainCharacter = function(entity)
 	{
-		followTarget = entity;
+		mainCharacter = entity;
+	}
+	
+	//mark the destination, the mark will disappear after the main character stop moving
+	Director.markDestination = function(x, y){
+		destMark.setVisible(true);
+		destMark.centerAt(x, y);
+	}
+	
+	//mark the target
+	Director.markTarget = function(entity){
+		targetEntity = entity;
+	}
+	
+	//get the current marked target
+	Director.getMarkedTarget = function(){
+		return targetEntity;
 	}
 	
 	Director._getCAATDirector = function()
@@ -162,13 +221,15 @@ Director.init = function(canvas, displayWidth, displayHeight, initFileXML, onIni
 		var visualEntity = new VisualEntity(entity);
 		
 		visualEntity.listNode = visualEntityList.insertBack(visualEntity);
-		
-		//stop following this target
-		if (entity == followTarget)
-			followTarget = null;
 	}
 	
 	Director._destroyEntity = function(entity){
+		//stop following this target
+		if (entity == mainCharacter)
+			mainCharacter = null;
+		else if (entity == targetEntity)
+			targetEntity = null;
+			
 		this._baseDestroyEntity(entity);//call base method
 		
 		var visualEntity = entity.visualPart;
@@ -469,12 +530,9 @@ Director.init = function(canvas, displayWidth, displayHeight, initFileXML, onIni
 	    this.healthBar;//health bar
 	    this.hpChangePosTxt;//positive health changing notifying text
 	    this.hpChangeNegTxt;//positive health changing notifying text
-	   // this.onAimMarker;// marker when the target is aimed
 	    this.dHPPos;//positive change in HP per frame
 	    this.dHPNeg;//negative change in HP per frame
 	    this.spriteModule;
-	    this.entityOnAim;
-	   //whether i aim on the target
 	   
 		
 	    this.entity = _entity;
@@ -493,43 +551,11 @@ Director.init = function(canvas, displayWidth, displayHeight, initFileXML, onIni
 	    //caatActor.setScale(entity.getWidth() / caatActor.width, entity.getHeight() / caatActor.height);
 		
 	    //add mouse click event listener
-	    if (this.entity.getHP() > 0)
-	    {
-
-		
-	        this.mouseClick = function (mouse) {
-	            Director.onClick(mouse.x, mouse.y, this.entity);
-	            
-	        };
-	        //mouse enter and exit listener, use it to detect whether cursor enter or exit the actor
-	        this.mouseEnter = function (mouse) {
-	            this.entityOnAim = true;
-	            Director.onMove(this.entity, this.entityOnAim,this.x,this.y);
-	            
-                
-
-	        };
-
-
-	        this.mouseExit = function (mouse) {
-	            this.entityOnAim = false;
-	            Director.onMove(this.entity, this.entityOnAim, this.x, this.y);
-	           
-	        };
-
-	        this.mouseMove = function (mouse) {
-
-	            //  Director.onMove(this.entity, this.entityOnAim, this.x, this.y);
-
-
-	        }
-           
-	    }
-
-
-	else{//hp = 0 is not an interactive entity
-		    this.enableEvents(false);
-	    }
+	    if (this.entity.getHP() <= 0)
+		{
+			//hp = 0 is not an interactive entity
+			this.enableEvents(false);
+		}
 
 
 		if (this.entity.getHP() > 0)
@@ -586,32 +612,31 @@ Director.init = function(canvas, displayWidth, displayHeight, initFileXML, onIni
 	VisualEntity.prototype = new Renderable();
 	VisualEntity.prototype.constructor = VisualEntity;
 	
+	//mouse events listeners
+	VisualEntity.prototype.mouseClick = function (mouse) {
+		Director.onClick(mouse.x, mouse.y, this.entity);
+		
+	}
+	//mouse enter and exit listener, use it to detect whether cursor enter or exit the actor
+	VisualEntity.prototype.mouseEnter = function (mouse) {
+		Director.onMouseEnterExit(this.entity, true ,this.x,this.y);
+	}
+
+
+	VisualEntity.prototype.mouseExit = function (mouse) {
+		Director.onMouseEnterExit(this.entity, false, this.x, this.y);	   
+	}
+
+	VisualEntity.prototype.mouseMove = function (mouse) {
+		//TO DO
+	}
+	
 	//let the visual part change to reflect its physical counterpart
 	VisualEntity.prototype.commitChanges = function(elapsedTime)
 	{
-
-	  //draw the marker according to different situation
-	    if (Director.marker == undefined) { Director.enemyMarker.setSize(1, 1) }
-	    if (Director.marker == false) {
-            //set location to mouse click position
-	        Director.enemyMarker.setSize(20, 20);
-
-	        Director.enemyMarker.setLocation(Director.clickX, Director.clickY);
-	    }
-
-	    if (Director.marker == true) {
-	     
-
-            //set location to chase the target
-	            Director.enemyMarker.setLocation(Director.enemy.getPosition().x, Director.enemy.getPosition().y);
-	           
-
-	    }
-	    
 		//change the visual position to reflect the physical part
 		var bodyPos = this.entity.getPosition();
 		this.centerAt(bodyPos.x, bodyPos.y);
-        //update onAimMarker
 		
 		//update health bar
 		if (this.healthBar != null)
@@ -650,14 +675,6 @@ Director.init = function(canvas, displayWidth, displayHeight, initFileXML, onIni
 			this.hpChangeNegTxt.setFrameTime(currentUpdateTime, 500);//appear in 0.5s
 			this.dHPNeg = 0;
 		}//if (this.dHPNeg < 0
-
-
-		
-	
-
-
-
-
 	}
 	
 	//override playAnimation method, because we are using the different animation name

@@ -22,7 +22,7 @@ function start() {
 			Director.postMessage(new AttackMsg(cell, target));
 	};
 	
-	Director.makeCameraFollow(cell);
+	Director.setMainCharacter(cell);
 	  
 	Director.startGameLoop(60);//60 frames per second
 }
