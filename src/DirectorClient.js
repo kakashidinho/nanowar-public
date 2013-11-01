@@ -486,6 +486,9 @@ Director.init = function(canvas, displayWidth, displayHeight, initFileXML, onIni
 		visualTile.setBounds(x, y, width, height);
 		visualTile.setSpriteIndex(tileType.sheetImgIdx);
 		visualTile.enableEvents(false);
+		
+		if (!tileType.isObstacle)
+			bg.setZOrder(visualTile, -1);
 	}
 	
 	function createSpriteSheet(imgID, subImgsPerRow, subImgsPerCol) {
