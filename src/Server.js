@@ -159,7 +159,7 @@ Server.prototype.startGame = function()
 	var that = this;
 	//director's message handling callback
 	Director.onMessageHandling = function(msg){
-		that.handleMessage(msg);
+		return that.handleMessage(msg);
 	}
 	
 	//director's entity death notification
@@ -252,7 +252,8 @@ Server.prototype.notifyEntityDeath = function(entityID){
 	this.broadcast(new EntityDeathMessage(entityID));
 }
 
-//this will handle message that Director forwards back to Server
+//this will handle message that Director forwards back to Server.
+//return true if you dont want the Director to handle this message
 Server.prototype.handleMessage = function(msg)
 {
 	switch(msg.type)
@@ -290,11 +291,24 @@ Server.prototype.handleMessage = function(msg)
 		break;
 	case MsgType.ATTACK:
 		{
+			//check if the attack range is valid
+			var entities = Director.getKnownEntities();
+			if (msg.entityID in entities == false || msg.targetID in entities == false ||
+				!entities[msg.entityID].canAttack(entities[msg.targetID]))
+			{
+				//cannot attack because of out of range
+				this.unicast(this.players[msg.entityID].connID, new AttackOutRangeMsg());//tell player
+				
+				//prevent the Director from processing this message
+				return true;
+			}
 			//forward it to all clients
 			this.broadcast( msg);
 		}
 		break;
 	}
+	
+	return false;
 }
 
 //receiving message from player

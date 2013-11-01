@@ -15,7 +15,8 @@ var MsgType = {
 	PLAYER_CONNECT: 10,
 	PLAYER_DISCONNECT: 11,
 	ENTITY_HP_CHANGE: 12,
-	ENTITY_DEATH: 13
+	ENTITY_DEATH: 13,
+	ATTACK_OUT_OF_RANGE: 14
 };
 
 function MoveAlongMsg(entity, dirx, diry){
@@ -108,6 +109,10 @@ function EntityDeathMessage(entityID){
 	this.entityID = entityID;
 }
 
+function AttackOutRangeMsg(){
+	this.type = MsgType.ATTACK_OUT_OF_RANGE;
+}
+
 
 // For node.js require
 if (typeof global != 'undefined')
@@ -125,5 +130,6 @@ if (typeof global != 'undefined')
 	global.EntityMoveMentMsg = EntityMoveMentMsg;
 	global.EntityHPChange = EntityHPChange;
 	global.EntityDeathMessage = EntityDeathMessage;
+	global.AttackOutRangeMsg = AttackOutRangeMsg;
 	global.MsgType = MsgType;
 }

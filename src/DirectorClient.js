@@ -18,10 +18,13 @@ Director.init = function(canvas, displayWidth, displayHeight, initFileXML, onIni
 	var initXmlRequest;
 	var mainCharacter;//the main entity in the game
 	var targetEntity;//the attacking target of main character
-	//movement's destination mark
-	var destMark ;
-    //target mark
-	var targetMark;
+	
+	var sceneRoot;
+	var guiNode;//scene's gui node, for containing GUI elements
+	var worldNode;//scene's world node
+	var outOfRangeText;//out of range text on screen
+	var destMark ;//movement's destination mark
+	var targetMark; //target mark
 	
 	var that = this;
 
@@ -46,130 +49,16 @@ Director.init = function(canvas, displayWidth, displayHeight, initFileXML, onIni
 	mainCharacter = null;
 	targetEntity = null;
 	
-	/*---------graphics--------------*/
-	
-	// create a CAAT director object for handling graphics
-	caatDirector = new CAAT.Foundation.Director().initialize(
-			displayWidth,    // pixels wide
-			displayHeight,    // pixels across
-			canvas
-	);
-	
+		
 	//initially, no callbacks
 	Director.onClick = function (x, y, target) { };//do nothing
 	Director.onMouseEnterExit = function (target, enter,x,y) { };//do nothing
 	Director.onUpdate = undefined;
 	Director.preUpdate = undefined;
-	
-	// create visual entity list
-	visualEntityList = new Utils.List();
-	
-	// add a scene object to the director.
-	var scene =     caatDirector.createScene();
-	
-	//background
-	var bg = new CAAT.Foundation.ActorContainer().
-            setFillStyle('#fff');
-	bg.mouseClick = function(mouse){
-		Director.onClick(mouse.x, mouse.y, null);
-	};
- 
-    scene.addChild(bg);
-	
-	/*----init movement mark and target mark-------*/
-	//animations for the 2 marks
-	var cycleDraw = new CAAT.Behavior.ContainerBehavior().
-    setCycle(true).
-	setFrameTime(0, 1000);
-	var scaleMarker = new CAAT.Behavior.ScaleBehavior().
-    setPingPong().
-	setFrameTime(0, 1000).
-    setValues(1, 2, 1, 2, .50, .50);
-	cycleDraw.addBehavior(scaleMarker);
-	
-	//movement's destination mark
-	destMark = new CAAT.Foundation.UI.ShapeActor();
-	destMark.setShape(CAAT.Foundation.UI.ShapeActor.SHAPE_CIRCLE);
-	destMark.enableEvents(false);
-	destMark.setFillStyle('#00ff00');
-	destMark.setAlpha(0.2);
-	destMark.setStrokeStyle('#000');
-	destMark.setSize(15, 15);
-	destMark.setVisible(false);//initially invisible
-	destMark.addBehavior(cycleDraw);
-	
-	bg.addChild(destMark);
-	
-	
-    //initialize the target mark
-	targetMark = new CAAT.Foundation.UI.ShapeActor();
-	targetMark.setShape(CAAT.Foundation.UI.ShapeActor.SHAPE_CIRCLE);
-	targetMark.enableEvents(false);
-	targetMark.setFillStyle('#ffff00');
-	targetMark.setAlpha(0.2);
-	targetMark.setStrokeStyle('#000');
-	targetMark.setSize(25, 25);
-	targetMark.setVisible(false);//initially invisible
-	targetMark.addBehavior(cycleDraw);
-	
-	bg.addChild(targetMark);
-	
-	/*-------rendering loop------------------*/
-	lastUpdateTime = -1;
-	
-	scene.onRenderStart = function(scene_time) {
-		currentUpdateTime = scene_time;
-		if (lastUpdateTime == -1)
-			lastUpdateTime = currentUpdateTime;
 		
-		//var elapsedTime = currentUpdateTime - lastUpdateTime;
-		var elapsedTime = 1000/60.0;
-		
-		//call pre-update callback function
-		if (Director.preUpdate != undefined)
-			Director.preUpdate(lastUpdateTime, currentUpdateTime);
-		
-		that._baseGameLoop(elapsedTime);//call base game update method
-		
-		//call update callback function
-		if (Director.onUpdate != undefined)
-			Director.onUpdate(lastUpdateTime, currentUpdateTime);
-			
-		//update the entities and commit changes to their visual parts
-		visualEntityList.traverse(function(visualEntity) {
-			visualEntity.getEntity().update(elapsedTime);
-			visualEntity.commitChanges();
-		}
-		);
-		
-		//move camera to follow target
-		if (mainCharacter != null)
-		{
-			var pos = mainCharacter.getPosition();
-			bg.setLocation(displayWidth * 0.5 - pos.x, displayHeight * 0.5 - pos.y);
-		}
-		
-		//update the destination mark
-		if (mainCharacter == null || mainCharacter.isMoving() == false)
-		{
-			//hide the mark
-			destMark.setVisible(false);
-		}
-		
-		//update the target mark
-		if (targetEntity != null && targetEntity.isAlive()){
-			//we currently have a marked target
-			targetMark.setVisible(true);
-			targetMark.centerAt(targetEntity.getPosition().x, targetEntity.getPosition().y);
-		}
-		else//dont have any marked target
-		{
-			//hide the mark
-			targetMark.setVisible(false);
-		}
-		
-		lastUpdateTime = currentUpdateTime;
-	}
+	/*---------graphics--------------*/
+	initGraphics();
+	
 	
 	/*---------method definitions----------------*/
 	Director.startGameLoop = function(frameRate)
@@ -204,9 +93,25 @@ Director.init = function(canvas, displayWidth, displayHeight, initFileXML, onIni
 		return targetEntity;
 	}
 	
+	Director.displayOutOfRangeTxt = function(displayFlag){
+		if (displayFlag)
+		{
+			outOfRangeText.setVisible(true);
+			outOfRangeText.setFrameTime(currentUpdateTime, 3000);//appear in 3s
+		}
+		else
+		{
+			outOfRangeText.setVisible(false);
+		}
+	}
+	
 	Director._getCAATDirector = function()
 	{
 		return caatDirector;
+	}
+	
+	Director._getSceneWorldNode = function(){
+		return worldNode;
 	}
 	
 	//notification from an entity telling that is hp has changed
@@ -242,6 +147,166 @@ Director.init = function(canvas, displayWidth, displayHeight, initFileXML, onIni
 		visualEntity.setFrameTime(currentUpdateTime, 1000);//dying in 1s
 
 	   
+	}
+	
+	//game loop
+	function gameUpdate(scene_time){
+		currentUpdateTime = scene_time;
+		if (lastUpdateTime == -1)
+			lastUpdateTime = currentUpdateTime;
+		
+		//var elapsedTime = currentUpdateTime - lastUpdateTime;
+		var elapsedTime = 1000/60.0;
+		
+		//call pre-update callback function
+		if (Director.preUpdate != undefined)
+			Director.preUpdate(lastUpdateTime, currentUpdateTime);
+		
+		that._baseGameLoop(elapsedTime);//call base game update method
+		
+		//call update callback function
+		if (Director.onUpdate != undefined)
+			Director.onUpdate(lastUpdateTime, currentUpdateTime);
+			
+		//update the entities and commit changes to their visual parts
+		visualEntityList.traverse(function(visualEntity) {
+			visualEntity.getEntity().update(elapsedTime);
+			visualEntity.commitChanges();
+		}
+		);
+		
+		//move camera to follow target
+		if (mainCharacter != null)
+		{
+			var pos = mainCharacter.getPosition();
+			worldNode.setLocation(displayWidth * 0.5 - pos.x, displayHeight * 0.5 - pos.y);
+		}
+		
+		//update the destination mark
+		if (mainCharacter == null || mainCharacter.isMoving() == false)
+		{
+			//hide the mark
+			destMark.setVisible(false);
+		}
+		
+		//update the target mark
+		if (targetEntity != null && targetEntity.isAlive()){
+			//we currently have a marked target
+			targetMark.setVisible(true);
+			targetMark.centerAt(targetEntity.getPosition().x, targetEntity.getPosition().y);
+		}
+		else//dont have any marked target
+		{
+			//hide the mark
+			targetMark.setVisible(false);
+		}
+		
+		lastUpdateTime = currentUpdateTime;
+	}
+	
+	//initialize graphics
+	function initGraphics(){
+		// create a CAAT director object for handling graphics
+		caatDirector = new CAAT.Foundation.Director().initialize(
+				displayWidth,    // pixels wide
+				displayHeight,    // pixels across
+				canvas
+		);
+		
+		// create visual entity list
+		visualEntityList = new Utils.List();
+		
+		// add a scene object to the director.
+		sceneRoot =     caatDirector.createScene();
+		
+		//world node
+		worldNode = new CAAT.Foundation.ActorContainer().
+				setFillStyle('#fff');
+		worldNode.mouseClick = function(mouse){
+			Director.onClick(mouse.x, mouse.y, null);
+		};
+	 
+		sceneRoot.addChild(worldNode);
+		
+		/*----init movement mark and target mark-------*/
+		initMarks();
+		
+		//init GUI
+		initGUI();
+		
+		/*-------rendering loop------------------*/
+		lastUpdateTime = -1;
+		
+		sceneRoot.onRenderStart = function(scene_time) {
+			gameUpdate(scene_time);
+		}
+	}
+	
+	//init destination and target marks
+	function initMarks(){
+		//animations for the 2 marks
+		var cycleDraw = new CAAT.Behavior.ContainerBehavior().
+		setCycle(true).
+		setFrameTime(0, 1000);
+		var scaleMarker = new CAAT.Behavior.ScaleBehavior().
+		setPingPong().
+		setFrameTime(0, 1000).
+		setValues(1, 2, 1, 2, .50, .50);
+		cycleDraw.addBehavior(scaleMarker);
+		
+		//movement's destination mark
+		destMark = new CAAT.Foundation.UI.ShapeActor();
+		destMark.setShape(CAAT.Foundation.UI.ShapeActor.SHAPE_CIRCLE);
+		destMark.enableEvents(false);
+		destMark.setFillStyle('#00ff00');
+		destMark.setAlpha(0.2);
+		destMark.setStrokeStyle('#000');
+		destMark.setSize(15, 15);
+		destMark.setVisible(false);//initially invisible
+		destMark.addBehavior(cycleDraw);
+		
+		worldNode.addChild(destMark);
+		
+		
+		//initialize the target mark
+		targetMark = new CAAT.Foundation.UI.ShapeActor();
+		targetMark.setShape(CAAT.Foundation.UI.ShapeActor.SHAPE_CIRCLE);
+		targetMark.enableEvents(false);
+		targetMark.setFillStyle('#ffff00');
+		targetMark.setAlpha(0.2);
+		targetMark.setStrokeStyle('#000');
+		targetMark.setSize(25, 25);
+		targetMark.setVisible(false);//initially invisible
+		targetMark.addBehavior(cycleDraw);
+		
+		worldNode.addChild(targetMark);
+	}
+	
+	function initGUI(){
+		
+		//scene's GUI node
+		guiNode = new CAAT.Foundation.ActorContainer()
+						.setAlpha(0.0)
+						.enableEvents(false);
+		guiNode.setSize(displayWidth, displayHeight);
+		sceneRoot.addChild(guiNode);	
+		sceneRoot.setZOrder(guiNode, 999);//always on top
+		
+		/*---create "out of range" text------*/
+		var font= "18px sans-serif";
+		outOfRangeText =  new CAAT.Foundation.UI.TextActor()
+										.setLocation(displayWidth / 2.0, 36)
+										.setText("Out of range!!!")
+										.setFont(font)
+										.setAlign("center")
+										.setTextFillStyle('#ff0000')
+										//.setOutline(true)
+										//.setOutlineColor('white')
+										.setVisible(false)
+										.enableEvents(false)
+										;
+										
+		guiNode.addChild(outOfRangeText);
 	}
 	
 	//get animation's full name
@@ -398,8 +463,8 @@ Director.init = function(canvas, displayWidth, displayHeight, initFileXML, onIni
 		
 		/*----------boundary-------*/
 		//set boundary
-		bg.setBounds(0,0,width,height);
-		bg.setSize(width,height);
+		worldNode.setBounds(0,0,width,height);
+		worldNode.setSize(width,height);
 		//physics boundary
 		that._initPhysicsBounds(width,height);
 		
@@ -407,9 +472,9 @@ Director.init = function(canvas, displayWidth, displayHeight, initFileXML, onIni
 		if (backgroundImgID != null)
 		{
 			var spriteSheet = createSpriteSheet(backgroundImgID, 1, 1);
-			bg.setBackgroundImage(spriteSheet, false);
+			worldNode.setBackgroundImage(spriteSheet, false);
 			
-			bg.paint = function(director, time) {
+			worldNode.paint = function(director, time) {
 				if (this.backgroundImage) {
 					this.backgroundImage.paintScaled(director, time, 0, 0);//require the sprite image to draw using actor's size
 				}
@@ -444,8 +509,8 @@ Director.init = function(canvas, displayWidth, displayHeight, initFileXML, onIni
 		
 		//now init the tiles in the map
 		that.tiles = new Array();
-		that.tileWidth = bg.width / that.tilesPerRow;
-		that.tileHeight = bg.height / that.tilesPerCol;
+		that.tileWidth = worldNode.width / that.tilesPerRow;
+		that.tileHeight = worldNode.height / that.tilesPerCol;
 		var rows = tileMapStr.split(/[\s\W]+/);
 		if (rows[0].length == 0)
 			rows.shift();
@@ -488,7 +553,7 @@ Director.init = function(canvas, displayWidth, displayHeight, initFileXML, onIni
 		visualTile.enableEvents(false);
 		
 		if (!tileType.isObstacle)
-			bg.setZOrder(visualTile, -1);
+			worldNode.setZOrder(visualTile, -1);
 	}
 	
 	function createSpriteSheet(imgID, subImgsPerRow, subImgsPerCol) {
@@ -511,7 +576,7 @@ Director.init = function(canvas, displayWidth, displayHeight, initFileXML, onIni
 		CAAT.Foundation.Actor.call(this);
 		
 		//add to the scene
-		bg.addChild(this);
+		worldNode.addChild(this);
 		
 		//indicate that this actor will use the image <spriteSheet> to draw its background
 		this.setBackgroundImage(spriteSheet, false);
@@ -569,7 +634,7 @@ Director.init = function(canvas, displayWidth, displayHeight, initFileXML, onIni
 			this.healthBar.enableEvents(false);
 			this.healthBar.setFillStyle('#ff0000');
 			
-			bg.addChild(this.healthBar);
+			worldNode.addChild(this.healthBar);
 			
 			var font= "13px sans-serif";
 			//create health notification texts
@@ -582,7 +647,7 @@ Director.init = function(canvas, displayWidth, displayHeight, initFileXML, onIni
 										.setVisible(false)
 										.enableEvents(false)
 										;
-			bg.addChild(this.hpChangePosTxt);							
+			worldNode.addChild(this.hpChangePosTxt);							
 			
 			this.hpChangeNegTxt = new CAAT.Foundation.UI.TextActor()
 										.setFont(font)
@@ -593,7 +658,7 @@ Director.init = function(canvas, displayWidth, displayHeight, initFileXML, onIni
 										.setVisible(false)
 										.enableEvents(false)
 										;
-			bg.addChild(this.hpChangeNegTxt);
+			worldNode.addChild(this.hpChangeNegTxt);
 
 
 

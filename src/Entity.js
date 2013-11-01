@@ -461,19 +461,30 @@ PlayableEntity.prototype.getCurrentSkill = function()
 	return this.skills[this.activeSkill];
 }
 
-
-PlayableEntity.prototype.attack = function(target){
+PlayableEntity.prototype.canAttack = function(target){
 	var dist = this.distanceVecToEntity(target)
 				   .Length();
 	var skill = this.getCurrentSkill();
 	var range = skill.getRange();
 	
+	return (dist <= range && target.getSide() != Constant.NEUTRAL && this.getSide() != target.getSide());
+}
+
+PlayableEntity.prototype.attack = function(target){
+	var skill = this.getCurrentSkill();
+	
 	if (Director.dummyClient || //dummy client will do whatever it is told to do
-		(dist <= range && target.getSide() != Constant.NEUTRAL && this.getSide() != target.getSide()))
+		this.canAttack(target))
 	{
 		skill.fire(target);
+		return PlayableEntity.SUCCEED;
 	}
+	else
+		return PlayableEntity.ATTACK_OUT_OF_RANGE;
 }
+
+PlayableEntity.ATTACK_OUT_OF_RANGE = -1;
+PlayableEntity.SUCCEED = 1;
 
 // For node.js require
 if (typeof global != 'undefined')

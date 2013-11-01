@@ -45,7 +45,7 @@ function DirectorBase()
 	this.msgQueueList = new Utils.List();
 	
 	//no callbacks by default
-	this.onMessageHandling = function(msg) {/*do nothing*/}
+	this.onMessageHandling = function(msg) {/*do nothing*/ return false;}
 	this.onEntityDestroyed = function(id) {}
 	
 	/*----------------------physics-----------------------------------------*/
@@ -175,7 +175,10 @@ function DirectorBase()
 	{
 		var that = this;
 		this.msgQueueList.traverse(function(msg) {
-			that.onMessageHandling(msg);
+			//if this function returns true, that means the outsider dont want us to handle this message
+			if (that.onMessageHandling(msg))
+				return;
+			//now handle the message
 			switch(msg.type)
 			{
 			case MsgType.MOVE_ALONG:

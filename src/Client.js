@@ -36,6 +36,14 @@ Client.prototype.startGame = function()
 		that.preUpdate(lastTime, currentTime);
 	}
 	
+	Director.onUpdate = function(lastTime, currentTime){
+		that.onUpdate(lastTime, currentTime);
+	}
+	
+	//director's message handling callback
+	Director.onMessageHandling = function(msg){
+		return that.handleMessage(msg);
+	}
 	
 	Director.startGameLoop(Constant.FRAME_RATE);
 }
@@ -139,8 +147,28 @@ Client.prototype.onMouseEnterExit = function (target,enter,x,y) {
 Client.prototype.preUpdate = function(lastTime, currentTime){
 }
 
-//receiving message from server
-Client.prototype.onMessage = function(msg){
+//a function called by Director after the game's update is executed
+Client.prototype.onUpdate = function(lastTime, currentTime){
+}
+
+//this will handle message that Director forwards back to Client.
+//return true if you dont want the Director to handle this message
+Client.prototype.handleMessage = function(msg){
+	switch(msg.type)
+	{
+		case MsgType.ATTACK_OUT_OF_RANGE:
+			Director.displayOutOfRangeTxt(true);
+			break;
+		case MsgType.ATTACK:
+			//should erase the "out of range" text if it is displaying
+			Director.displayOutOfRangeTxt(false);
+			break;
+	}
+	return false;
+}
+
+//receiving message from server directly
+Client.prototype.onMessageFromServer = function(msg){
 	var that = this;
 	switch(msg.type)
 	{
@@ -163,7 +191,7 @@ Client.prototype.onMessage = function(msg){
 			}
 			break;
 		default:
-		if (this.gameStarted)
+		if (this.gameStarted)//forward to director
 			Director.postMessage(msg);
 	}
 }
@@ -181,7 +209,7 @@ Client.prototype.initNetwork = function() {
 		this.socket = new SockJS("http://" + Constant.SERVER_NAME + ":" + Constant.SERVER_PORT + "/nanowar");
 		this.socket.onmessage = function (e) {
 			var message = JSON.parse(e.data);
-			that.onMessage(message);
+			that.onMessageFromServer(message);
 		}
 	} catch (e) {
 		console.log("Failed to connect to " + "http://" + Constant.SERVER_NAME + ":" + Constant.SERVER_PORT);
