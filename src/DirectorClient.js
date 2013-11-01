@@ -135,9 +135,12 @@ Director.init = function(canvas, displayWidth, displayHeight, initFileXML, onIni
 		else if (entity == targetEntity)
 			targetEntity = null;
 			
+		var visualEntity = entity.visualPart;
+			
+		visualEntity.commitChanges();//reflect current state of the entity first
+			
 		this._baseDestroyEntity(entity);//call base method
 		
-		var visualEntity = entity.visualPart;
 		
 		visualEntityList.removeNode(visualEntity.listNode );//remove this entity from the managed list
 		
@@ -721,9 +724,9 @@ Director.init = function(canvas, displayWidth, displayHeight, initFileXML, onIni
 			var x = randx * this.x + (1 - randx) * (this.x + this.width);
 			var y = randy * (this.y - Constant.HEALTH_BAR_HEIGHT - 26) + (1 - randy) * (this.y - Constant.HEALTH_BAR_HEIGHT - 13);
 			
-			this.hpChangePosTxt.setText(Math.floor(this.dHPPos).toString());
+			this.hpChangePosTxt.setText('+' + Math.floor(this.dHPPos).toString());
 			this.hpChangePosTxt.setLocation(x, y);
-			this.hpChangeNegTxt.setVisible(true);
+			this.hpChangePosTxt.setVisible(true);
 			this.hpChangePosTxt.setFrameTime(currentUpdateTime, 500);//appear in 0.5s
 			
 			

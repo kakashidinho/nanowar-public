@@ -179,8 +179,11 @@ NanoEntity.prototype.destroy = function()
 NanoEntity.prototype.addEffect = function(effect)
 {
 	this.effects.insertBack(effect);
+	//stick effect to its affected target
+	effect.setPosition(this.getPosition());
 }
 
+//return real amount of HP changed
 NanoEntity.prototype.increaseHP = function(dhp){
 	if (this.HP < this.maxHP){
 		var newHP = this.HP + dhp;
@@ -191,9 +194,13 @@ NanoEntity.prototype.increaseHP = function(dhp){
 		this.HP = newHP;
 		
 		Director._onHPChanged(this, realdDHP, false);//notify director
+		
+		return realdDHP;
 	}
+	return 0;
 }
 
+//return real amount of HP changed
 NanoEntity.prototype.decreaseHP = function(dhp){
 	if (this.HP > 0){
 		var newHP = this.HP - dhp;
@@ -203,13 +210,19 @@ NanoEntity.prototype.decreaseHP = function(dhp){
 		this.HP = newHP;
 		
 		Director._onHPChanged(this, realdDHP, true);//notify director
+		
+		return realdDHP;
 	}
+	return 0;
 }
 
 NanoEntity.prototype.updateEffects = function(elapsedTime){
 	var node = this.effects. getFirstNode();
 	while (node != null)
 	{
+		//stick the effect to its affected target
+		node.item.setPosition(this.getPosition());
+		
 		if (node.item.affect(this, elapsedTime))
 		{
 			//the duration of effect has ended
@@ -221,8 +234,6 @@ NanoEntity.prototype.updateEffects = function(elapsedTime){
 		}
 		else
 		{
-			//stick the effect to its affected target
-			node.item.setPosition(this.getPosition());
 			
 			node = node.next;
 		}

@@ -39,7 +39,6 @@ Effect.prototype = new NanoEntity();
 Effect.prototype.constructor = Effect;
 
 
-
 /*-----------AcidEffect class (extends Effect)--------------*/
 
 var AcidEffect = function (_producer) {
@@ -60,7 +59,7 @@ var AcidEffect = function (_producer) {
 }
 
 //inheritance from Effect
-AcidEffect.prototype = new NanoEntity();
+AcidEffect.prototype = new Effect();
 AcidEffect.prototype.constructor = AcidEffect;
 
 
@@ -92,10 +91,43 @@ AcidEffect.prototype.affect = function (target,elapsedTime) {
 	return false;
 }
 
+/*-----------LifeLeechEffect class (extends Effect)--------------*/
+
+var LifeLeechEffect = function (_leecher, _damage) {
+	if (_leecher == undefined)
+		return;//this may be called by prototype inheritance
+		
+    this.leecher;
+	this.damage;
+
+    /*--------constructor---------*/
+    //call super class's constructor method
+
+    Effect.call(this, 1, Constant.CELL_SIZE, Constant.CELL_SIZE, 0, 0, "LifeLeechEffect");
+	this.leecher = _leecher;
+	this.damage = _damage;
+}
+
+//inheritance from Effect
+LifeLeechEffect.prototype = new Effect();
+LifeLeechEffect.prototype.constructor = LifeLeechEffect;
+
+
+//return true if the effect has ended
+LifeLeechEffect.prototype.affect = function (target,elapsedTime) {
+	if (Director.dummyClient == false)
+	{
+		var dHP = target.decreaseHP(this.damage);
+		this.leecher.increaseHP(dHP);
+	}
+	
+	return true;//one time effect
+}
 
 // For node.js require
 if (typeof global != 'undefined')
 {
 	global.Effect = Effect;
 	global.AcidEffect = AcidEffect;
+	global.LifeLeechEffect = LifeLeechEffect;
 }

@@ -107,7 +107,6 @@ Client.prototype.onClick = function(x, y, target){
 		if (target.getSide() != Constant.NEUTRAL && target.getSide() != 
 			this.character.getSide())
 		{
-	   
 			//send attacking message to server
 			this.sendToServer(new AttackMsg(this.character, target));
 		
@@ -125,20 +124,13 @@ Client.prototype.onMouseEnterExit = function (target,enter,x,y) {
    
     var context = this.canvas;
 
-   
-    if (!enemy || !enter) {
-      
+    if (!enemy || !enter) { 
         //cursor is move cursor
         context.style.cursor = "url(./moveCursor.ani) 16 16, url(./moveCursor.gif) 16 16, progress";
-   
     }
-  
-    else {
-        
+    else { 
         //cursor is attack cursor
-  
         context.style.cursor = "url(./attackCursor.ani) 16 16, url(./attackCursor.png) 16 16, progress";
-      
     }
 
 }
@@ -158,10 +150,12 @@ Client.prototype.handleMessage = function(msg){
 	{
 		case MsgType.ATTACK_OUT_OF_RANGE:
 			Director.displayOutOfRangeTxt(true);
+			Director.markTarget(null);
 			break;
 		case MsgType.ATTACK:
 			//should erase the "out of range" text if it is displaying
 			Director.displayOutOfRangeTxt(false);
+			Director.markTarget(null);
 			break;
 	}
 	return false;

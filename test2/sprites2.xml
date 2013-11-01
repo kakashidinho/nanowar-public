@@ -12,6 +12,12 @@
 		cellsPerRow="5" 
 		cellsPerCol="3">
 	</spriteSheet>
+	<spriteSheet 
+		id="blood" 
+		imgID="blood"
+		cellsPerRow="6" 
+		cellsPerCol="1">
+	</spriteSheet>
 	<spriteModule 
 		name = "WarriorCell"
 		sheetID = "sprites1"
@@ -76,6 +82,23 @@
 		<animation 
 			name="die"
 			sequence="8,9,10"
+			interval="200"
+			loop="false"
+			/>
+	</spriteModule>
+	<spriteModule 
+		name = "LifeLeechEffect"
+		sheetID = "blood"
+		>
+		<animation 
+			name="normal"
+			sequence="5"
+			interval="200"
+			loop="true"
+			/>
+		<animation 
+			name="die"
+			sequence="0,1,2,3,4,5"
 			interval="200"
 			loop="false"
 			/>
