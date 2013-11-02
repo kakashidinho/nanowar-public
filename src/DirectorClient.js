@@ -180,16 +180,13 @@ Director.init = function(canvas, displayWidth, displayHeight, initFileXML, onIni
 		
 		//var elapsedTime = currentUpdateTime - lastUpdateTime;
 		var elapsedTime = 1000/60.0;
+		lastUpdateTime = currentUpdateTime - elapsedTime;
 		
 		//call pre-update callback function
 		if (Director.preUpdate != undefined)
 			Director.preUpdate(lastUpdateTime, currentUpdateTime);
 		
 		that._baseGameLoop(elapsedTime);//call base game update method
-		
-		//call update callback function
-		if (Director.onUpdate != undefined)
-			Director.onUpdate(lastUpdateTime, currentUpdateTime);
 			
 		//update the entities and commit changes to their visual parts
 		visualEntityList.traverse(function(visualEntity) {
@@ -198,11 +195,17 @@ Director.init = function(canvas, displayWidth, displayHeight, initFileXML, onIni
 		}
 		);
 		
+		//call update callback function
+		if (Director.onUpdate != undefined)
+			Director.onUpdate(lastUpdateTime, currentUpdateTime);
+		
 		//move camera to follow target
 		if (mainCharacter != null)
 		{
 			var pos = mainCharacter.getPosition();
-			worldNode.setLocation(displayWidth * 0.5 - pos.x, displayHeight * 0.5 - pos.y);
+			worldNode.setLocation(
+				displayWidth * 0.5 - pos.x * Constant.PHYSICS_UNIT_SCALE, 
+				displayHeight * 0.5 - pos.y * Constant.PHYSICS_UNIT_SCALE);
 		}
 		
 		//update the destination mark
@@ -244,7 +247,8 @@ Director.init = function(canvas, displayWidth, displayHeight, initFileXML, onIni
 		
 		//world node
 		worldNode = new CAAT.Foundation.ActorContainer().
-				setFillStyle('#fff');
+				setFillStyle('#fff').
+				setScaleAnchored(Constant.PHYSICS_UNIT_SCALE, Constant.PHYSICS_UNIT_SCALE, 0, 0);
 		worldNode.mouseClick = function(mouse){
 			Director.onClick(mouse.x, mouse.y, null);
 		};
@@ -267,14 +271,17 @@ Director.init = function(canvas, displayWidth, displayHeight, initFileXML, onIni
 	
 	//init destination and target marks
 	function initMarks(){
+	
+	
 		//animations for the 2 marks
+		var initScale = 1.0 / Constant.PHYSICS_UNIT_SCALE;
 		var cycleDraw = new CAAT.Behavior.ContainerBehavior().
 		setCycle(true).
 		setFrameTime(0, 1000);
 		var scaleMarker = new CAAT.Behavior.ScaleBehavior().
 		setPingPong().
 		setFrameTime(0, 1000).
-		setValues(1, 2, 1, 2, .50, .50);
+		setValues(initScale, 2 * initScale, initScale, 2 * initScale, .50, .50);
 		cycleDraw.addBehavior(scaleMarker);
 		
 		//movement's destination mark
@@ -284,7 +291,7 @@ Director.init = function(canvas, displayWidth, displayHeight, initFileXML, onIni
 		destMark.setFillStyle('#00ff00');
 		destMark.setAlpha(0.2);
 		destMark.setStrokeStyle('#000');
-		destMark.setSize(15, 15);
+		destMark.setSize(15 , 15 );
 		destMark.setVisible(false);//initially invisible
 		destMark.addBehavior(cycleDraw);
 		
@@ -298,7 +305,7 @@ Director.init = function(canvas, displayWidth, displayHeight, initFileXML, onIni
 		targetMark.setFillStyle('#ffff00');
 		targetMark.setAlpha(0.2);
 		targetMark.setStrokeStyle('#000');
-		targetMark.setSize(25, 25);
+		targetMark.setSize(20 , 20 );
 		targetMark.setVisible(false);//initially invisible
 		targetMark.addBehavior(cycleDraw);
 		
@@ -671,6 +678,8 @@ Director.init = function(canvas, displayWidth, displayHeight, initFileXML, onIni
 			
 			worldNode.addChild(this.healthBar);
 			
+			var scale = 1.0/ Constant.PHYSICS_UNIT_SCALE;
+			
 			var font= "13px sans-serif";
 			//create health notification texts
 			this.hpChangePosTxt = new CAAT.Foundation.UI.TextActor()
@@ -680,6 +689,7 @@ Director.init = function(canvas, displayWidth, displayHeight, initFileXML, onIni
 										//.setOutline(true)
 										//.setOutlineColor('white')
 										.setVisible(false)
+										.setScale(scale, scale)
 										.enableEvents(false)
 										;
 			worldNode.addChild(this.hpChangePosTxt);							
@@ -691,6 +701,7 @@ Director.init = function(canvas, displayWidth, displayHeight, initFileXML, onIni
 										//.setOutline(true)
 										//.setOutlineColor('white')
 										.setVisible(false)
+										.setScale(scale, scale)
 										.enableEvents(false)
 										;
 			worldNode.addChild(this.hpChangeNegTxt);
@@ -754,10 +765,10 @@ Director.init = function(canvas, displayWidth, displayHeight, initFileXML, onIni
 			var randx = Math.random();
 			var randy = Math.random();
 			var x = randx * this.x + (1 - randx) * (this.x + this.width);
-			var y = randy * (this.y - Constant.HEALTH_BAR_HEIGHT - 26) + (1 - randy) * (this.y - Constant.HEALTH_BAR_HEIGHT - 13);
+			var y = randy * (this.y - Constant.HEALTH_BAR_HEIGHT) + (1 - randy) * (this.y - 2* Constant.HEALTH_BAR_HEIGHT);
 			
 			this.hpChangePosTxt.setText('+' + Math.floor(this.dHPPos).toString());
-			this.hpChangePosTxt.setLocation(x, y);
+			this.hpChangePosTxt.centerAt(x, y);
 			this.hpChangePosTxt.setVisible(true);
 			this.hpChangePosTxt.setFrameTime(currentUpdateTime, 500);//appear in 0.5s
 			
@@ -770,10 +781,10 @@ Director.init = function(canvas, displayWidth, displayHeight, initFileXML, onIni
 			var randx = Math.random();
 			var randy = Math.random();
 			var x = randx * this.x + (1 - randx) * (this.x + this.width);
-			var y = randy * (this.y - Constant.HEALTH_BAR_HEIGHT - 26) + (1 - randy) * (this.y - Constant.HEALTH_BAR_HEIGHT - 13);
+			var y = randy * (this.y - Constant.HEALTH_BAR_HEIGHT) + (1 - randy) * (this.y - 2* Constant.HEALTH_BAR_HEIGHT);
 			
 			this.hpChangeNegTxt.setText(Math.floor(this.dHPNeg).toString());
-			this.hpChangeNegTxt.setLocation(x, y);
+			this.hpChangeNegTxt.centerAt(x, y);
 			this.hpChangeNegTxt.setVisible(true);
 			this.hpChangeNegTxt.setFrameTime(currentUpdateTime, 500);//appear in 0.5s
 			this.dHPNeg = 0;

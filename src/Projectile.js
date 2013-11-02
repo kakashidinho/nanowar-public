@@ -78,7 +78,7 @@ var Acid = function (_producer, _target, x, y) {
     /*------constructor---------*/
     //call super class's constructor method
 
-    Projectile.call(this,_target,10,10,x,y,Constant.SPEED_VERY_FAST,"Acid");
+    Projectile.call(this,_target,0.5,0.5,x,y,Constant.SPEED_VERY_FAST,"Acid");
 	
 	this.producer = _producer;
 	this.hit = false;

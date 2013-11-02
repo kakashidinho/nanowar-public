@@ -184,6 +184,9 @@ Client.prototype.onUpdate = function(lastTime, currentTime){
 			}
 		}
 		else{
+			//update predicted version
+			this.charPredict.update(currentTime - lastTime);
+		
 			//dead reckoning
 			var predictPos = this.charPredict.getPosition();
 			var error = this.character.distanceVecTo(predictPos).Length();
@@ -197,7 +200,10 @@ Client.prototype.onUpdate = function(lastTime, currentTime){
 				this.sendToServer(movementCorrectMsg);
 				
 				//correct the predicted version
-				this.charPredict.correctMovement(movementCorrectMsg.x, movementCorrectMsg.y, movementCorrectMsg.dirx, movementCorrectMsg.diry);
+				this.charPredict.correctMovement(
+					movementCorrectMsg.x, movementCorrectMsg.y, 
+					movementCorrectMsg.dirx, movementCorrectMsg.diry,
+					false);
 			}
 		}
 	}
@@ -303,5 +309,5 @@ Client.prototype.start = function()
 	this.playerClassName = null;
 	this.character = null;
 	this.charPredict = null;
-	this.dk_threshold = 30;//initial dead reckoning threshold
+	this.dk_threshold = 2;//initial dead reckoning threshold
 }

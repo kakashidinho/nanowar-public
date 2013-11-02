@@ -51,7 +51,7 @@ var NanoEntity = function(_id, _maxhp, _side, _width, _height, _x, _y, _spriteMo
 	/*------the shape of body-----------*/
 	var fixDef = new b2FixtureDef;
 	fixDef.density = 1.0;
-	fixDef.friction = 1.0;
+	fixDef.friction = 0.0;
 	fixDef.restitution = 1.0;
 	fixDef.isSensor = false;
 	var shape = new b2PolygonShape ;//box shape
@@ -262,6 +262,12 @@ var MovingEntity = function(_id, _maxhp, _side, _width, _height, _x, _y, _oripee
 	this.movingPath;//the path this entity has to follow
 	this.velChangeListener;// velocity change listener
 	
+	this.deferConvergence;//defer the convergence until next update?
+	this.convergeVelocity;//convergence's velocity
+	this.convergeDuration;//convergence duration
+	this.afterConversePosition;//position after convergence ends
+	this.afterConverseDirection;//direction after convergence ends
+	
 	/*--------constructor---------*/
 	//call super class's constructor method
 	NanoEntity.call(this, _id, _maxhp, _side, _width, _height, _x, _y, _sprite);
@@ -271,6 +277,13 @@ var MovingEntity = function(_id, _maxhp, _side, _width, _height, _x, _y, _oripee
 
 	this.originalSpeed = this.currentSpeed = _oripeed;
 	this.movingPath = new Utils.List();
+	
+	
+	this.deferConvergence = false;
+	this.convergeDuration = -1;
+	this.convergeVelocity = new b2Vec2();
+	this.afterConversePosition = new b2Vec2();
+	this.afterConverseDirection = new b2Vec2();
 	
 	this.setVelChangeListener(null);
 }
@@ -305,8 +318,9 @@ MovingEntity.prototype.startMoveTo = function (x, y) {
 	this.startMoveToNextPointInPath();
 }
 
-//start moving along the direction (x, y)
-MovingEntity.prototype.startMoveDir = function(x, y) {
+//start moving along the direction (x, y) 
+MovingEntity.prototype.startMoveDir = function(x, y)
+{
 	var velocity = new b2Vec2(x, y);
 	
 	if (velocity.x != 0 && velocity.y != 0)
@@ -324,24 +338,52 @@ MovingEntity.prototype.startMoveDir = function(x, y) {
 
 MovingEntity.prototype.updateMovement = function(elapsedTime)
 {
-	var currentPoint = this.movingPath.getFirstElem();
-	if (currentPoint == null)
-		return;
-	
-	var position = this.getPosition();
-	var distance = new b2Vec2(currentPoint.x - position.x, currentPoint.y - position.y);
-	var velocity = this.body.GetLinearVelocity();
-	
-	if ((distance.x == 0 && distance.y == 0) || (velocity.x * distance.x + velocity.y * distance.y < 0))//already at or pass the destination
+	if (!this.deferConvergence && this.convergeDuration != -1)
 	{
-		//snap the position to the current destination
-		this.body.SetPosition(currentPoint);
-		//remove the current destination in the path
-		this.movingPath.popFront();
-		//start moving to next destination in the path
-		this.startMoveToNextPointInPath();
+		//we are doing the convergence
+		this.convergeDuration -= elapsedTime;
+		if (this.convergeDuration <= 0)//convergence has ended
+		{
+			this.convergeDuration = -1;
+			
+			/*debugging
+			var pos = this.getPosition();
+			var vel = this.getVelocity();
+			console.log("convergence ended position is: " + pos.x + "," + pos.y);
+			console.log("convergence ended velocity is: " + vel.x + "," + vel.y);
+			*/
+			//now follow the correct path
+			this.setPosition(this.afterConversePosition);
+			this.startMoveDir(this.afterConverseDirection.x, this.afterConverseDirection.y);
+		}
 	}
+	else
+	{
+		//this flag for telling the entity to start convergence only after this update
+		if (this.deferConvergence)
+		{
+			this.deferConvergence = false;
+			this._startConverge();
+		}
 	
+		var currentPoint = this.movingPath.getFirstElem();
+		if (currentPoint == null)
+			return;
+		
+		var position = this.getPosition();
+		var distance = new b2Vec2(currentPoint.x - position.x, currentPoint.y - position.y);
+		var velocity = this.body.GetLinearVelocity();
+		
+		if ((distance.x == 0 && distance.y == 0) || (velocity.x * distance.x + velocity.y * distance.y < 0))//already at or pass the destination
+		{
+			//snap the position to the current destination
+			this.body.SetPosition(currentPoint);
+			//remove the current destination in the path
+			this.movingPath.popFront();
+			//start moving to next destination in the path
+			this.startMoveToNextPointInPath();
+		}
+	}
 }
 
 //stop moving
@@ -391,6 +433,10 @@ MovingEntity.prototype.isMoving = function()
 	return velocity.x != 0 || velocity.y != 0;
 }
 
+MovingEntity.prototype.isConverging = function(){
+	return this.convergeDuration != -1;
+}
+
 //return b2Vec2
 MovingEntity.prototype.getVelocity = function(){
 	return this.body.GetLinearVelocity();
@@ -428,9 +474,56 @@ MovingEntity.prototype.startMoveToNextPointInPath = function()
 }
 
 //change the position and velocity of the entity to reflect the correct state indicated in parameters
-MovingEntity.prototype.correctMovement = function(posx, posy, dirx, diry){
-	this.setPosition(new b2Vec2(posx, posy));
-	this.startMoveDir(dirx, diry);
+MovingEntity.prototype.correctMovement = function(posx, posy, dirx, diry, deferConvergence){
+	//convergence
+	var COVERGENCE_MAX_DURATION = 300;//0.3s
+	
+	this.convergeDuration = COVERGENCE_MAX_DURATION;
+	
+	this.afterConversePosition.Set(posx, posy);
+	this.afterConverseDirection.Set(dirx, diry);
+	
+	if (!deferConvergence)//do not want deferring? 
+	{
+		//start convergence immediately
+		this._startConverge();
+	}
+	
+	//this flag for telling the entity to start convergence only after next update
+	this.deferConvergence = deferConvergence;
+	
+}
+
+//start convergence
+MovingEntity.prototype._startConverge = function(){
+	
+	//find convergence's end point
+	var vel = new b2Vec2(this.afterConverseDirection.x, this.afterConverseDirection.y);
+	if (this.afterConverseDirection.x != 0 || this.afterConverseDirection.y != 0)
+	{
+		vel.Normalize();
+		vel.Multiply(this.currentSpeed);
+	}
+	
+	this.afterConversePosition.x += this.convergeDuration * vel.x / 1000.0;
+	this.afterConversePosition.y += this.convergeDuration * vel.y / 1000.0;
+	
+	//find the velocity to move to the convergence's end point in <convergeDuration> time
+	var pos = this.getPosition();
+	this.convergeVelocity.Set(this.afterConversePosition.x - pos.x, this.afterConversePosition.y - pos.y);
+	this.convergeVelocity.Multiply(1000.0 / this.convergeDuration);
+	
+	/*debugging
+	console.log("convergence's end point is " + this.afterConversePosition.x + "," + this.afterConversePosition.y);
+	console.log("convergence's velocity is " + this.convergeVelocity.x + "," + this.convergeVelocity.y);
+	*/
+
+	//now start moving to that convergence's end point
+	this.body.SetLinearVelocity(this.convergeVelocity);
+	
+	this.removeDestination();//remove any destination
+	
+	this.velChangeListener.onVelocityChanged(this);//notify listener
 }
 
 

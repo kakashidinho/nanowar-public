@@ -110,18 +110,20 @@ Director.init = function(initFileXML, onInitFinished)
 		
 		//var elapsedTime = currentUpdateTime - lastUpdateTime;
 		var elapsedTime = 1000/60.0;
+		lastUpdateTime = currentUpdateTime - elapsedTime;
 		
 		that._baseGameLoop(elapsedTime);//call base game update method
 		
-		//call update callback function
-		if (Director.onUpdate != undefined)
-			Director.onUpdate(lastUpdateTime, currentUpdateTime);
-			
 		//update the entities 
 		managedEntityList.traverse(function(managedEntity) {
 			managedEntity.getEntity().update(elapsedTime);
 		}
 		);
+		
+		//call update callback function
+		if (Director.onUpdate != undefined)
+			Director.onUpdate(lastUpdateTime, currentUpdateTime);
+			
 		
 		lastUpdateTime = currentUpdateTime;
 	}

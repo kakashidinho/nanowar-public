@@ -19,7 +19,8 @@ var MsgType = {
 	ATTACK_OUT_OF_RANGE: 14,
 	CHANGE_FAKE_DELAY: 15,
 	PING: 16,
-	PING_NOTIFICATION: 17
+	PING_NOTIFICATION: 17,
+	SELF_CORRECT_PREDICTION: 18
 };
 
 function MoveAlongMsg(entity, dirx, diry){

@@ -66,12 +66,20 @@ function DirectorBase()
 		var entityB = bodyB.GetUserData();
 		if (bodyA.GetType() == b2Body.b2_dynamicBody)//A is moving object
 		{
-			if( bodyB.GetType() == b2Body.b2_dynamicBody)
+			if(entityA.isConverging() || bodyB.GetType() == b2Body.b2_dynamicBody)
 			{
 				//if two entities are both moving objects
 				contact.SetEnabled(false);//for now. allow pass through
 			}
 		}//if (bodyA.GetType() == b2Body.b2_dynamicBody)
+		else if (bodyB.GetType() == b2Body.b2_dynamicBody)//A is moving object
+		{
+			if(entityB.isConverging())//is under convergence
+			{
+				//if two entities are both moving objects
+				contact.SetEnabled(false);//for now. allow pass through
+			}
+		}//if (bodyB.GetType() == b2Body.b2_dynamicBody)
 	}
 	contactListener.BeginContact = function(contact, manifoid)
 	{
@@ -90,7 +98,7 @@ function DirectorBase()
 			{
 				if (isProjectile)//projectile
 					entityA.destroy();
-				else
+				else if (!entityA.isConverging())
 					entityA.startMoveBackward();//should stop reaching destination now
 			}
 			else if (isProjectile && entityB!= null && entityB.isAlive() && entityB == entityA.getTarget())
@@ -107,7 +115,7 @@ function DirectorBase()
 			{
 				if (isProjectile)//projectile
 					entityB.destroy();
-				else
+				else if (!entityB.isConverging())
 					entityB.startMoveBackward();//should stop reaching destination now
 			}
 			else if (isProjectile && entityA!= null && entityA.isAlive() && entityA == entityB.getTarget())
@@ -200,7 +208,7 @@ function DirectorBase()
 			case MsgType.ENTITY_MOVEMENT_UPDATE:
 				{
 					if (msg.entityID in that.knownEntity)
-						that.knownEntity[msg.entityID].correctMovement(msg.x, msg.y, msg.dirx, msg.diry);
+						that.knownEntity[msg.entityID].correctMovement(msg.x, msg.y, msg.dirx, msg.diry, true);
 				}
 				break;
 			case MsgType.ATTACK:
