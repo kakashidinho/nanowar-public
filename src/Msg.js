@@ -16,7 +16,10 @@ var MsgType = {
 	PLAYER_DISCONNECT: 11,
 	ENTITY_HP_CHANGE: 12,
 	ENTITY_DEATH: 13,
-	ATTACK_OUT_OF_RANGE: 14
+	ATTACK_OUT_OF_RANGE: 14,
+	CHANGE_FAKE_DELAY: 15,
+	PING: 16,
+	PING_NOTIFICATION: 17
 };
 
 function MoveAlongMsg(entity, dirx, diry){
@@ -113,6 +116,20 @@ function AttackOutRangeMsg(){
 	this.type = MsgType.ATTACK_OUT_OF_RANGE;
 }
 
+function ChangeFakeDelayMsg(dDelay){
+	this.type = MsgType.CHANGE_FAKE_DELAY;
+	this.dDelay = dDelay;
+}
+
+function PingMsg(time){
+	this.type = MsgType.PING;
+	this.time = time;
+}
+
+function PingNotifyMsg(ping) {
+	this.type = MsgType.PING_NOTIFICATION;
+	this.ping = ping;
+}
 
 // For node.js require
 if (typeof global != 'undefined')
@@ -131,5 +148,8 @@ if (typeof global != 'undefined')
 	global.EntityHPChange = EntityHPChange;
 	global.EntityDeathMessage = EntityDeathMessage;
 	global.AttackOutRangeMsg = AttackOutRangeMsg;
+	global.ChangeFakeDelayMsg = ChangeFakeDelayMsg;
+	global.PingMsg = PingMsg;
+	global.PingNotifyMsg = PingNotifyMsg;
 	global.MsgType = MsgType;
 }

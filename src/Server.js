@@ -26,7 +26,13 @@ Server.prototype.broadcastAll = function (msg) {
 	var id;
 	for (id in this.connections) {
 		var conn = this.connections[id];
-		conn.socket.write(JSON.stringify(msg));
+		//conn.socket.write(JSON.stringify(msg));
+		//delay the message sending by player's <fakeDelay> amount
+		setTimeout(function(conn, msg) {
+				conn.socket.write(JSON.stringify(msg));
+			},
+			conn.player.fakeDelay,
+			conn, msg);
 	}
 }
 
@@ -43,7 +49,15 @@ Server.prototype.broadcast = function (msg) {
 	for (id in this.connections) {
 		var conn = this.connections[id];
 		if (conn.player.character != null)//player must be ready
-			conn.socket.write(JSON.stringify(msg));
+		{
+			//conn.socket.write(JSON.stringify(msg));
+			//delay the message sending by player's <fakeDelay> amount
+			setTimeout(function(conn, msg) {
+					conn.socket.write(JSON.stringify(msg));
+				},
+				conn.player.fakeDelay,
+				conn, msg);
+		}
 	}
 }
 
@@ -62,7 +76,15 @@ Server.prototype.broadcastExcept = function (playerID, msg) {
 		if (conn.player.playerID == playerID)//ignore this player
 			continue;
 		if (conn.player.character != null)//player must be ready
-			conn.socket.write(JSON.stringify(msg));
+		{
+			//conn.socket.write(JSON.stringify(msg));
+			//delay the message sending by player's <fakeDelay> amount
+			setTimeout(function(conn, msg) {
+					conn.socket.write(JSON.stringify(msg));
+				},
+				conn.player.fakeDelay,
+				conn, msg);
+		}
 	}
 }
 
@@ -77,7 +99,15 @@ Server.prototype.broadcastExcept = function (playerID, msg) {
 Server.prototype.unicast = function (socketID, msg) {
 	var conn = this.connections[socketID];
 	if (conn.player.character != null)//player must be ready
-		conn.socket.write(JSON.stringify(msg));
+	{
+		//conn.socket.write(JSON.stringify(msg));
+		//delay the message sending by player's <fakeDelay> amount
+		setTimeout(function(conn, msg) {
+				conn.socket.write(JSON.stringify(msg));
+			},
+			conn.player.fakeDelay,
+			conn, msg);
+	}
 }
 
 //send message via a socket
@@ -121,6 +151,13 @@ Server.prototype.deletePlayer = function(connectionID){
 		//this player disconnects in the middle of the game
 		//need to send message to game loop
 		Director.postMessage({type: MsgType.PLAYER_DISCONNECT, playerID: player.playerID});
+	}
+	
+	//clear the ping update interval
+	if (player.pingUpdateInterval != undefined)
+	{
+		clearInterval(player.pingUpdateInterval);
+		player.pingUpdateInterval = undefined;
 	}
 	
 	//put this player id to the available ID list
@@ -222,6 +259,37 @@ Server.prototype.updateClientsAbout = function(player, elapsedTime){
 	}
 }
 
+//update ping time for player
+Server.prototype.updatePing = function(player, timeSendPingMsg){
+	var MAX_SAMPLES = 10;
+
+	var currentTime = Utils.getTimestamp();
+	var RTT = currentTime - timeSendPingMsg;
+	
+	player.pingSamplesSum += RTT;
+	
+	player.pingSamples.insertBack(RTT);
+	
+	var numSamples = player.pingSamples.getNumElements();
+	
+	if (numSamples > MAX_SAMPLES)
+	{
+		//exceeded number of samples
+		//discard the oldest ping value calculated
+		var oldestPing = player.pingSamples.getFirstElem();
+		
+		player.pingSamplesSum -= oldestPing;
+		
+		player.pingSamples.popFront(oldestPing);
+	}
+	
+	//now get the average ping of the sampled values
+	player.ping = Math.floor(player.pingSamplesSum / player.pingSamples.getNumElements());
+	
+	//notify client
+	this.unicast(player.connID, new PingNotifyMsg(player.ping));
+}
+
 Server.prototype.spawnPlayerCharacter = function(player){
 	switch(player.className)
 	{
@@ -256,11 +324,18 @@ Server.prototype.notifyEntityDeath = function(entityID){
 //return true if you dont want the Director to handle this message
 Server.prototype.handleMessage = function(msg)
 {
+	var that = this;
 	switch(msg.type)
 	{
 	case MsgType.PLAYER_READY:
 		{
 			var player = this.players[msg.playerID];
+			
+			//create ping update interval to send the ping message every 1s
+			player.pingUpdateInterval = setInterval(function(player) {
+				that.unicast(player.connID, new PingMsg(Utils.getTimestamp()));
+			}, 1000, player);
+			
 			//create character
 			this.spawnPlayerCharacter(player);
 			//notify all players' clients
@@ -315,8 +390,16 @@ Server.prototype.handleMessage = function(msg)
 Server.prototype.onMessageFromPlayer = function(player, msg){
 	switch(msg.type)
 	{
+	case MsgType.PING://ping reply from player
+		this.updatePing(player, msg.time);
+		break;
 	case MsgType.PLAYER_CLASS:
 		player.className = msg.className;
+		break;
+	case MsgType.CHANGE_FAKE_DELAY:
+		player.fakeDelay += msg.dDelay;
+		if (player.fakeDelay < 0)
+			player.fakeDelay = 0;
 		break;
 	default:
 		Director.postMessage(msg);//forward it to the director
@@ -366,8 +449,13 @@ Server.prototype.start = function () {
 			// When the client send something to the server.
 			conn.on('data', function (data) {
 				var message = JSON.parse(data)
-
-				that.onMessageFromPlayer(that.connections[conn.id].player, message);
+				var player = that.connections[conn.id].player;
+				//delay the message processing
+				setTimeout(function(){
+					that.onMessageFromPlayer(player, message);
+					},
+					player.fakeDelay);
+					
 			}); // conn.on("data"
 		}); // socket.on("connection"
 
@@ -390,6 +478,11 @@ var Player = function(_connID, _playerID) {
 	this.playerID;
 	this.character;
 	this.className;//name of the character class that player chose
+	this.ping;//network ping delay of this player
+	this.pingSamples;//sampled ping values
+	this.pingSamplesSum;//sum of samples of network ping delay
+	this.pingUpdateInterval;
+	this.fakeDelay;//fake additional network one-way delay for this player
 	//Server will wait for this amount of time before updating clients 
 	//about the hp of this player's character
 	this.hpUpdateDelay;
@@ -397,6 +490,11 @@ var Player = function(_connID, _playerID) {
 	this.connID = _connID;
 	this.playerID = _playerID;
 	this.character = null;
+	this.ping = 0;
+	this.fakeDelay = 0;
+	this.pingSamples = new Utils.List();
+	this.pingSamplesSum = 0;
+	this.pingUpdateInterval = undefined;
 	
 	this.hpUpdateDelay = 500;//0.5s delay by default
 	

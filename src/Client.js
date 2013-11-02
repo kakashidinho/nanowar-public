@@ -89,6 +89,28 @@ Client.prototype.onVelocityChanged = function(entity){
 	this.sendToServer(new EntityMoveMentMsg(entity));
 }
 
+Client.prototype.onKeyPress = function(e) {
+	/*
+	keyCode represents keyboard button
+	38: up arrow
+	40: down arrow
+	37: left arrow
+	39: right arrow
+	*/
+	switch(e.keyCode) {
+		case 38: { // Up
+			//increase fake delay by 50
+			this.sendToServer(new ChangeFakeDelayMsg(50));
+			break;
+		}
+		case 40: { // Down
+			//decrease fake delay by 50
+			this.sendToServer(new ChangeFakeDelayMsg(-50));
+			break;
+		}
+	}
+}
+
 //handle mouse click event
 Client.prototype.onClick = function(x, y, target){
 	if (this.character == null || !this.character.isAlive())
@@ -148,6 +170,9 @@ Client.prototype.onUpdate = function(lastTime, currentTime){
 Client.prototype.handleMessage = function(msg){
 	switch(msg.type)
 	{
+		case MsgType.PING_NOTIFICATION:
+			Director.updatePingValue(msg.ping);
+			break;
 		case MsgType.ATTACK_OUT_OF_RANGE:
 			Director.displayOutOfRangeTxt(true);
 			Director.markTarget(null);
@@ -183,6 +208,9 @@ Client.prototype.onMessageFromServer = function(msg){
 			{
 				this.spawnEntity(msg);
 			}
+			break;
+		case MsgType.PING:
+			this.sendToServer(msg);//reply to server
 			break;
 		default:
 		if (this.gameStarted)//forward to director
@@ -223,7 +251,14 @@ Client.prototype.sendToServer = function (msg) {
 
 Client.prototype.start = function()
 {
+	var that = this;
+	
 	this.initNetwork();
+	
+	//add event listeners
+	document.addEventListener("keydown", function(e) {
+            that.onKeyPress(e);
+            }, false);
 	
 	this.gameStarted = false;
 	this.playerID = -1;

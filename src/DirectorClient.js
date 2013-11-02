@@ -20,9 +20,14 @@ Director.init = function(canvas, displayWidth, displayHeight, initFileXML, onIni
 	var targetEntity;//the attacking target of main character
 	
 	var sceneRoot;
+	
+	/*-------GUI items------*/
 	var guiNode;//scene's gui node, for containing GUI elements
-	var worldNode;//scene's world node
+	var pingText;//ping value text
 	var outOfRangeText;//out of range text on screen
+	
+	/*------scene items-----*/
+	var worldNode;//scene's world node
 	var destMark ;//movement's destination mark
 	var targetMark; //target mark
 	
@@ -93,6 +98,12 @@ Director.init = function(canvas, displayWidth, displayHeight, initFileXML, onIni
 		return targetEntity;
 	}
 	
+	//update the ping value on screen
+	Director.updatePingValue = function(pingValue){
+		pingText.setText("Ping: " + pingValue.toString());
+	}
+	
+	//display attack "out of range" text
 	Director.displayOutOfRangeTxt = function(displayFlag){
 		if (displayFlag)
 		{
@@ -295,16 +306,28 @@ Director.init = function(canvas, displayWidth, displayHeight, initFileXML, onIni
 		sceneRoot.addChild(guiNode);	
 		sceneRoot.setZOrder(guiNode, 999);//always on top
 		
+		
+		/*---create "ping value" text--------*/
+		var font= "15px sans-serif";
+		pingText =  new CAAT.Foundation.UI.TextActor()
+										.setLocation(10, 36)
+										.setText("Ping: 0")
+										.setFont(font)
+										.setAlign("left")
+										.setTextFillStyle('#ff0000')
+										.enableEvents(false)
+										;
+										
+		guiNode.addChild(pingText);
+		
 		/*---create "out of range" text------*/
-		var font= "18px sans-serif";
+		var font2= "18px sans-serif";
 		outOfRangeText =  new CAAT.Foundation.UI.TextActor()
 										.setLocation(displayWidth / 2.0, 36)
 										.setText("Out of range!!!")
-										.setFont(font)
+										.setFont(font2)
 										.setAlign("center")
 										.setTextFillStyle('#ff0000')
-										//.setOutline(true)
-										//.setOutlineColor('white')
 										.setVisible(false)
 										.enableEvents(false)
 										;
