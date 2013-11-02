@@ -95,7 +95,8 @@ Client.prototype.spawnEntity = function(msg){
 
 //when our character changes his movement
 Client.prototype.onVelocityChanged = function(entity){
-	
+	if (entity.isMoving() == false)//should update server
+		this.sendToServer(new EntityMoveMentMsg(entity));
 }
 
 Client.prototype.onKeyPress = function(e) {
