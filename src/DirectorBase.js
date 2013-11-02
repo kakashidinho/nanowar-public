@@ -81,7 +81,9 @@ function DirectorBase()
 		var bodyB = fixtureB.GetBody();
 		var entityA = bodyA.GetUserData();
 		var entityB = bodyB.GetUserData();
-		if (bodyA.GetType() == b2Body.b2_dynamicBody && entityA.isMoving())//A is moving object
+		if (bodyA.GetType() == b2Body.b2_dynamicBody && 
+			entityA.isAlive() &&
+			entityA.isMoving())//A is moving object
 		{
 			var isProjectile = fixtureA.IsSensor();
 			if ( bodyB.GetType() == b2Body.b2_staticBody)//B is obstacle
@@ -91,12 +93,14 @@ function DirectorBase()
 				else
 					entityA.startMoveBackward();//should stop reaching destination now
 			}
-			else if (isProjectile && entityB == entityA.getTarget())
+			else if (isProjectile && entityB!= null && entityB.isAlive() && entityB == entityA.getTarget())
 			{
 				entityA.onHitTarget();//projectile has hit is target
 			}
 		}//if (bodyA.GetType() == b2Body.b2_dynamicBody)
-		if (bodyB.GetType() == b2Body.b2_dynamicBody && entityB.isMoving())//B is moving object
+		else if (bodyB.GetType() == b2Body.b2_dynamicBody && 
+			entityB.isAlive() &&
+			entityB.isMoving())//B is moving object
 		{
 			var isProjectile = fixtureB.IsSensor();
 			if ( bodyA.GetType() == b2Body.b2_staticBody)//A is obstacle
@@ -106,7 +110,7 @@ function DirectorBase()
 				else
 					entityB.startMoveBackward();//should stop reaching destination now
 			}
-			else if (isProjectile && entityA == entityB.getTarget())
+			else if (isProjectile && entityA!= null && entityA.isAlive() && entityA == entityB.getTarget())
 			{
 				entityB.onHitTarget();//projectile has hit is target
 			}
@@ -122,7 +126,7 @@ function DirectorBase()
 		{
 			entityA.stop();//stop
 		}//if (bodyA.GetType() == b2Body.b2_dynamicBody)
-		if (bodyB.GetType() == b2Body.b2_dynamicBody && bodyA.GetType() == b2Body.b2_staticBody)//B is moving object
+		else if (bodyB.GetType() == b2Body.b2_dynamicBody && bodyA.GetType() == b2Body.b2_staticBody)//B is moving object
 		{
 			entityB.stop();//stop
 		}//if (bodyB.GetType() == b2Body.b2_dynamicBody)
@@ -243,7 +247,7 @@ function DirectorBase()
 	this._baseDestroyEntity = function(entity){
 		var body = entity.getPhysicsBody();
 		
-		body.SetActive(false);//disable physics simulation
+		//body.SetActive(false);//disable physics simulation
 		this.deleteBodyList.insertBack(body);//add to being deleted list
 	
 		if (entity.hasID())//this entity has an ID

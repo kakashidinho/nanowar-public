@@ -55,7 +55,14 @@ Projectile.prototype.seekTarget = function () {
 
 //update the entity after <elapsedTime>
 Projectile.prototype.update = function(elapsedTime){
-	this.seekTarget();
+	if (this.Target != null && this.Target.isAlive() == false)
+	{
+		this.Target = null;
+		destroy();
+		return;
+	}
+	if (this.Target != null)
+		this.seekTarget();
 	//super class update
 	MovingEntity.prototype.update.call(this, elapsedTime);
 }
