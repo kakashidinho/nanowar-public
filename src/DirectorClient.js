@@ -134,9 +134,15 @@ Director.init = function(canvas, displayWidth, displayHeight, initFileXML, onIni
 	{
 		this._baseAddEntity(entity);//call base method
 		
-		var visualEntity = new VisualEntity(entity);
+		if (entity.getSpriteModuleName() != null && 
+			entity.getSpriteModuleName() in spriteModuleList)
+		{
+			var visualEntity = new VisualEntity(entity);
 		
-		visualEntity.listNode = visualEntityList.insertBack(visualEntity);
+			visualEntity.listNode = visualEntityList.insertBack(visualEntity);
+		}
+		else
+			entity.visualPart = null;//this entity doesn't have any visual aspect. maybe just for physics simulation
 	}
 	
 	Director._destroyEntity = function(entity){
@@ -147,19 +153,22 @@ Director.init = function(canvas, displayWidth, displayHeight, initFileXML, onIni
 			targetEntity = null;
 			
 		var visualEntity = entity.visualPart;
-			
-		visualEntity.commitChanges();//reflect current state of the entity first
+		
+		if (visualEntity != null)
+			visualEntity.commitChanges();//reflect current state of the entity first
 			
 		this._baseDestroyEntity(entity);//call base method
 		
 		
-		visualEntityList.removeNode(visualEntity.listNode );//remove this entity from the managed list
+		if (visualEntity != null)
+		{
+			visualEntityList.removeNode(visualEntity.listNode );//remove this entity from the managed list
 		
-		visualEntity.playAnimation("die");//play dying animation
-		visualEntity.enableEvents(false);//disable mouse click
-		visualEntity.setDiscardable(true);
-		visualEntity.setFrameTime(currentUpdateTime, 1000);//dying in 1s
-
+			visualEntity.playAnimation("die");//play dying animation
+			visualEntity.enableEvents(false);//disable mouse click
+			visualEntity.setDiscardable(true);
+			visualEntity.setFrameTime(currentUpdateTime, 1000);//dying in 1s
+		}
 	   
 	}
 	

@@ -69,6 +69,8 @@ var NanoEntity = function(_id, _maxhp, _side, _width, _height, _x, _y, _spriteMo
 }
 
 /*----method definitions-----*/
+
+//may returns null
 NanoEntity.prototype.getSpriteModuleName = function() {
 	return this.spriteModuleName;
 }
@@ -398,6 +400,12 @@ MovingEntity.prototype.getVelocity = function(){
 MovingEntity.prototype.getSpeed = function()
 {
 	return this.currentSpeed;
+}
+
+//get original speed
+MovingEntity.prototype.getOriSpeed = function()
+{
+	return this.originalSpeed;
 }
 
 MovingEntity.prototype.startMoveToNextPointInPath = function()

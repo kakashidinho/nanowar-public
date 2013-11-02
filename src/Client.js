@@ -7,6 +7,8 @@ function Client(canvasElementID)
 	this.socket;
 	this.playerID;
 	this.character;//my character
+	this.charPredict;//prediction version of my character, for dead reckoning
+	this.dk_threshold;//dead reckoning threshold
 	
 	//while(document.readyState !== "complete") {console.log("loading...");};
 		
@@ -80,13 +82,20 @@ Client.prototype.spawnEntity = function(msg){
 		this.character.setVelChangeListener(this);//listen to the change in the character's movement
 		
 		Director.setMainCharacter(this.character);
+		
+		//create the dummy entity for dead reckoning
+		this.charPredict = new MovingEntity( -1, 0, 
+			Constant.NEUTRAL, 
+			this.character.getWidth(), this.character.getHeight(), 
+			this.character.getPosition().x, this.character.getPosition().y, 
+			this.character.getOriSpeed(), 
+			null);
 	}
 }
 
 //when our character changes his movement
 Client.prototype.onVelocityChanged = function(entity){
-	//notify server
-	this.sendToServer(new EntityMoveMentMsg(entity));
+	
 }
 
 Client.prototype.onKeyPress = function(e) {
@@ -163,6 +172,34 @@ Client.prototype.preUpdate = function(lastTime, currentTime){
 
 //a function called by Director after the game's update is executed
 Client.prototype.onUpdate = function(lastTime, currentTime){
+	if (this.character != null)
+	{	
+		if(!this.character.isAlive()){
+			if (this.charPredict != null)
+			{
+				//destroy the dummy entity since our character is dead
+				this.charPredict.destroy();
+				this.charPredict = null;
+			}
+		}
+		else{
+			//dead reckoning
+			var predictPos = this.charPredict.getPosition();
+			var error = this.character.distanceVecTo(predictPos).Length();
+			
+			//error exceeded
+			if (error > this.dk_threshold)
+			{
+				var movementCorrectMsg = new EntityMoveMentMsg(this.character);
+			
+				//notify server
+				this.sendToServer(movementCorrectMsg);
+				
+				//correct the predicted version
+				this.charPredict.correctMovement(movementCorrectMsg.x, movementCorrectMsg.y, movementCorrectMsg.dirx, movementCorrectMsg.diry);
+			}
+		}
+	}
 }
 
 //this will handle message that Director forwards back to Client.
@@ -264,4 +301,6 @@ Client.prototype.start = function()
 	this.playerID = -1;
 	this.playerClassName = null;
 	this.character = null;
+	this.charPredict = null;
+	this.dk_threshold = 30;//initial dead reckoning threshold
 }
