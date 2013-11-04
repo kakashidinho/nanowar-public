@@ -249,7 +249,7 @@ Director.init = function(canvas, displayWidth, displayHeight, initFileXML, onIni
 		worldNode = new CAAT.Foundation.ActorContainer().
 				setFillStyle('#fff').
 				setScaleAnchored(Constant.PHYSICS_UNIT_SCALE, Constant.PHYSICS_UNIT_SCALE, 0, 0);
-		worldNode.mouseClick = function(mouse){
+		worldNode.mouseDown = function(mouse){
 			Director.onClick(mouse.x, mouse.y, null);
 		};
 	 
@@ -727,7 +727,7 @@ Director.init = function(canvas, displayWidth, displayHeight, initFileXML, onIni
 	VisualEntity.prototype.constructor = VisualEntity;
 	
 	//mouse events listeners
-	VisualEntity.prototype.mouseClick = function (mouse) {
+	VisualEntity.prototype.mouseDown = function (mouse) {
 		Director.onClick(mouse.x, mouse.y, this.entity);
 		
 	}
