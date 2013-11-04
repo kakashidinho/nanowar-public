@@ -20,8 +20,6 @@ var WarriorCell = function(id, x, y)
 	//add AcidWeapon skill
 	this.skills.push(new AcidWeapon(this));
 	
-	this.activeSkill = 0;
-	
 	this.className = "WarriorCell";
 }
 

@@ -9,7 +9,8 @@ function Client(canvasElementID)
 	this.character;//my character
 	this.charPredict;//prediction version of my character, for dead reckoning
 	this.dk_threshold;//dead reckoning threshold
-	
+	this.skillSlots;	
+		
 	//while(document.readyState !== "complete") {console.log("loading...");};
 		
 	this.canvas = document.getElementById(canvasElementID);
@@ -22,8 +23,8 @@ Client.prototype.startGame = function()
 	this.gameStarted = true;
 	this.sendToServer(new PlayerReadyMsg(this.playerID));//notify server that we are ready to receive in-game messages
 	
-	Director.onClick = function(x, y, target){
-	    that.onClick(x, y, target);
+	Director.onClick = function(x, y, target, isControlDown){
+	    that.onClick(x, y, target, isControlDown);
 	   
 	}
 
@@ -122,10 +123,10 @@ Client.prototype.onKeyPress = function(e) {
 }
 
 //handle mouse click event
-Client.prototype.onClick = function(x, y, target){
+Client.prototype.onClick = function(x, y, target, isControlDown){
 	if (this.character == null || !this.character.isAlive())
 		return;
-	if (target == null)
+	if (target == null && !isControlDown)
 	{
 	    //will start moving to new destination
 	 
@@ -139,8 +140,10 @@ Client.prototype.onClick = function(x, y, target){
 		if (target.getSide() != Constant.NEUTRAL && target.getSide() != 
 			this.character.getSide())
 		{
+			var skillIdx = isControlDown? this.skillSlots[1]: this.skillSlots[0];
+		
 			//send attacking message to server
-			this.sendToServer(new AttackMsg(this.character, target));
+			this.sendToServer(new AttackMsg(this.character, target, skillIdx));
 		
 			//mark the target, just for the visual indication
 			Director.markTarget(target);
@@ -308,6 +311,7 @@ Client.prototype.start = function()
 	this.playerID = -1;
 	this.playerClassName = null;
 	this.character = null;
+	this.skillSlots = [0, 0];
 	this.charPredict = null;
 	this.dk_threshold = 2;//initial dead reckoning threshold
 }

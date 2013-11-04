@@ -214,7 +214,7 @@ function DirectorBase()
 			case MsgType.ATTACK:
 				{
 					if (msg.entityID in that.knownEntity && msg.targetID in that.knownEntity)
-						that.knownEntity[msg.entityID].attack(that.knownEntity[msg.targetID]);
+						that.knownEntity[msg.entityID].attack(msg.skillIdx, that.knownEntity[msg.targetID]);
 				}
 				break;
 			case MsgType.ENTITY_HP_CHANGE:

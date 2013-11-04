@@ -6,17 +6,21 @@
  * owned by a PlayableEntity instance
  * Subclasses should implement fire(target:NanoEntity)
  */
-var Skill = function(_range, _damage, _owner) {
+var Skill = function(_range, _damage, _owner, _maxCooldown) {
 	if (_range == undefined)
 		return;//this may be called by prototype inheritance
 	// Public fields
 	this.range; // Effective range of the skill
 	this.damage; // Total damage of the skill
 	this.owner; // A reference to the PlayableEntity that owns this skill
+	this.cooldown;//milliseconds need to wait before continue firing again
+	this.maxCooldown;
 	
 	this.range = _range;
 	this.damage = _damage;	
 	this.owner = _owner;
+	this.maxCooldown = _maxCooldown;
+	this.cooldown = 0;
 }
 
 // getters
@@ -28,12 +32,33 @@ Skill.prototype.getDamage = function() {
 	return this.damage;
 }
 
+Skill.prototype.getCooldown = function() {
+	return this.cooldown;
+}
+
+Skill.prototype.getMaxCooldown = function(){
+	return this.maxCooldown;
+}
+
+Skill.prototype.update = function(elapsedTime) {
+	if (this.cooldown > 0)
+	{
+		this.cooldown -= elapsedTime;
+		if (this.cooldown == 0)
+			this.cooldown = 0;
+	}
+}
+
 /**
- * Abstract function to be implemented by subclasses
  * @param target A NanoEntity target to fire at
 */
 Skill.prototype.fire = function(target) {
-	console.log("Warning: Abstract function Skill.fire should not be called!");
+	if (this.cooldown > 0)
+		return;
+		
+	this._fireForReal(target);//sub class's specific implementation 
+	
+	this.cooldown += this.maxCooldown;//make the skill unable to be used again until <cooldown> time later
 }
 
 /**
@@ -47,7 +72,7 @@ var AcidWeapon = function ( _owner) {
 	this.effectDuration; // Duration of the damaging effect
 	
 	// calls superclass constructor
-	Skill.call(this, Constant.SKILL_RANGE_LONG, 30, _owner);//range = 240, total damage = 30
+	Skill.call(this, Constant.SKILL_RANGE_LONG, 30, _owner, 700);//0.7s cooldown
 	
 	this.effectDuration = 3000;//3s
 }
@@ -61,11 +86,11 @@ AcidWeapon.prototype.getEffectDuration = function() {
 }
 
 /**
- * Implements Skill.fire(target)
+ * Implements Skill._fireForReal(target)
  * creates an Acid that chases the target
  * @param target A NanoEntity to fire at
  */
-AcidWeapon.prototype.fire = function(target) {
+AcidWeapon.prototype._fireForReal = function(target) {
 	var ownerPos = this.owner.getPosition();
 	//shoot the acid projectile starting from the skill owner's position
 	var acid = new Acid(this, target, ownerPos.x, ownerPos.y);
@@ -80,7 +105,7 @@ var LifeLeech = function (_owner) {
 		return;
 		
 	// calls superclass constructor
-	Skill.call(this, Constant.SKILL_RANGE_MED, 20, _owner);
+	Skill.call(this, Constant.SKILL_RANGE_MED, 20, _owner, 1000);//1s cooldown
 	
 }
 
@@ -91,13 +116,13 @@ LifeLeech.prototype.constructor = LifeLeech;
 
 	
 /**
- * Implements Skill.fire(target)
+ * Implements Skill._fireForReal(target)
  * reduces HP from the target
  * and increases the same amount of HP
  * for the skill caster
  * @param target A NanoEntity to fire at
  */
-LifeLeech.prototype.fire = function(target) {
+LifeLeech.prototype._fireForReal = function(target) {
 	var effect = new LifeLeechEffect(this.owner, this.damage);
 	target.addEffect(effect);
 }

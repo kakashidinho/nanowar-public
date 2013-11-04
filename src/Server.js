@@ -369,7 +369,7 @@ Server.prototype.handleMessage = function(msg)
 			//check if the attack range is valid
 			var entities = Director.getKnownEntities();
 			if (msg.entityID in entities == false || msg.targetID in entities == false ||
-				!entities[msg.entityID].canAttack(entities[msg.targetID]))
+				!entities[msg.entityID].canAttack(msg.skillIdx, entities[msg.targetID]))
 			{
 				//cannot attack because of out of range
 				this.unicast(this.players[msg.entityID].connID, new AttackOutRangeMsg());//tell player

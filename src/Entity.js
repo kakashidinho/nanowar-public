@@ -542,57 +542,60 @@ var PlayableEntity = function( _id, _maxhp, _side, _width, _height, _x, _y, _ori
 	if (_id == undefined)//this may be called by prototype inheritance
 		return;
 	this.skills;//skills set
-	this.activeSkill;//current active skill
 	
 	/*------constructor---------*/
 	//call super class's constructor method
 	MovingEntity.call(this, _id, _maxhp, _side, _width, _height, _x, _y, _oriSpeed, _sprite);
 	
 	this.skills = new Array();
-	this.activeSkill = -1;
 }
 
 //inheritance from MovingEntity
 PlayableEntity.prototype = new MovingEntity();
 PlayableEntity.prototype.constructor = PlayableEntity;
 
-//current active skill
-PlayableEntity.prototype.getCurrentSkill = function()
+PlayableEntity.prototype.getNumSkills = function()
 {
-	return this.activeSkill;
+	return this.skills.length;
 }
 
-//cycle to next skill
-PlayableEntity.prototype.nextSkill = function()
+PlayableEntity.prototype.getSkill = function(skillIdx)
 {
-	this.activeSkill = (this.activeSkill + 1) % this.skills.length;
+	return this.skills[skillIdx];
 }
 
-PlayableEntity.prototype.getCurrentSkill = function()
-{
-	return this.skills[this.activeSkill];
-}
-
-PlayableEntity.prototype.canAttack = function(target){
+//check if the target in the skill's attacking range or not
+PlayableEntity.prototype.canAttack = function(skillIdx, target){
 	var dist = this.distanceVecToEntity(target)
 				   .Length();
-	var skill = this.getCurrentSkill();
+	var skill = this.getSkill(skillIdx);
 	var range = skill.getRange();
 	
 	return (dist <= range && target.getSide() != Constant.NEUTRAL && this.getSide() != target.getSide());
 }
 
-PlayableEntity.prototype.attack = function(target){
-	var skill = this.getCurrentSkill();
+PlayableEntity.prototype.attack = function(skillIdx, target){
+	var skill = this.getSkill(skillIdx);
 	
 	if (Director.dummyClient || //dummy client will do whatever it is told to do
-		this.canAttack(target))
+		this.canAttack(skillIdx, target))
 	{
 		skill.fire(target);
 		return PlayableEntity.SUCCEED;
 	}
 	else
 		return PlayableEntity.ATTACK_OUT_OF_RANGE;
+}
+
+
+//update the entity after <elapsedTime>
+PlayableEntity.prototype.update = function(elapsedTime){
+	//super class update
+	MovingEntity.prototype.update.call(this, elapsedTime);
+	
+	//update skills' cool down
+	for (var i = 0; i < this.skills.length; ++i)
+		this.skills[i].update(elapsedTime);
 }
 
 PlayableEntity.ATTACK_OUT_OF_RANGE = -1;

@@ -13,7 +13,7 @@ function start() {
 	}
 	
 	//on click event handler
-	Director.onClick = function(x, y, target) {
+	Director.onClick = function(x, y, target, isControlDown) {
 		if (target == null)
 		{
 			Director.postMessage(new MoveToMsg(cell, x, y));

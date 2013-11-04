@@ -33,7 +33,7 @@ Director.init = function(canvas, displayWidth, displayHeight, initFileXML, onIni
 	
 	var that = this;
 
-	Director.onClick;//on mouse click callback function. should be function(mouseX, mouseY, clickedEntity)
+	Director.onClick;//on mouse click callback function. should be function(mouseX, mouseY, clickedEntity, isControlButtonDown)
 	Director.onMouseEnterExit;//on mouse enter/exit callback function
 	Director.onUpdate;//update callback function. should be function(lastUpdateTime, currentTime)
 	Director.preUpdate;//pre-update callback function
@@ -56,7 +56,7 @@ Director.init = function(canvas, displayWidth, displayHeight, initFileXML, onIni
 	
 		
 	//initially, no callbacks
-	Director.onClick = function (x, y, target) { };//do nothing
+	Director.onClick = function (x, y, target, isControlButtonDown) { };//do nothing
 	Director.onMouseEnterExit = function (target, enter,x,y) { };//do nothing
 	Director.onUpdate = undefined;
 	Director.preUpdate = undefined;
@@ -250,7 +250,7 @@ Director.init = function(canvas, displayWidth, displayHeight, initFileXML, onIni
 				setFillStyle('#fff').
 				setScaleAnchored(Constant.PHYSICS_UNIT_SCALE, Constant.PHYSICS_UNIT_SCALE, 0, 0);
 		worldNode.mouseDown = function(mouse){
-			Director.onClick(mouse.x, mouse.y, null);
+			Director.onClick(mouse.x, mouse.y, null, mouse.isControlDown() );
 		};
 	 
 		sceneRoot.addChild(worldNode);
@@ -728,7 +728,7 @@ Director.init = function(canvas, displayWidth, displayHeight, initFileXML, onIni
 	
 	//mouse events listeners
 	VisualEntity.prototype.mouseDown = function (mouse) {
-		Director.onClick(mouse.x, mouse.y, this.entity);
+		Director.onClick(mouse.x, mouse.y, this.entity, mouse.isControlDown());
 		
 	}
 	//mouse enter and exit listener, use it to detect whether cursor enter or exit the actor

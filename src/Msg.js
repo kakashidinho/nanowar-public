@@ -37,10 +37,11 @@ function MoveToMsg(entity, destx, desty){
 	this.desty = desty;
 }
 
-function AttackMsg(entity, target){
+function AttackMsg(entity, target, skillIdx){
 	this.type = MsgType.ATTACK;
 	this.entityID = entity.getID();
 	this.targetID = target.getID();
+	this.skillIdx = skillIdx;
 }
 
 function StartGameMsg(initXML)
