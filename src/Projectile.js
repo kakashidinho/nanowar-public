@@ -58,7 +58,7 @@ Projectile.prototype.update = function(elapsedTime){
 	if (this.Target != null && this.Target.isAlive() == false)
 	{
 		this.Target = null;
-		destroy();
+		this.destroy();
 		return;
 	}
 	if (this.Target != null)
