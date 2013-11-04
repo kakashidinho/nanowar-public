@@ -24,7 +24,7 @@ Director.init = function(canvas, displayWidth, displayHeight, initFileXML, onIni
 	/*-------GUI items------*/
 	var guiNode;//scene's gui node, for containing GUI elements
 	var pingText;//ping value text
-	var outOfRangeText;//out of range text on screen
+	var attackFailText;//text the display the reason why attack failed
 	var skillIcons;
 	var skillIconMasks;
 	
@@ -103,16 +103,18 @@ Director.init = function(canvas, displayWidth, displayHeight, initFileXML, onIni
 	}
 	
 	//display attack "out of range" text
-	Director.displayOutOfRangeTxt = function(displayFlag){
-		if (displayFlag)
-		{
-			outOfRangeText.setVisible(true);
-			outOfRangeText.setFrameTime(currentUpdateTime, 3000);//appear in 3s
-		}
-		else
-		{
-			outOfRangeText.setVisible(false);
-		}
+	Director.displayOutOfRangeTxt = function(){
+		displayAtkFailTxt("Out of range!!!");
+	}
+	
+	//display "skill is not ready" text
+	Director.displaySkillNotReadyTxt = function(){
+		displayAtkFailTxt("Skill is not ready!!!");
+	}
+	
+	Director.hideAtkFailTxt = function()
+	{
+		attackFailText.setVisible(false);
 	}
 	
 	//display information about the current skill slots of main character
@@ -204,9 +206,9 @@ Director.init = function(canvas, displayWidth, displayHeight, initFileXML, onIni
 		if (lastUpdateTime == -1)
 			lastUpdateTime = currentUpdateTime;
 		
-		//var elapsedTime = currentUpdateTime - lastUpdateTime;
-		var elapsedTime = 1000/60.0;
-		lastUpdateTime = currentUpdateTime - elapsedTime;
+		var elapsedTime = currentUpdateTime - lastUpdateTime;
+		//var elapsedTime = 1000/60.0;
+		//lastUpdateTime = currentUpdateTime - elapsedTime;
 		
 		//call pre-update callback function
 		if (Director.preUpdate != undefined)
@@ -362,9 +364,9 @@ Director.init = function(canvas, displayWidth, displayHeight, initFileXML, onIni
 										
 		guiNode.addChild(pingText);
 		
-		/*---create "out of range" text------*/
+		/*---create "attack failed" text------*/
 		var font2= "18px sans-serif";
-		outOfRangeText =  new CAAT.Foundation.UI.TextActor()
+		attackFailText =  new CAAT.Foundation.UI.TextActor()
 										.setLocation(displayWidth / 2.0, 36)
 										.setText("Out of range!!!")
 										.setFont(font2)
@@ -374,7 +376,7 @@ Director.init = function(canvas, displayWidth, displayHeight, initFileXML, onIni
 										.enableEvents(false)
 										;
 		
-		guiNode.addChild(outOfRangeText);
+		guiNode.addChild(attackFailText);
 		
 		/*-------create skill icons----------*/
 		skillIcons = new Array();
@@ -406,6 +408,13 @@ Director.init = function(canvas, displayWidth, displayHeight, initFileXML, onIni
 			skillIcons.push(skillIcon);
 			skillIconMasks.push(skillIconMask);
 		}
+	}
+	
+	//display attack failed text
+	function displayAtkFailTxt(reasonText){
+		attackFailText.setVisible(true);
+		attackFailText.setFrameTime(currentUpdateTime, 3000);//appear in 3s
+		attackFailText.setText(reasonText);
 	}
 	
 	//get animation's full name

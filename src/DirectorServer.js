@@ -108,9 +108,9 @@ Director.init = function(initFileXML, onInitFinished)
 		if (lastUpdateTime == -1)
 			lastUpdateTime = currentUpdateTime;
 		
-		//var elapsedTime = currentUpdateTime - lastUpdateTime;
-		var elapsedTime = 1000/60.0;
-		lastUpdateTime = currentUpdateTime - elapsedTime;
+		var elapsedTime = currentUpdateTime - lastUpdateTime;
+		//var elapsedTime = 1000/60.0;
+		//lastUpdateTime = currentUpdateTime - elapsedTime;
 		
 		that._baseGameLoop(elapsedTime);//call base game update method
 		

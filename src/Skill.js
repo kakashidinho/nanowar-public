@@ -16,6 +16,8 @@ var Skill = function(_range, _damage, _owner, _maxCooldown, spriteModule) {
 	this.cooldown;//milliseconds need to wait before continue firing again
 	this.maxCooldown;
 	this.spriteModule;
+	this.fired;
+	this.reducedCooldownByLag;//reduced cooldown because of network delay
 	
 	this.range = _range;
 	this.damage = _damage;	
@@ -23,6 +25,8 @@ var Skill = function(_range, _damage, _owner, _maxCooldown, spriteModule) {
 	this.maxCooldown = _maxCooldown;
 	this.cooldown = 0;
 	this.spriteModule = spriteModule;
+	this.fired = false;
+	this.reducedCooldownByLag = 0;
 }
 
 // getters
@@ -46,11 +50,27 @@ Skill.prototype.getSpriteModuleName = function(){
 	return this.spriteModule;
 }
 
+Skill.prototype.reduceCooldown = function(d){
+	this.reducedCooldownByLag = d;
+}
+
 Skill.prototype.update = function(elapsedTime) {
-	if (this.cooldown > 0)
+	if (this.fired)//has just fired
+	{
+		this.fired = false;
+		this.cooldown += this.maxCooldown;//make the skill unable to be used again until <cooldown> time later
+		
+		this.cooldown -= this.reducedCooldownByLag;
+		
+		this.reducedCooldownByLag = 0;
+		
+		if (this.cooldown < 0)
+			this.cooldown = 0;
+	}
+	else if (this.cooldown > 0)
 	{
 		this.cooldown -= elapsedTime;
-		if (this.cooldown == 0)
+		if (this.cooldown < 0)
 			this.cooldown = 0;
 	}
 }
@@ -59,12 +79,12 @@ Skill.prototype.update = function(elapsedTime) {
  * @param target A NanoEntity target to fire at
 */
 Skill.prototype.fire = function(target) {
-	if (this.cooldown > 0)
+	if (this.cooldown > 0 || this.fired)
 		return;
 		
 	this._fireForReal(target);//sub class's specific implementation 
 	
-	this.cooldown += this.maxCooldown;//make the skill unable to be used again until <cooldown> time later
+	this.fired = true;
 }
 
 /**

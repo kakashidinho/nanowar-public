@@ -377,6 +377,15 @@ Server.prototype.handleMessage = function(msg)
 				//prevent the Director from processing this message
 				return true;
 			}
+			//check if skill is ready
+			else if (entities[msg.entityID].getSkill(msg.skillIdx).getCooldown() > 0)
+			{
+				//cannot attack because of not ready skill
+				this.unicast(this.players[msg.entityID].connID, new SkillNotReadyMsg());//tell player
+				
+				//prevent the Director from processing this message
+				return true;
+			}
 			//forward it to all clients
 			this.broadcast( msg);
 		}

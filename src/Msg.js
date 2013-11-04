@@ -20,7 +20,8 @@ var MsgType = {
 	CHANGE_FAKE_DELAY: 15,
 	PING: 16,
 	PING_NOTIFICATION: 17,
-	SELF_CORRECT_PREDICTION: 18
+	SELF_CORRECT_PREDICTION: 18,
+	SKILL_NOT_READY: 19
 };
 
 function MoveAlongMsg(entity, dirx, diry){
@@ -118,6 +119,10 @@ function AttackOutRangeMsg(){
 	this.type = MsgType.ATTACK_OUT_OF_RANGE;
 }
 
+function SkillNotReadyMsg(){
+	this.type = MsgType.SKILL_NOT_READY;
+}
+
 function ChangeFakeDelayMsg(dDelay){
 	this.type = MsgType.CHANGE_FAKE_DELAY;
 	this.dDelay = dDelay;
@@ -150,6 +155,7 @@ if (typeof global != 'undefined')
 	global.EntityHPChange = EntityHPChange;
 	global.EntityDeathMessage = EntityDeathMessage;
 	global.AttackOutRangeMsg = AttackOutRangeMsg;
+	global.SkillNotReadyMsg = SkillNotReadyMsg;
 	global.ChangeFakeDelayMsg = ChangeFakeDelayMsg;
 	global.PingMsg = PingMsg;
 	global.PingNotifyMsg = PingNotifyMsg;

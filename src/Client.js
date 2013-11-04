@@ -9,7 +9,8 @@ function Client(canvasElementID)
 	this.character;//my character
 	this.charPredict;//prediction version of my character, for dead reckoning
 	this.dk_threshold;//dead reckoning threshold
-	this.skillSlots;	
+	this.skillSlots;
+	this.ping;
 		
 	//while(document.readyState !== "complete") {console.log("loading...");};
 		
@@ -222,15 +223,27 @@ Client.prototype.handleMessage = function(msg){
 	{
 		case MsgType.PING_NOTIFICATION:
 			Director.updatePingValue(msg.ping);
+			this.ping = msg.ping;
 			break;
 		case MsgType.ATTACK_OUT_OF_RANGE:
-			Director.displayOutOfRangeTxt(true);
+			Director.displayOutOfRangeTxt();
+			Director.markTarget(null);
+			break;
+		case MsgType.SKILL_NOT_READY:
+			Director.displaySkillNotReadyTxt();
 			Director.markTarget(null);
 			break;
 		case MsgType.ATTACK:
-			//should erase the "out of range" text if it is displaying
-			Director.displayOutOfRangeTxt(false);
-			Director.markTarget(null);
+			if (msg.entityID == this.playerID)
+			{
+				//should erase the "out of range"/"skill is not ready" text if it is displaying
+				Director.hideAtkFailTxt();
+				Director.markTarget(null);
+				
+				//due to lag, we must reduce the cooldown
+				var skill = this.character.getSkill(msg.skillIdx);
+				skill.reduceCooldown(this.ping / 2.0);
+			}
 			break;
 	}
 	return false;
@@ -317,4 +330,5 @@ Client.prototype.start = function()
 	this.skillSlots = [0, 0];
 	this.charPredict = null;
 	this.dk_threshold = 2;//initial dead reckoning threshold
+	this.ping = 0;
 }
