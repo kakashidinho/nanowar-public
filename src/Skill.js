@@ -4,9 +4,9 @@
  * Skill Class
  * Abstract class to represent a skill
  * owned by a PlayableEntity instance
- * Subclasses should implement fire(target:NanoEntity)
+ * Subclasses should implement _fireForReal(target:NanoEntity)
  */
-var Skill = function(_range, _damage, _owner, _maxCooldown) {
+var Skill = function(_range, _damage, _owner, _maxCooldown, spriteModule) {
 	if (_range == undefined)
 		return;//this may be called by prototype inheritance
 	// Public fields
@@ -15,12 +15,14 @@ var Skill = function(_range, _damage, _owner, _maxCooldown) {
 	this.owner; // A reference to the PlayableEntity that owns this skill
 	this.cooldown;//milliseconds need to wait before continue firing again
 	this.maxCooldown;
+	this.spriteModule;
 	
 	this.range = _range;
 	this.damage = _damage;	
 	this.owner = _owner;
 	this.maxCooldown = _maxCooldown;
 	this.cooldown = 0;
+	this.spriteModule = spriteModule;
 }
 
 // getters
@@ -38,6 +40,10 @@ Skill.prototype.getCooldown = function() {
 
 Skill.prototype.getMaxCooldown = function(){
 	return this.maxCooldown;
+}
+
+Skill.prototype.getSpriteModuleName = function(){
+	return this.spriteModule;
 }
 
 Skill.prototype.update = function(elapsedTime) {
@@ -72,7 +78,7 @@ var AcidWeapon = function ( _owner) {
 	this.effectDuration; // Duration of the damaging effect
 	
 	// calls superclass constructor
-	Skill.call(this, Constant.SKILL_RANGE_LONG, 30, _owner, 700);//0.7s cooldown
+	Skill.call(this, Constant.SKILL_RANGE_LONG, 30, _owner, 700, "AcidWeapon");//0.7s cooldown
 	
 	this.effectDuration = 3000;//3s
 }
@@ -105,7 +111,7 @@ var LifeLeech = function (_owner) {
 		return;
 		
 	// calls superclass constructor
-	Skill.call(this, Constant.SKILL_RANGE_MED, 20, _owner, 1000);//1s cooldown
+	Skill.call(this, Constant.SKILL_RANGE_MED, 20, _owner, 1000, "LifeLeech");//1s cooldown
 	
 }
 

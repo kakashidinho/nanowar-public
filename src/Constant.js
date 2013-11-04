@@ -14,7 +14,8 @@ var Constant = {
 	SERVER_NAME: "localhost",
 	SERVER_PORT: 8001,
 	FRAME_RATE: 30,
-	PHYSICS_UNIT_SCALE: 20//1 unit in physics equals 30 pixels
+	PHYSICS_UNIT_SCALE: 20,//1 unit in physics equals 30 pixels
+	MAX_SKILL_SLOTS: 2//max number of skills of a player
 };
 
 if (typeof global != 'undefined')

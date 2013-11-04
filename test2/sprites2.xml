@@ -53,6 +53,28 @@
 			/>
 	</spriteModule>
 	<spriteModule 
+		name = "AcidWeapon"
+		sheetID = "projectiles"
+		>
+		<animation 
+			name="icon"
+			sequence="9"
+			interval="200"
+			loop="true"
+			/>
+	</spriteModule>
+	<spriteModule 
+		name = "LifeLeech"
+		sheetID = "blood"
+		>
+		<animation 
+			name="icon"
+			sequence="0"
+			interval="200"
+			loop="true"
+			/>
+	</spriteModule>
+	<spriteModule 
 		name = "Acid"
 		sheetID = "projectiles"
 		>

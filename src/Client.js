@@ -209,6 +209,9 @@ Client.prototype.onUpdate = function(lastTime, currentTime){
 					false);
 			}
 		}
+		
+		//display skills' info
+		Director.displaySkillInfos(this.skillSlots);
 	}
 }
 

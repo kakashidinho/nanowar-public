@@ -25,6 +25,8 @@ Director.init = function(canvas, displayWidth, displayHeight, initFileXML, onIni
 	var guiNode;//scene's gui node, for containing GUI elements
 	var pingText;//ping value text
 	var outOfRangeText;//out of range text on screen
+	var skillIcons;
+	var skillIconMasks;
 	
 	/*------scene items-----*/
 	var worldNode;//scene's world node
@@ -60,9 +62,6 @@ Director.init = function(canvas, displayWidth, displayHeight, initFileXML, onIni
 	Director.onMouseEnterExit = function (target, enter,x,y) { };//do nothing
 	Director.onUpdate = undefined;
 	Director.preUpdate = undefined;
-		
-	/*---------graphics--------------*/
-	initGraphics();
 	
 	
 	/*---------method definitions----------------*/
@@ -113,6 +112,33 @@ Director.init = function(canvas, displayWidth, displayHeight, initFileXML, onIni
 		else
 		{
 			outOfRangeText.setVisible(false);
+		}
+	}
+	
+	//display information about the current skill slots of main character
+	Director.displaySkillInfos = function(skillSlots){
+		if (mainCharacter == null)
+			return;
+		for (var i = 0; i < Constant.MAX_SKILL_SLOTS; ++i){
+			var skill = mainCharacter.getSkill(skillSlots[i]);
+			var spriteModule = spriteModuleList[skill.getSpriteModuleName()];
+			var spriteSheet = spriteSheetList[spriteModule.sheetID];
+			var iconAnim = spriteModule.animations['icon'];
+			var cooldown = skill.getCooldown();
+			
+			skillIcons[i].setBackgroundImage(spriteSheet, false);
+			skillIcons[i].playAnimation(iconAnim);
+			
+			//use mask to display current cooldown
+			if (cooldown == 0)
+				skillIconMasks[i].setVisible(false);
+			else
+			{
+				var height = skillIcons[i].height * cooldown / skill.getMaxCooldown();
+				skillIconMasks[i].setVisible(true);
+				skillIconMasks[i].setLocation(skillIcons[i].x, skillIcons[i].y + skillIcons[i].height - height);
+				skillIconMasks[i].setSize(skillIcons[i].width, height);
+			}
 		}
 	}
 	
@@ -347,8 +373,39 @@ Director.init = function(canvas, displayWidth, displayHeight, initFileXML, onIni
 										.setVisible(false)
 										.enableEvents(false)
 										;
-										
+		
 		guiNode.addChild(outOfRangeText);
+		
+		/*-------create skill icons----------*/
+		skillIcons = new Array();
+		skillIconMasks = new Array();
+		
+		var ICON_WIDTH = 60;
+		var ICON_HEIGHT = 60;
+		
+		for (var i = 0; i < Constant.MAX_SKILL_SLOTS; ++i){
+							
+			var skillIconFrame = new CAAT.Foundation.Actor().
+								setLocation(10 + i * (ICON_WIDTH + 5), displayHeight - ICON_HEIGHT - 10).
+								setSize(ICON_WIDTH, ICON_HEIGHT).
+								setFillStyle('#333333').
+								setAlpha(0.5);
+								
+			var skillIcon = new CustomCAATActor().
+								setLocation(skillIconFrame.x, skillIconFrame.y).
+								setSize(ICON_WIDTH, ICON_HEIGHT);
+			var skillIconMask = new CAAT.Foundation.Actor().
+							setAlpha(0.3).
+							setFillStyle('#ffffff').
+							setVisible(false);
+				
+			guiNode.addChild(skillIconFrame);
+			guiNode.addChild(skillIcon);
+			guiNode.addChild(skillIconMask);
+			
+			skillIcons.push(skillIcon);
+			skillIconMasks.push(skillIconMask);
+		}
 	}
 	
 	//get animation's full name
@@ -589,7 +646,7 @@ Director.init = function(canvas, displayWidth, displayHeight, initFileXML, onIni
 		var width = that.tileWidth;
 		var height = that.tileHeight;
 		
-		var visualTile = new Renderable(tileSpriteSheet);
+		var visualTile = new SceneObject(tileSpriteSheet);
 		visualTile.setBounds(x, y, width, height);
 		visualTile.setSpriteIndex(tileType.sheetImgIdx);
 		visualTile.enableEvents(false);
@@ -606,34 +663,48 @@ Director.init = function(canvas, displayWidth, displayHeight, initFileXML, onIni
 	
 	
 	
-	
-	
-	
-	/*----------------Renderable (extends CAAT.Foundation.Actor)----------*/
-	function Renderable(spriteSheet)
+	/*----------------CustomCAATActor (extends CAAT.Foundation.Actor)-----------------------------------------*/
+	function CustomCAATActor()
 	{
-		if (spriteSheet == undefined)
-			return;
 		//call super class constructor
 		CAAT.Foundation.Actor.call(this);
+			
+		return this;
+	}
+	//inheritance from CAAT.Foundation.Actor
+	CustomCAATActor.prototype = new CAAT.Foundation.Actor();
+	CustomCAATActor.prototype.constructor = CustomCAATActor;
+	
+	CustomCAATActor.prototype.paint = function(director, time) {
+		if (this.backgroundImage) {
+			this.backgroundImage.paintScaled(director, time, 0, 0);//require the sprite image to draw using actor's size
+		}
+	}
+	
+	
+	/*----------------SceneObject (extends CustomCAATActor)----------*/
+	function SceneObject(spriteSheet)
+	{
+		if (typeof spriteSheet == 'undefined')
+			return;
+		//call super class constructor
+		CustomCAATActor.call(this);
 		
 		//add to the scene
 		worldNode.addChild(this);
 		
 		//indicate that this actor will use the image <spriteSheet> to draw its background
-		this.setBackgroundImage(spriteSheet, false);
+		if (spriteSheet != null)
+			this.setBackgroundImage(spriteSheet, false);
+			
+		return this;
 	}
-	//inheritance from CAAT.Foundation.Actor
-	Renderable.prototype = new CAAT.Foundation.Actor();
-	Renderable.prototype.constructor = Renderable;
-	
-	Renderable.prototype.paint = function(director, time) {
-		if (this.backgroundImage) {
-			this.backgroundImage.paintScaled(director, time, 0, 0);//require the sprite image to draw using actor's size
-		}
-	}
+	//inheritance from CustomActor
+	SceneObject.prototype = new CustomCAATActor();
+	SceneObject.prototype.constructor = SceneObject;
 
-	/*----------------VisualEntity (extends Renderable) - visual part of an entity----------*/
+
+	/*----------------VisualEntity (extends SceneObject) - visual part of an entity----------*/
 	function VisualEntity(_entity)
 	{
 	    this.entity;//related entity
@@ -655,7 +726,7 @@ Director.init = function(canvas, displayWidth, displayHeight, initFileXML, onIni
 
 
 	    //call super class constructor
-	    Renderable.call(this, spriteSheet);
+	    SceneObject.call(this, spriteSheet);
 	    this.setSize(this.entity.getWidth(), this.entity.getHeight());
 	    this.playAnimation("normal");//play the animation named "normal"
 	    //caatActor.setScale(entity.getWidth() / caatActor.width, entity.getHeight() / caatActor.height);
@@ -722,8 +793,8 @@ Director.init = function(canvas, displayWidth, displayHeight, initFileXML, onIni
 		
 	}//VisualEntity = function(entity)
 	
-	//inheritance from Renderable
-	VisualEntity.prototype = new Renderable();
+	//inheritance from SceneObject
+	VisualEntity.prototype = new SceneObject();
 	VisualEntity.prototype.constructor = VisualEntity;
 	
 	//mouse events listeners
@@ -839,6 +910,9 @@ Director.init = function(canvas, displayWidth, displayHeight, initFileXML, onIni
 	
 	
 	/*----------all functions and member properties are ready ------*/
+		
+	/*---------graphics--------------*/
+	initGraphics();
 	/*----------start loading the game---------*/
 	readInitFile();
 }
