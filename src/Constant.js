@@ -12,7 +12,8 @@ var Constant = {
 	HEALTH_BAR_HEIGHT: 0.4,//units in physics
 	SERVER_MAX_CONNECTIONS: 4,
 	SERVER_NAME: "localhost",
-	SERVER_PORT: 8001,
+	//SERVER_NAME: "lehoangquyen-i.comp.nus.edu.sg",
+	SERVER_PORT: 8000,
 	FRAME_RATE: 30,
 	PHYSICS_UNIT_SCALE: 20,//1 unit in physics equals 30 pixels
 	MAX_SKILL_SLOTS: 2//max number of skills of a player

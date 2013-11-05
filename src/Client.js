@@ -291,7 +291,14 @@ Client.prototype.initNetwork = function() {
 	var that = this;
 	// Attempts to connect to game server
 	try {
-		this.socket = new SockJS("http://" + Constant.SERVER_NAME + ":" + Constant.SERVER_PORT + "/nanowar");
+		var server_name = Constant.SERVER_NAME;
+		if (server_name == 'localhost')
+		{
+			var url = window.location.href;
+			server_name = url.substr(url.indexOf('//') + 2);
+			server_name = server_name.substr(0, Math.min(server_name.indexOf(':'), server_name.indexOf('/')));
+		}
+		this.socket = new SockJS("http://" + server_name + ":" + Constant.SERVER_PORT + "/nanowar");
 		this.socket.onmessage = function (e) {
 			var message = JSON.parse(e.data);
 			that.onMessageFromServer(message);

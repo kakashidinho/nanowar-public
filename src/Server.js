@@ -415,7 +415,7 @@ Server.prototype.onMessageFromPlayer = function(player, msg){
 	}
 }
 
-Server.prototype.start = function () {
+Server.prototype.start = function (httpServer) {
 	try {
 		var that = this;
 		var http = require('http');
@@ -469,9 +469,16 @@ Server.prototype.start = function () {
 
 		// Standard code to starts the server and listen
 		// for connection
-		var httpServer = http.createServer();
-		sock.installHandlers(httpServer, {prefix:'/nanowar'});
-		httpServer.listen(Constant.SERVER_PORT, '0.0.0.0');
+		if (httpServer == null)
+		{
+			var httpServer = http.createServer();
+			sock.installHandlers(httpServer, {prefix:'/nanowar'});
+			httpServer.listen(Constant.SERVER_PORT, '0.0.0.0');
+		}
+		else
+		{
+			sock.installHandlers(httpServer, {prefix:'/nanowar'});
+		}
 
 	} catch (e) {
 		console.log("Cannot listen to " + Constant.SERVER_PORT);
