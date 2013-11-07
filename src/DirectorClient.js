@@ -14,7 +14,7 @@ Director.init = function(canvas, displayWidth, displayHeight, initFileXML, onIni
 	var spriteModuleList;
 	var visualEntityList;
 	var lastUpdateTime;
-	var currentUpdateTime;//for using during update
+	var currentSceneTime;//for using during update
 	var initXmlRequest;
 	var mainCharacter;//the main entity in the game
 	var targetEntity;//the attacking target of main character
@@ -202,14 +202,15 @@ Director.init = function(canvas, displayWidth, displayHeight, initFileXML, onIni
 			visualEntity.playAnimation("die");//play dying animation
 			visualEntity.enableEvents(false);//disable mouse click
 			visualEntity.setDiscardable(true);
-			visualEntity.setFrameTime(currentUpdateTime, 1000);//dying in 1s
+			visualEntity.setFrameTime(currentSceneTime, 1000);//dying in 1s
 		}
 	   
 	}
 	
 	//game loop
 	function gameUpdate(scene_time){
-		currentUpdateTime = scene_time;
+		var currentUpdateTime = Utils.getTimestamp();
+		currentSceneTime = scene_time;
 		if (lastUpdateTime == -1)
 			lastUpdateTime = currentUpdateTime;
 		
@@ -433,7 +434,7 @@ Director.init = function(canvas, displayWidth, displayHeight, initFileXML, onIni
 	//display attack failed text
 	function displayAtkFailTxt(reasonText){
 		attackFailText.setVisible(true);
-		attackFailText.setFrameTime(currentUpdateTime, 3000);//appear in 3s
+		attackFailText.setFrameTime(currentSceneTime, 3000);//appear in 3s
 		attackFailText.setText(reasonText);
 	}
 	
@@ -870,7 +871,7 @@ Director.init = function(canvas, displayWidth, displayHeight, initFileXML, onIni
 			this.hpChangePosTxt.setText('+' + Math.floor(this.dHPPos).toString());
 			this.hpChangePosTxt.centerAt(x, y);
 			this.hpChangePosTxt.setVisible(true);
-			this.hpChangePosTxt.setFrameTime(currentUpdateTime, 500);//appear in 0.5s
+			this.hpChangePosTxt.setFrameTime(currentSceneTime, 500);//appear in 0.5s
 			
 			
 			this.dHPPos = 0;
@@ -886,7 +887,7 @@ Director.init = function(canvas, displayWidth, displayHeight, initFileXML, onIni
 			this.hpChangeNegTxt.setText(Math.floor(this.dHPNeg).toString());
 			this.hpChangeNegTxt.centerAt(x, y);
 			this.hpChangeNegTxt.setVisible(true);
-			this.hpChangeNegTxt.setFrameTime(currentUpdateTime, 500);//appear in 0.5s
+			this.hpChangeNegTxt.setFrameTime(currentSceneTime, 500);//appear in 0.5s
 			this.dHPNeg = 0;
 		}//if (this.dHPNeg < 0
 	}
