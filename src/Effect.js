@@ -49,6 +49,8 @@ Effect.prototype.areaAffect = function(entity){
 Effect.prototype.update = function(elapsedTime){
 	//base class's update
 	NanoEntity.prototype.update.call(this, elapsedTime);
+	
+	this._implUpdate(elapsedTime);//subclass must implement _implUpdate()
 }
 
 
@@ -76,7 +78,7 @@ AcidEffect.prototype = new Effect();
 AcidEffect.prototype.constructor = AcidEffect;
 
 
-AcidEffect.prototype.update = function (elapsedTime) {
+AcidEffect.prototype._implUpdate = function (elapsedTime) {
 	var effectElapsedTime ;
 	if (this.duration > elapsedTime)
 	{
@@ -124,7 +126,7 @@ var LifeLeechEffect = function (_leecher, _damage, affectedTarget) {
 LifeLeechEffect.prototype = new Effect();
 LifeLeechEffect.prototype.constructor = LifeLeechEffect;
 
-LifeLeechEffect.prototype.update = function (elapsedTime) {
+LifeLeechEffect.prototype._implUpdate = function (elapsedTime) {
 	if (Director.dummyClient == false)
 	{
 		var dHP = this.affectedTarget.decreaseHP(this.damage);
