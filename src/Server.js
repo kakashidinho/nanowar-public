@@ -363,7 +363,10 @@ Server.prototype.updateClientsAbout = function(player, elapsedTime){
 		var dHPNeg = managedWrapper.getNegHPChange();//negative HP change since last update
 		if (dHPPos != 0 || dHPNeg != 0)
 		{
-			this.multicast(player.subscribers, new EntityHPChange(player.playerID, dHPPos, dHPNeg));
+			var msg = new EntityHPChange(player.playerID, dHPPos, dHPNeg);
+			//notify player and his subscribers
+			this.unicast(player.connID, msg);
+			this.multicast(player.subscribers, msg);
 			managedWrapper.resetHPChange();//reset the HP change recording
 		}
 	}
@@ -500,13 +503,14 @@ Server.prototype.handleMessage = function(msg)
 		break;
 	case MsgType.ATTACK:
 		{
+			var player = this.players[msg.entityID];
 			//check if the attack range is valid
 			var entities = Director.getKnownEntities();
 			if (msg.entityID in entities == false || msg.targetID in entities == false ||
 				!entities[msg.entityID].canAttack(msg.skillIdx, entities[msg.targetID]))
 			{
 				//cannot attack because of out of range
-				this.unicast(this.players[msg.entityID].connID, new AttackOutRangeMsg());//tell player
+				this.unicast(player.connID, new AttackOutRangeMsg());//tell player
 				
 				//prevent the Director from processing this message
 				return true;
@@ -515,13 +519,16 @@ Server.prototype.handleMessage = function(msg)
 			else if (entities[msg.entityID].getSkill(msg.skillIdx).getCooldown() > 0)
 			{
 				//cannot attack because of not ready skill
-				this.unicast(this.players[msg.entityID].connID, new SkillNotReadyMsg());//tell player
+				this.unicast(player.connID, new SkillNotReadyMsg());//tell player
 				
 				//prevent the Director from processing this message
 				return true;
 			}
-			//forward it to all clients
-			this.broadcast( msg);
+			else//notify back to client
+				this.unicast(player.connID, msg);
+			
+			//forward it to all interested clients
+			this.multicast(player.subscribers, msg);
 		}
 		break;
 	}
