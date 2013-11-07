@@ -2,8 +2,15 @@
 
 var LIB_PATH = __dirname + "/";
 require(LIB_PATH + "DirectorServer.js");
+require(LIB_PATH + "Player.js");
 
 var   b2Vec2 = Box2D.Common.Math.b2Vec2;
+
+var SIMPLE_IM = true;//simple interest management
+var SERVER_USE_DK = true;
+var NUM_DK_VERSIONS = 3;//number of dead reckoning versions, each version is for a certain range of distance
+var DK_DISTANCES = [{min:0, max:50}, {min:50, max:100}, {min:100, max:150}];// list of range of distance, each range has different dead reckoning threshold
+var DK_THREASHOLDS = [2, 4, 10];//3 versions of dead reckoning thresholds
 
 function Server() {
     this.count;        // Keeps track how many people are connected to server 
@@ -59,6 +66,35 @@ Server.prototype.broadcast = function (msg) {
 				conn, msg);
 		}
 	}
+}
+
+/*
+ * method: multicast(group, msg)
+ *
+ * multicast takes in a JSON structure and send it to
+ * all ready players.
+ *
+ * e.g., multicast(player.subscribers, {type: "abc", x: 30});
+ */
+Server.prototype.multicast = function (subscribers, msg) {
+	var id;
+	var node = subscribers.getFirstNode();
+	while (node != null) {
+		var player = node.item;
+		var conn = this.connections[player.connID];
+		if (player.character != null)//player must be ready
+		{
+			//conn.socket.write(JSON.stringify(msg));
+			//delay the message sending by player's <fakeDelay> amount
+			setTimeout(function(conn, msg) {
+					conn.socket.write(JSON.stringify(msg));
+				},
+				player.fakeDelay,
+				conn, msg);
+		}
+		
+		node = node.next;//next subscriber
+	}//while (node != null)
 }
 
 /*
@@ -129,7 +165,18 @@ Server.prototype.newPlayer = function (conn) {
 	this.availPIDList.popFront();
 	
 	// Create player object and insert into players with key = nextPID
-	var newPlayer = new Player(conn.id, nextPID);
+	var newPlayer = new Player(conn.id, nextPID, NUM_DK_VERSIONS);
+	
+	//simple interest management
+	if (SIMPLE_IM)
+	{
+		for (var i in this.players){
+			this.subscribeUpdate(newPlayer, this.players[i]);
+			this.subscribeUpdate(this.players[i], newPlayer);
+		}//for (var i = 0; i < this.players.length; ++i)
+	}//if (SIMPLE_IM)
+	
+	//insert this player to the list
 	this.players[nextPID] = newPlayer;
 	this.connections[conn.id] = new Connection(conn, newPlayer);
 	
@@ -166,8 +213,35 @@ Server.prototype.deletePlayer = function(connectionID){
 	//delete from the player list
 	delete this.players[player.playerID];
 	
+	//simple interest management, unsubcribe all update from this player
+	if (SIMPLE_IM)
+	{
+		for (var i in this.players){
+			this.unsubscribeUpdate(player, this.players[i]);
+		}//for (var i = 0; i < this.players.length; ++i)
+	}//if (SIMPLE_IM)
+	
 	//delete from the connection list
 	delete this.connections[connectionID];
+}
+
+//make the subscriber subscribe to publisher
+Server.prototype.subscribeUpdate = function(subscriber, publisher){
+	if (publisher.subscribers.findNode(subscriber) == null)
+	{
+		publisher.subscribers.insertBack(subscriber);
+	}
+}
+
+//make the subscriber unsubscribe from publisher
+Server.prototype.unsubscribeUpdate = function(subscriber, publisher){
+	
+	publisher.subscribers.remove(subscriber);
+}
+
+//interest management
+Server.prototype.manageInterests = function(){
+	//TO DO
 }
 
 //assign random class for a player
@@ -244,7 +318,43 @@ Server.prototype.update = function(lastTime, currentTime){
 Server.prototype.updateClientsAbout = function(player, elapsedTime){
 	if (player.character == null || !player.character.isAlive())
 		return;
+	var that = this;
 	var managedWrapper = player.character.managedWrapper;
+	
+	if (SERVER_USE_DK)
+	{
+		//update predicted versions
+		for (var i = 0; i < NUM_DK_VERSIONS; ++i)
+		{
+			player.charPredict[i].update(elapsedTime);
+			
+			//dead reckoning
+			var predictPos = player.charPredict[i].getPosition();
+			var error = player.character.distanceTo(predictPos);
+			
+			//error exceeded
+			if (error > DK_THREASHOLDS[i])
+			{
+				var movementCorrectMsg = new EntityMoveMentMsg(player.character);
+			
+				//notify players who have distance fall into DK_DISTANCES[i]
+				player.subscribers.traverse(function(subscriber)
+				{
+					var distance = player.character.distanceToEntity(subscriber.character);
+					if (DK_DISTANCES[i].min <= distance && distance < DK_DISTANCES[i].max)
+					{
+						that.unicast(subscriber.connID, movementCorrectMsg);
+					}
+				}); 
+				
+				//correct the predicted version
+				player.charPredict[i].correctMovement(
+					movementCorrectMsg.x, movementCorrectMsg.y, 
+					movementCorrectMsg.dirx, movementCorrectMsg.diry,
+					false);
+			}//if (error > DK_THREASHOLDS[i])
+		}//for (var i = 0; i < NUM_DK_VERSIONS; ++i)
+	}//if (SERVER_USE_DK)
 	
 	//update health
 	if (player.needUpdateHPToClients(elapsedTime))
@@ -253,7 +363,7 @@ Server.prototype.updateClientsAbout = function(player, elapsedTime){
 		var dHPNeg = managedWrapper.getNegHPChange();//negative HP change since last update
 		if (dHPPos != 0 || dHPNeg != 0)
 		{
-			this.broadcast(new EntityHPChange(player.playerID, dHPPos, dHPNeg));
+			this.multicast(player.subscribers, new EntityHPChange(player.playerID, dHPPos, dHPNeg));
 			managedWrapper.resetHPChange();//reset the HP change recording
 		}
 	}
@@ -313,6 +423,30 @@ Server.prototype.spawnPlayerCharacter = function(player){
 	spawnPosition.y = spawnPoint.y;
 	
 	player.character.setPosition(spawnPosition);
+	
+	if (SERVER_USE_DK)//if server use dead reckoning
+	{
+		//now create dummy prediction versions
+		for (var i = 0; i < NUM_DK_VERSIONS; ++i){
+			
+			//we already have an old instance
+			if (player.charPredict[i] != null)
+			{
+				player.charPredict[i].setPosition(player.character.getPosition());
+				player.charPredict[i].setOriSpeed(player.character.getOriSpeed());
+			}
+			else
+			{	
+				//create the new dummy entity for dead reckoning
+				player.charPredict[i] = new MovingEntity( -1, 0, 
+					Constant.NEUTRAL, 
+					player.character.getWidth(), player.character.getHeight(), 
+					player.character.getPosition().x, player.character.getPosition().y, 
+					player.character.getOriSpeed(), 
+					null);
+			}
+		}//for (var i = 0; i < NUM_DK_VERSIONS; ++i)
+	}//if SERVER_USE_DK
 }
 
 //notify all players about the death of an entity
@@ -403,6 +537,14 @@ Server.prototype.onMessageFromPlayer = function(player, msg){
 		this.updatePing(player, msg.time);
 		break;
 	case MsgType.PLAYER_CLASS:
+		if (player.className != msg.className)
+		{
+			//remove old prediction versions' instances
+			for (var i = 0; i < NUM_DK_VERSIONS; ++i)
+			{
+				player.charPredict[i] = null;
+			}
+		}
 		player.className = msg.className;
 		break;
 	case MsgType.CHANGE_FAKE_DELAY:
@@ -445,7 +587,9 @@ Server.prototype.start = function (httpServer) {
 				that.sendMsgViaChannel(conn, new PlayerClassMsg(player.className));//notify player about his initialized class name
 				
 				if (that.gameStarted)//game already started. let him know
+				{
 					that.sendMsgViaChannel(conn, new StartGameMsg(that.gameInitXML));
+				}//if (that.gameStarted)
 			}
 
 			// When the client closes the connection to the server/closes the window
@@ -486,47 +630,6 @@ Server.prototype.start = function (httpServer) {
 	}
 }
 
-var Player = function(_connID, _playerID) {
-	this.connID;
-	this.playerID;
-	this.character;
-	this.className;//name of the character class that player chose
-	this.ping;//network ping delay of this player
-	this.pingSamples;//sampled ping values
-	this.pingSamplesSum;//sum of samples of network ping delay
-	this.pingUpdateInterval;
-	this.fakeDelay;//fake additional network one-way delay for this player
-	//Server will wait for this amount of time before updating clients 
-	//about the hp of this player's character
-	this.hpUpdateDelay;
-	
-	this.connID = _connID;
-	this.playerID = _playerID;
-	this.character = null;
-	this.ping = 0;
-	this.fakeDelay = 0;
-	this.pingSamples = new Utils.List();
-	this.pingSamplesSum = 0;
-	this.pingUpdateInterval = undefined;
-	
-	this.hpUpdateDelay = 500;//0.5s delay by default
-	
-	this.needUpdateHPToClients = function(elapsedTime)
-	{
-		var update = false;
-		
-		this.hpUpdateDelay -= elapsedTime;
-		
-		if (this.hpUpdateDelay <= 0 || this.character.isAlive() == false)
-		{
-			update = true;
-			this.hpUpdateDelay = 500;
-		}
-		
-		return update;
-	}
-}
-
 var Connection = function(_socket, _player) {
 	this.socket;
 	this.player;
@@ -540,6 +643,5 @@ var Connection = function(_socket, _player) {
 if (typeof global != 'undefined')
 {
 	global.Server = Server;
-	global.Player = Player;
 	global.Connection = Connection;
 }

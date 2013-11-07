@@ -1,5 +1,7 @@
 "use strict"
 
+var CLIENT_USE_DK = false;//do we use client side dead reckoning
+
 function Client(canvasElementID)
 {
 	this.canvas;
@@ -85,19 +87,22 @@ Client.prototype.spawnEntity = function(msg){
 		
 		Director.setMainCharacter(this.character);
 		
-		//create the dummy entity for dead reckoning
-		this.charPredict = new MovingEntity( -1, 0, 
-			Constant.NEUTRAL, 
-			this.character.getWidth(), this.character.getHeight(), 
-			this.character.getPosition().x, this.character.getPosition().y, 
-			this.character.getOriSpeed(), 
-			null);
+		if (CLIENT_USE_DK)
+		{
+			//create the dummy entity for dead reckoning
+			this.charPredict = new MovingEntity( -1, 0, 
+				Constant.NEUTRAL, 
+				this.character.getWidth(), this.character.getHeight(), 
+				this.character.getPosition().x, this.character.getPosition().y, 
+				this.character.getOriSpeed(), 
+				null);
+		}
 	}
 }
 
 //when our character changes his movement
 Client.prototype.onVelocityChanged = function(entity){
-	if (entity.isMoving() == false)//should update server
+	if (CLIENT_USE_DK && entity.isMoving() == false)//should update server
 		this.sendToServer(new EntityMoveMentMsg(entity));
 }
 
@@ -130,8 +135,10 @@ Client.prototype.onClick = function(x, y, target, isControlDown){
 	if (target == null && !isControlDown)
 	{
 	    //will start moving to new destination
-	 
-	    Director.postMessage(new MoveToMsg(this.character, x, y));
+		var msg = new MoveToMsg(this.character, x, y);
+		if (CLIENT_USE_DK == false)
+			this.sendToServer(msg);//send to server
+	    Director.postMessage(msg);//and simulate the movement locally
 	    
 		//mark the destination, just for the visual indication
 		Director.markDestination(x, y);
@@ -187,7 +194,8 @@ Client.prototype.onUpdate = function(lastTime, currentTime){
 				this.charPredict = null;
 			}
 		}
-		else{
+		else if (CLIENT_USE_DK){
+			
 			//update predicted version
 			this.charPredict.update(currentTime - lastTime);
 		
@@ -209,7 +217,7 @@ Client.prototype.onUpdate = function(lastTime, currentTime){
 					movementCorrectMsg.dirx, movementCorrectMsg.diry,
 					false);
 			}
-		}
+		}//else if (CLIENT_USE_DK)
 		
 		//display skills' info
 		Director.displaySkillInfos(this.skillSlots);

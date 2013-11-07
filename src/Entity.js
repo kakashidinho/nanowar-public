@@ -153,6 +153,18 @@ NanoEntity.prototype.distanceVecToEntity = function(entity)
 	return this.distanceVecTo(entity.getPosition());	
 }
 
+//get distance  between <anotherPoint> and current position
+NanoEntity.prototype.distanceTo = function(anotherPoint)
+{
+	return this.distanceVecTo(anotherPoint).Length();	
+}
+
+//get distance between <entity>'s position and current position
+NanoEntity.prototype.distanceToEntity = function(entity)
+{
+	return this.distanceVecTo(entity.getPosition()).Length();	
+}
+
 NanoEntity.prototype.isAlive = function()
 {
 	return this.alive;
@@ -444,6 +456,18 @@ MovingEntity.prototype.getSpeed = function()
 MovingEntity.prototype.getOriSpeed = function()
 {
 	return this.originalSpeed;
+}
+
+//set current speed
+MovingEntity.prototype.setSpeed = function(speed)
+{
+	return this.currentSpeed = speed;
+}
+
+//set original speed
+MovingEntity.prototype.setOriSpeed = function(speed)
+{
+	return this.originalSpeed = speed;
 }
 
 MovingEntity.prototype.startMoveToNextPointInPath = function()
