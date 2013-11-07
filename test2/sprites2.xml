@@ -7,6 +7,18 @@
 		cellsPerCol="4">
 	</spriteSheet>
 	<spriteSheet 
+		id="cell" 
+		imgID="cell"
+		cellsPerRow="1" 
+		cellsPerCol="1">
+	</spriteSheet>
+	<spriteSheet 
+		id="virus" 
+		imgID="virus"
+		cellsPerRow="1" 
+		cellsPerCol="1">
+	</spriteSheet>
+	<spriteSheet 
 		id="projectiles" 
 		imgID="projectiles"
 		cellsPerRow="5" 
@@ -20,11 +32,11 @@
 	</spriteSheet>
 	<spriteModule 
 		name = "WarriorCell"
-		sheetID = "sprites1"
+		sheetID = "cell"
 		>
 		<animation 
 			name="normal"
-			sequence="0,1"
+			sequence="0"
 			interval="200"
 			loop="true"
 			/>
@@ -37,17 +49,17 @@
 	</spriteModule>
 	<spriteModule 
 		name = "LeechVirus"
-		sheetID = "sprites1"
+		sheetID = "virus"
 		>
 		<animation 
 			name="normal"
-			sequence="4,5,6,7"
+			sequence="0"
 			interval="200"
 			loop="true"
 			/>
 		<animation 
 			name="die"
-			sequence="4"
+			sequence="0"
 			interval="200"
 			loop="false"
 			/>

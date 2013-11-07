@@ -7,6 +7,8 @@
 		<image id="mapTileSheet1" url="mapTileSheet1.png"/>
 		<image id="projectiles" url="projectiles.png"/>
 		<image id="blood" url="blood.png"/>
+		<image id="cell" url="cell.png"/>
+		<image id="virus" url="virus.png"/>
 	</images>
 	<spritesFile>sprites2.xml</spritesFile>
 	<mapFile>map2.xml</mapFile>

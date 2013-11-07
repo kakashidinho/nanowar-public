@@ -149,7 +149,7 @@ LifeLeech.prototype.constructor = LifeLeech;
  * @param target A NanoEntity to fire at
  */
 LifeLeech.prototype._fireForReal = function(target) {
-	var effect = new LifeLeechEffect(this.owner, this.damage);
+	var effect = new LifeLeechEffect(this.owner, this.damage, target);
 	target.addEffect(effect);
 }
 

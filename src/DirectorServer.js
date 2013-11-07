@@ -35,6 +35,8 @@ Director.init = function(initFileXML, onInitFinished)
 	var currentUpdateTime;//for using during update
 	var xmlParser;
 	
+	var locked;//lock some operations during update
+	
 	Director.onUpdate;//update callback function. should be function(lastUpdateTime, currentTime)
 	
 	var that = this;
@@ -43,6 +45,7 @@ Director.init = function(initFileXML, onInitFinished)
 	DirectorBase.call(this);
 	
 	lastUpdateTime = -1;
+	locked = false;
 	
 	Director.onUpdate = undefined;//no update callback
 	
@@ -91,6 +94,9 @@ Director.init = function(initFileXML, onInitFinished)
 		var managedEntity = new ManagedEntity(entity);
 		
 		managedEntity.listNode = managedEntityList.insertBack(managedEntity);
+		
+		//if this entity is created during game update, then dont update this entity yet
+		managedEntity.locked = locked;
 	}
 	
 	Director._destroyEntity = function(entity){
@@ -112,11 +118,21 @@ Director.init = function(initFileXML, onInitFinished)
 		//var elapsedTime = 1000/60.0;
 		//lastUpdateTime = currentUpdateTime - elapsedTime;
 		
+		locked = true;//lock some operations
+		
 		that._baseGameLoop(elapsedTime);//call base game update method
 		
 		//update the entities 
 		managedEntityList.traverse(function(managedEntity) {
-			managedEntity.getEntity().update(elapsedTime);
+			if (managedEntity.locked)
+			{
+				//this entity has just been created, dont update it yet
+				managedEntity.locked = false;
+			}
+			else
+			{
+				managedEntity.getEntity().update(elapsedTime);
+			}
 		}
 		);
 		
@@ -124,6 +140,7 @@ Director.init = function(initFileXML, onInitFinished)
 		if (Director.onUpdate != undefined)
 			Director.onUpdate(lastUpdateTime, currentUpdateTime);
 			
+		locked = false;//unlock some operations
 		
 		lastUpdateTime = currentUpdateTime;
 	}

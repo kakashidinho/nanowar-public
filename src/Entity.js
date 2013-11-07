@@ -169,12 +169,7 @@ NanoEntity.prototype.destroy = function()
 	
 	Director._destroyEntity(this);//notify director
 	
-	//destroy all effects
-	this.effects.traverse(function(effect)
-	{
-		effect.destroy();
-	}
-	);
+	//remove all effects
 	this.effects.removeAll();
 }
 
@@ -225,18 +220,15 @@ NanoEntity.prototype.updateEffects = function(elapsedTime){
 		//stick the effect to its affected target
 		node.item.setPosition(this.getPosition());
 		
-		if (node.item.affect(this, elapsedTime))
+		if (node.item.isAlive() == false)
 		{
 			//the duration of effect has ended
 			var del = node;
 			node = node.next;
 			this.effects.removeNode(del);//remove the effect
-			
-			del.item.destroy();//destroy the effect
 		}
 		else
-		{
-			
+		{	
 			node = node.next;
 		}
 	}

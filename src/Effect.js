@@ -15,16 +15,18 @@ var   b2Vec2 = Box2D.Common.Math.b2Vec2
 
 /*-----------Effect class (extends NanoEntity)--------------*/
 
-var Effect = function (_duration, width, height, x, y, spriteModule) {
-	if (_duration == undefined)
+var Effect = function (_affectedTarget, _duration, width, height, x, y, spriteModule) {
+	if (typeof _affectedTarget == 'undefined')
 		return;//this may be called by prototype inheritance
 	
     this.duration;
+	this.affectedTarget;//affected victim, maybe null.
 	
     /*--------constructor---------*/
     //call super class's constructor method
     NanoEntity.call(this, -1, 0, Constant.NEUTRAL, width, height, x, y, spriteModule);
     this.duration = _duration;
+	this.affectedTarget = _affectedTarget;
 	
 	//change the body's fixture type to sensor
 	this.body.GetFixtureList().SetSensor(true);
@@ -38,10 +40,21 @@ var Effect = function (_duration, width, height, x, y, spriteModule) {
 Effect.prototype = new NanoEntity();
 Effect.prototype.constructor = Effect;
 
+//sub class should implement this method if they have area of effect
+//<entity> is the one detected to come into contact with the effect's region
+Effect.prototype.areaAffect = function(entity){
+	//do nothing
+}
+
+Effect.prototype.update = function(elapsedTime){
+	//base class's update
+	NanoEntity.prototype.update.call(this, elapsedTime);
+}
+
 
 /*-----------AcidEffect class (extends Effect)--------------*/
 
-var AcidEffect = function (_producer) {
+var AcidEffect = function (_producer, affectedTarget) {
 	if (_producer == undefined)
 		return;//this may be called by prototype inheritance
 		
@@ -51,7 +64,7 @@ var AcidEffect = function (_producer) {
     /*--------constructor---------*/
     //call super class's constructor method
 
-    Effect.call(this, _producer.getEffectDuration(), Constant.EFFECT_SIZE, Constant.EFFECT_SIZE, 0, 0, "AcidEffect");
+    Effect.call(this, affectedTarget, _producer.getEffectDuration(), Constant.EFFECT_SIZE, Constant.EFFECT_SIZE, 0, 0, "AcidEffect");
 	this.producer = _producer;
 	var damageDuration = this.producer.getEffectDuration();
 	var totalDamage=this.producer.getDamage();
@@ -63,8 +76,7 @@ AcidEffect.prototype = new Effect();
 AcidEffect.prototype.constructor = AcidEffect;
 
 
-//return true if the effect has ended
-AcidEffect.prototype.affect = function (target,elapsedTime) {
+AcidEffect.prototype.update = function (elapsedTime) {
 	var effectElapsedTime ;
 	if (this.duration > elapsedTime)
 	{
@@ -83,17 +95,17 @@ AcidEffect.prototype.affect = function (target,elapsedTime) {
 	{
 		//dummy client will not do this damage effect. Instead, it will be done by server
 		var damage=this.damPerMs*effectElapsedTime;
-		target.decreaseHP(damage);
+		if(this.affectedTarget.isAlive())
+			this.affectedTarget.decreaseHP(damage);
 	}
 	
-	if (this.duration == 0)
-		return true;
-	return false;
+	if (this.duration == 0 || this.affectedTarget.isAlive() == false)
+		this.destroy();//effect has end its duration
 }
 
 /*-----------LifeLeechEffect class (extends Effect)--------------*/
 
-var LifeLeechEffect = function (_leecher, _damage) {
+var LifeLeechEffect = function (_leecher, _damage, affectedTarget) {
 	if (_leecher == undefined)
 		return;//this may be called by prototype inheritance
 		
@@ -103,7 +115,7 @@ var LifeLeechEffect = function (_leecher, _damage) {
     /*--------constructor---------*/
     //call super class's constructor method
 
-    Effect.call(this, 1, Constant.CELL_SIZE, Constant.CELL_SIZE, 0, 0, "LifeLeechEffect");
+    Effect.call(this, affectedTarget, 1, Constant.CELL_SIZE, Constant.CELL_SIZE, 0, 0, "LifeLeechEffect");
 	this.leecher = _leecher;
 	this.damage = _damage;
 }
@@ -112,16 +124,14 @@ var LifeLeechEffect = function (_leecher, _damage) {
 LifeLeechEffect.prototype = new Effect();
 LifeLeechEffect.prototype.constructor = LifeLeechEffect;
 
-
-//return true if the effect has ended
-LifeLeechEffect.prototype.affect = function (target,elapsedTime) {
+LifeLeechEffect.prototype.update = function (elapsedTime) {
 	if (Director.dummyClient == false)
 	{
-		var dHP = target.decreaseHP(this.damage);
+		var dHP = this.affectedTarget.decreaseHP(this.damage);
 		this.leecher.increaseHP(dHP);
 	}
 	
-	return true;//one time effect
+	this.destroy();//this is one time effect, so it should be destroyed immediately
 }
 
 // For node.js require

@@ -19,6 +19,8 @@ Director.init = function(canvas, displayWidth, displayHeight, initFileXML, onIni
 	var mainCharacter;//the main entity in the game
 	var targetEntity;//the attacking target of main character
 	
+	var locked;//lock during game update
+	
 	var sceneRoot;
 	
 	/*-------GUI items------*/
@@ -63,6 +65,8 @@ Director.init = function(canvas, displayWidth, displayHeight, initFileXML, onIni
 	Director.onUpdate = undefined;
 	Director.preUpdate = undefined;
 	
+	//no locking yet
+	locked = false;
 	
 	/*---------method definitions----------------*/
 	Director.startGameLoop = function(frameRate)
@@ -168,6 +172,9 @@ Director.init = function(canvas, displayWidth, displayHeight, initFileXML, onIni
 			var visualEntity = new VisualEntity(entity);
 		
 			visualEntity.listNode = visualEntityList.insertBack(visualEntity);
+			
+			//if this entity is created during game update, then dont update this entity yet
+			visualEntity.locked = locked;
 		}
 		else
 			entity.visualPart = null;//this entity doesn't have any visual aspect. maybe just for physics simulation
@@ -214,18 +221,31 @@ Director.init = function(canvas, displayWidth, displayHeight, initFileXML, onIni
 		if (Director.preUpdate != undefined)
 			Director.preUpdate(lastUpdateTime, currentUpdateTime);
 		
+		locked = true;//lock certain operations
+		
 		that._baseGameLoop(elapsedTime);//call base game update method
 			
 		//update the entities and commit changes to their visual parts
 		visualEntityList.traverse(function(visualEntity) {
-			visualEntity.getEntity().update(elapsedTime);
-			visualEntity.commitChanges();
+			if (visualEntity.locked)
+			{
+				//this entity has just been created, dont update it yet
+				visualEntity.locked = false;
+			}
+			else
+			{
+				visualEntity.getEntity().update(elapsedTime);
+				visualEntity.commitChanges();
+			}
 		}
 		);
 		
 		//call update callback function
 		if (Director.onUpdate != undefined)
 			Director.onUpdate(lastUpdateTime, currentUpdateTime);
+		
+		locked = false;//unlock certain operations
+		
 		
 		//move camera to follow target
 		if (mainCharacter != null)

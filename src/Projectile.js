@@ -93,7 +93,7 @@ Acid.prototype.constructor = Acid;
 Acid.prototype.update = function(elapsedTime){
 	if (this.hit)//hit
 	{
-		var effect = new AcidEffect(this.producer);
+		var effect = new AcidEffect(this.producer, this.Target);
 		this.Target.addEffect(effect);
 		this.destroy();
 	}
