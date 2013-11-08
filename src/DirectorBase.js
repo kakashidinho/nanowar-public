@@ -48,6 +48,9 @@ function DirectorBase()
 	this.onMessageHandling = function(msg) {/*do nothing*/ return false;}
 	this.onEntityDestroyed = function(id) {}
 	
+	//implementation dependent
+	this._onEntityDeathImpl = function(entity) {}
+	
 	/*----------------------physics-----------------------------------------*/
 		
 	//create physics world
@@ -89,12 +92,25 @@ function DirectorBase()
 		var bodyB = fixtureB.GetBody();
 		var entityA = bodyA.GetUserData();
 		var entityB = bodyB.GetUserData();
-		if (bodyA.GetType() == b2Body.b2_dynamicBody && 
+		
+		if (bodyA.GetType() == b2Body.b2_kinematicBody && 
+			entityA.isAlive())//A is an effect
+		{
+			if (entityB!= null && entityB.isAlive())
+				entityA.areaAffect(entityB);
+		}
+		else if (bodyA.GetType() == b2Body.b2_kinematicBody && 
+			entityA.isAlive())//B is an effect
+		{
+			if (entityA!= null && entityA.isAlive())
+				entityB.areaAffect(entityA);
+		}
+		else if (bodyA.GetType() == b2Body.b2_dynamicBody && 
 			entityA.isAlive() &&
 			entityA.isMoving())//A is moving object
 		{
 			var isProjectile = fixtureA.IsSensor();
-			if ( bodyB.GetType() == b2Body.b2_staticBody)//B is obstacle
+			if ( fixtureB.IsSensor() == false && bodyB.GetType() == b2Body.b2_staticBody)//B is obstacle
 			{
 				if (isProjectile)//projectile
 					entityA.destroy();
@@ -103,7 +119,7 @@ function DirectorBase()
 			}
 			else if (isProjectile && entityB!= null && entityB.isAlive() && entityB == entityA.getTarget())
 			{
-				entityA.onHitTarget();//projectile has hit is target
+				entityA.onHitTarget();//projectile has hit its target
 			}
 		}//if (bodyA.GetType() == b2Body.b2_dynamicBody)
 		else if (bodyB.GetType() == b2Body.b2_dynamicBody && 
@@ -111,7 +127,7 @@ function DirectorBase()
 			entityB.isMoving())//B is moving object
 		{
 			var isProjectile = fixtureB.IsSensor();
-			if ( bodyA.GetType() == b2Body.b2_staticBody)//A is obstacle
+			if (  fixtureA.IsSensor() == false && bodyA.GetType() == b2Body.b2_staticBody)//A is obstacle
 			{
 				if (isProjectile)//projectile
 					entityB.destroy();
@@ -120,7 +136,7 @@ function DirectorBase()
 			}
 			else if (isProjectile && entityA!= null && entityA.isAlive() && entityA == entityB.getTarget())
 			{
-				entityB.onHitTarget();//projectile has hit is target
+				entityB.onHitTarget();//projectile has hit its target
 			}
 		}//if (bodyB.GetType() == b2Body.b2_dynamicBody)
 	}
@@ -146,7 +162,7 @@ function DirectorBase()
 	this.walkRayCastCallback = new b2RayCastCallback();
 	this.walkRayCastCallback.hitObstacle = false;
 	this.walkRayCastCallback.ReportFixture = function(fixture, point, normal, fraction){
-		if (fixture.GetBody().GetType() == b2Body.b2_staticBody && fraction <= 1.0 && fraction >= 0.0)//hit an obstacle
+		if (fixture.IsSensor() == false && fixture.GetBody().GetType() == b2Body.b2_staticBody && fraction <= 1.0 && fraction >= 0.0)//hit an obstacle
 		{
 			this.hitObstacle = true;
 		}
@@ -217,6 +233,12 @@ function DirectorBase()
 						that.knownEntity[msg.entityID].attack(msg.skillIdx, that.knownEntity[msg.targetID]);
 				}
 				break;
+			case MsgType.FIRE_TO:
+				{
+					if (msg.entityID in that.knownEntity)
+						that.knownEntity[msg.entityID].fireToDest(msg.skillIdx, new b2Vec2(msg.destx, msg.desty));
+				}
+				break;
 			case MsgType.ENTITY_HP_CHANGE:
 				{
 					if (msg.entityID in that.knownEntity)
@@ -229,10 +251,23 @@ function DirectorBase()
 					}
 				}	
 				break;
-			case MsgType.ENTITY_DEATH:
+			case MsgType.ENTITY_DESTROY:
 				if (msg.entityID in that.knownEntity)
 				{
 					that.knownEntity[msg.entityID].destroy();
+				}
+				break;
+			case MsgType.ENTITY_DEATH:
+				if (msg.entityID in that.knownEntity && that.knownEntity[msg.entityID].isAlive())
+				{
+					that.knownEntity[msg.entityID].setHP(0);
+					that.knownEntity[msg.entityID].setAlive(false);
+					that._onEntityDeathImpl(that.knownEntity[msg.entityID]);//call implement dependent function
+				}
+				break;
+			case MsgType.ADD_EFFECT:
+				{
+					addEffect(msg)
 				}
 				break;
 			default:
@@ -606,6 +641,32 @@ function DirectorBase()
 		var distanceVec = new b2Vec2(point2.x - point1.x, point2.y - point1.y);
 		
 		return distanceVec.x * distanceVec.x + distanceVec.y * distanceVec.y;
+	}
+	
+	function addEffect(msg){
+		if (msg.producerOwnerID in that.knownEntity && msg.affectedTargetID in that.knownEntity){
+			var effectProducerOwner = that.knownEntity[msg.producerOwnerID];
+			var target = that.knownEntity[msg.affectedTargetID];
+			var skillID = msg.producerID;
+			var skill = effectProducerOwner.getSkill(skillID);
+			
+			var effect = null;
+			
+			switch (msg.className){
+				case 'AcidEffect':
+					effect = new AcidEffect(skill, target);
+					break;
+				case 'LifeLeechEffect':
+					effect = new LifeLeechEffect(skill, target);
+					break;
+				case 'WebEffect':
+					effect = new WebEffect(skill, target);
+					break;
+			}
+			
+			if (effect != null)
+				target.addEffect(effect);
+		}//if (msg.producerOwnerID in that.knownEntity && msg.affectedTarget in that.knownEntity)
 	}
 	
 }

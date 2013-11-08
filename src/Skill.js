@@ -6,8 +6,8 @@
  * owned by a PlayableEntity instance
  * Subclasses should implement _fireForReal(target:NanoEntity)
  */
-var Skill = function(_range, _damage, _owner, _maxCooldown, spriteModule) {
-	if (_range == undefined)
+var Skill = function(skillID, _range, _damage, _owner, _maxCooldown, spriteModule) {
+	if (skillID == undefined)
 		return;//this may be called by prototype inheritance
 	// Public fields
 	this.range; // Effective range of the skill
@@ -18,6 +18,7 @@ var Skill = function(_range, _damage, _owner, _maxCooldown, spriteModule) {
 	this.spriteModule;
 	this.fired;
 	this.reducedCooldownByLag;//reduced cooldown because of network delay
+	this.skillID;
 	
 	this.range = _range;
 	this.damage = _damage;	
@@ -27,9 +28,25 @@ var Skill = function(_range, _damage, _owner, _maxCooldown, spriteModule) {
 	this.spriteModule = spriteModule;
 	this.fired = false;
 	this.reducedCooldownByLag = 0;
+	this.skillID = skillID;
 }
 
 // getters
+Skill.prototype.getOwner = function()
+{
+	return this.owner;
+}
+
+Skill.prototype.getOwnerID = function()
+{
+	return this.owner.getID();
+}
+
+Skill.prototype.getID = function()
+{
+	return this.skillID;
+}
+
 Skill.prototype.getRange = function() {
 	return this.range;
 }
@@ -88,17 +105,38 @@ Skill.prototype.fire = function(target) {
 }
 
 /**
+ * @param destination a destination position to fire to
+*/
+Skill.prototype.fireToDest = function(destination) {
+	if (this.cooldown > 0 || this.fired)
+		return;
+		
+	this._fireToDestForReal(destination);//sub class's specific implementation 
+	
+	this.fired = true;
+}
+
+/**
+* Implementation dependant function
+ * @param target, a destination position to fire to
+*/
+Skill.prototype._fireToDestForReal = function(destination) {
+	//do nothing
+}
+
+
+/**
  * AcidWeapon Class
  * A skill used by WarriorCell
  */
-var AcidWeapon = function ( _owner) {
+var AcidWeapon = function ( _owner, skillID) {
 	if (_owner == undefined)
 		return;
 	// public fields
 	this.effectDuration; // Duration of the damaging effect
 	
 	// calls superclass constructor
-	Skill.call(this, Constant.SKILL_RANGE_LONG, 30, _owner, 700, "AcidWeapon");//0.7s cooldown
+	Skill.call(this, skillID, Constant.SKILL_RANGE_LONG, 30, _owner, 700, "AcidWeapon");//0.7s cooldown
 	
 	this.effectDuration = 3000;//3s
 }
@@ -126,12 +164,12 @@ AcidWeapon.prototype._fireForReal = function(target) {
  * LifeLeech Class
  * A skill used by LeechVirus
  */
-var LifeLeech = function (_owner) {
+var LifeLeech = function (_owner, skillID) {
 	if (_owner == undefined)
 		return;
 		
 	// calls superclass constructor
-	Skill.call(this, Constant.SKILL_RANGE_MED, 20, _owner, 1000, "LifeLeech");//1s cooldown
+	Skill.call(this, skillID, Constant.SKILL_RANGE_MED, 20, _owner, 1000, "LifeLeech");//1s cooldown
 	
 }
 
@@ -143,16 +181,61 @@ LifeLeech.prototype.constructor = LifeLeech;
 	
 /**
  * Implements Skill._fireForReal(target)
- * reduces HP from the target
- * and increases the same amount of HP
- * for the skill caster
  * @param target A NanoEntity to fire at
  */
 LifeLeech.prototype._fireForReal = function(target) {
-	var effect = new LifeLeechEffect(this.owner, this.damage, target);
+	if (Director.dummyClient)
+		return;//dummy client does nothing
+		
+	var effect = new LifeLeechEffect(this, target);
 	target.addEffect(effect);
 }
 
+
+/**
+ * WebGun Class
+ * A skill used by LeechVirus
+ */
+var WebGun = function (_owner, skillID) {
+	if (_owner == undefined)
+		return;
+	this.effectDuration;
+	
+	// calls superclass constructor
+	//the amount of speed that the target will be reduced by this skill
+	//is stored as damage of this skill
+	Skill.call(this, skillID, Constant.SKILL_RANGE_LONG, Constant.SPEED_NORMAL, _owner, 10000, "WebGun");//10s cooldown
+	
+	this.effectDuration = 3000;//3s
+	
+}
+
+
+//inheritance from Skill
+WebGun.prototype = new Skill();
+WebGun.prototype.constructor = WebGun;
+
+WebGun.prototype.getEffectDuration = function() {
+	return this.effectDuration;
+}
+	
+/**
+ * Implements Skill._fireForReal(target)
+ * @param target A NanoEntity to fire at
+ */
+WebGun.prototype._fireForReal = function(target) {
+	this._fireToDestForReal(target.getPosition());
+}
+
+/**
+ * Implements Skill._fireToDestForReal(dest)
+ * @param dest A destination position to fire to
+ */
+WebGun.prototype._fireToDestForReal = function(dest) {
+	var ownerPos = this.owner.getPosition();
+	//shoot the web projectile starting from the skill owner's position
+	var web = new Web(this, dest, ownerPos.x, ownerPos.y);
+}
 
 // For node.js require
 if (typeof global != 'undefined')
@@ -160,4 +243,5 @@ if (typeof global != 'undefined')
 	global.Skill = Skill;
 	global.AcidWeapon = AcidWeapon;
 	global.LifeLeech = LifeLeech;
+	global.WebGun = WebGun;
 }

@@ -24,7 +24,9 @@ var NanoEntity = function(_id, _maxhp, _side, _width, _height, _x, _y, _spriteMo
 	this.spriteModuleName;
 	this.side;
 	this.effects;
+	this.newEffects;//list of newly added effects
 	this.alive;
+	this.ground;//is this entity at the ground. it means it is below the other entities. useful for rendering
 	this.className;//the class name
 	
 	/*---------------------------constructor-------------------------------------*/
@@ -37,7 +39,10 @@ var NanoEntity = function(_id, _maxhp, _side, _width, _height, _x, _y, _spriteMo
 	this.spriteModuleName = _spriteModule;	
 	this.alive = true;
 	
+	this.ground = false;
+	
 	this.effects = new Utils.List();
+	this.newEffects = new Utils.List();
 	
 	/*----------create physics body-----------*/
 	var bodyDef = new b2BodyDef;
@@ -82,6 +87,11 @@ NanoEntity.prototype.getPhysicsBody = function() {
 NanoEntity.prototype.getClassName = function()
 {
 	return this.className;
+}
+
+NanoEntity.prototype.isGround = function()
+{
+	return this.ground;
 }
 
 //has ID?
@@ -173,6 +183,13 @@ NanoEntity.prototype.isAlive = function()
 NanoEntity.prototype.setAlive = function(_alive)
 {
 	this.alive = _alive;
+	
+	if (!this.alive)
+	{
+		//remove all effects
+		this.effects.removeAll();
+		this.newEffects.removeAll();
+	}
 }
 
 NanoEntity.prototype.destroy = function()
@@ -180,14 +197,16 @@ NanoEntity.prototype.destroy = function()
 	this.setAlive(false);
 	
 	Director._destroyEntity(this);//notify director
-	
-	//remove all effects
-	this.effects.removeAll();
+}
+
+NanoEntity.prototype.getNewEffectList = function()
+{
+	return this.newEffects;
 }
 
 NanoEntity.prototype.addEffect = function(effect)
 {
-	this.effects.insertBack(effect);
+	this.newEffects.insertBack(effect);
 	//stick effect to its affected target
 	effect.setPosition(this.getPosition());
 }
@@ -225,6 +244,17 @@ NanoEntity.prototype.decreaseHP = function(dhp){
 	return 0;
 }
 
+//notify entity that the effect has started
+NanoEntity.prototype.notifyEffectStarted = function(effect){
+	var node = this.newEffects.findNode(effect);
+	if (node == null)
+		return;
+	//pop new effect from the newEffects list and push to list of current effects
+	var neweffect = node.item;
+	this.newEffects.removeNode(node);
+	this.effects.insertBack(neweffect);
+}
+
 NanoEntity.prototype.updateEffects = function(elapsedTime){
 	var node = this.effects. getFirstNode();
 	while (node != null)
@@ -250,8 +280,11 @@ NanoEntity.prototype.updateEffects = function(elapsedTime){
 NanoEntity.prototype.update = function(elapsedTime){
 	this.updateEffects(elapsedTime);
 	
-	if (this.maxHP > 0 && this.HP <= 0)
-		this.destroy();
+	if (this.maxHP > 0 && this.HP <= 0 && !Director.dummyClient)
+	{
+		this.setAlive(false);
+		Director._notifyEntityDeath(this);
+	}
 }
 
 
@@ -461,13 +494,43 @@ MovingEntity.prototype.getOriSpeed = function()
 //set current speed
 MovingEntity.prototype.setSpeed = function(speed)
 {
-	return this.currentSpeed = speed;
+	this.currentSpeed = speed;
 }
 
 //set original speed
 MovingEntity.prototype.setOriSpeed = function(speed)
 {
-	return this.originalSpeed = speed;
+	this.originalSpeed = speed;
+}
+
+//set current speed by percent of original speed.
+//percent is 1.0 means 100%
+MovingEntity.prototype.setSpeedByPercent = function(percent)
+{
+	this.currentSpeed = this.originalSpeed * percent;
+}
+
+//change the speed by an amount <dSpeed>
+MovingEntity.prototype.changeSpeed = function(dSpeed){
+	var newSpeed = this.currentSpeed + dSpeed;
+	if (newSpeed < 0)
+		newSpeed = 0;
+	
+	this.currentSpeed = newSpeed;
+	
+	//change the speed of physical body
+	var velocity = this.getVelocity();
+	
+	velocity.Normalize();
+	velocity.Multiply(this.currentSpeed);
+	
+	this.body.SetLinearVelocity(velocity);
+	
+	if (this.currentSpeed == 0)
+		this.removeDestination();
+	
+	this.velChangeListener.onVelocityChanged(this);//notify listener
+	
 }
 
 MovingEntity.prototype.startMoveToNextPointInPath = function()
@@ -581,13 +644,35 @@ PlayableEntity.prototype.getSkill = function(skillIdx)
 }
 
 //check if the target in the skill's attacking range or not
-PlayableEntity.prototype.canAttack = function(skillIdx, target){
-	var dist = this.distanceVecToEntity(target)
+PlayableEntity.prototype.canFireTo = function(skillIdx, destx, desty){
+	var pos = this.getPosition();
+	var dist = new b2Vec2(pos.x - destx, pos.y - desty)
 				   .Length();
 	var skill = this.getSkill(skillIdx);
 	var range = skill.getRange();
 	
-	return (dist <= range && target.getSide() != Constant.NEUTRAL && this.getSide() != target.getSide());
+	return (dist <= range);
+}
+
+//check if the target in the skill's attacking range or not
+PlayableEntity.prototype.canAttack = function(skillIdx, target){
+	return (this.canFireTo(skillIdx, target.getPosition().x , target.getPosition().y) && 
+			target.getSide() != Constant.NEUTRAL && 
+			this.getSide() != target.getSide());
+}
+
+//fire to an arbitrary position
+PlayableEntity.prototype.fireToDest = function(skillIdx, dest){
+	var skill = this.getSkill(skillIdx);
+	
+	if (Director.dummyClient || //dummy client will do whatever it is told to do
+		this.canFireTo(skillIdx, dest.x, dest.y))
+	{
+		skill.fireToDest(dest);
+		return PlayableEntity.SUCCEED;
+	}
+	else
+		return PlayableEntity.ATTACK_OUT_OF_RANGE;
 }
 
 PlayableEntity.prototype.attack = function(skillIdx, target){

@@ -21,7 +21,10 @@ var MsgType = {
 	PING: 16,
 	PING_NOTIFICATION: 17,
 	SELF_CORRECT_PREDICTION: 18,
-	SKILL_NOT_READY: 19
+	SKILL_NOT_READY: 19,
+	FIRE_TO: 20,
+	ADD_EFFECT: 21,
+	ENTITY_DESTROY: 22
 };
 
 function MoveAlongMsg(entity, dirx, diry){
@@ -42,6 +45,14 @@ function AttackMsg(entity, target, skillIdx){
 	this.type = MsgType.ATTACK;
 	this.entityID = entity.getID();
 	this.targetID = target.getID();
+	this.skillIdx = skillIdx;
+}
+
+function FireToMsg(entity, destx, desty, skillIdx){
+	this.type = MsgType.FIRE_TO;
+	this.entityID = entity.getID();
+	this.destx = destx;
+	this.desty = desty;
 	this.skillIdx = skillIdx;
 }
 
@@ -110,8 +121,13 @@ function EntityHPChange(entityID, dHPPos, dHPNeg) {
 	this.dHPNeg = Math.abs(dHPNeg);//the absolute amount of HP changed negatively
 }
 
-function EntityDeathMessage(entityID){
+function EntityDeathMsg(entityID){
 	this.type = MsgType.ENTITY_DEATH;
+	this.entityID = entityID;
+}
+
+function EntityDestroyMsg(entityID){
+	this.type = MsgType.ENTITY_DESTROY;
 	this.entityID = entityID;
 }
 
@@ -138,6 +154,14 @@ function PingNotifyMsg(ping) {
 	this.ping = ping;
 }
 
+function AddEffectMsg(effect){
+	this.type = MsgType.ADD_EFFECT;
+	this.producerID = effect.getProducerID();
+	this.producerOwnerID = effect.getProducerOwnerID();
+	this.affectedTargetID = effect.getAffectedTarget().getID();
+	this.className = effect.getClassName();
+}
+
 // For node.js require
 if (typeof global != 'undefined')
 {
@@ -153,11 +177,14 @@ if (typeof global != 'undefined')
 	global.EntitySpawnMsg2 = EntitySpawnMsg2;
 	global.EntityMoveMentMsg = EntityMoveMentMsg;
 	global.EntityHPChange = EntityHPChange;
-	global.EntityDeathMessage = EntityDeathMessage;
+	global.EntityDeathMsg = EntityDeathMsg;
 	global.AttackOutRangeMsg = AttackOutRangeMsg;
 	global.SkillNotReadyMsg = SkillNotReadyMsg;
 	global.ChangeFakeDelayMsg = ChangeFakeDelayMsg;
 	global.PingMsg = PingMsg;
 	global.PingNotifyMsg = PingNotifyMsg;
+	global.FireToMsg = FireToMsg;
+	global.AddEffectMsg = AddEffectMsg;
+	global.EntityDestroyMsg = EntityDestroyMsg;
 	global.MsgType = MsgType;
 }

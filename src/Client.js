@@ -143,7 +143,7 @@ Client.prototype.onClick = function(x, y, target, isControlDown){
 		//mark the destination, just for the visual indication
 		Director.markDestination(x, y);
 	}
-	else
+	else if (target != null)
 	{	
 		if (target.getSide() != Constant.NEUTRAL && target.getSide() != 
 			this.character.getSide())
@@ -157,6 +157,16 @@ Client.prototype.onClick = function(x, y, target, isControlDown){
 			Director.markTarget(target);
 		}
 
+	}
+	else if (isControlDown)
+	{
+		var skillIdx = isControlDown? this.skillSlots[1]: this.skillSlots[0];
+		
+		//send firing message to server
+		this.sendToServer(new FireToMsg(this.character, x, y, skillIdx));
+		
+		//mark the firing target destination, just for the visual indication
+		Director.markFireDest(x, y);
 	}
 }
 
@@ -235,18 +245,19 @@ Client.prototype.handleMessage = function(msg){
 			break;
 		case MsgType.ATTACK_OUT_OF_RANGE:
 			Director.displayOutOfRangeTxt();
-			Director.markTarget(null);
+			Director.hideTargetMark();
 			break;
 		case MsgType.SKILL_NOT_READY:
 			Director.displaySkillNotReadyTxt();
-			Director.markTarget(null);
+			Director.hideTargetMark();
 			break;
 		case MsgType.ATTACK:
+		case MsgType.FIRE_TO:
 			if (msg.entityID == this.playerID)
 			{
 				//should erase the "out of range"/"skill is not ready" text if it is displaying
 				Director.hideAtkFailTxt();
-				Director.markTarget(null);
+				Director.hideTargetMark();
 				
 				//due to lag, we must reduce the cooldown
 				var skill = this.character.getSkill(msg.skillIdx);
@@ -342,7 +353,7 @@ Client.prototype.start = function()
 	this.playerID = -1;
 	this.playerClassName = null;
 	this.character = null;
-	this.skillSlots = [0, 0];
+	this.skillSlots = [0, 1];
 	this.charPredict = null;
 	this.dk_threshold = 2;//initial dead reckoning threshold
 	this.ping = 0;

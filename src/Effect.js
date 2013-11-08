@@ -15,16 +15,19 @@ var   b2Vec2 = Box2D.Common.Math.b2Vec2
 
 /*-----------Effect class (extends NanoEntity)--------------*/
 
-var Effect = function (_affectedTarget, _duration, width, height, x, y, spriteModule) {
+var Effect = function (_producer, _affectedTarget, _duration, width, height, x, y, spriteModule) {
 	if (typeof _affectedTarget == 'undefined')
 		return;//this may be called by prototype inheritance
 	
+	this.producer;
     this.duration;
 	this.affectedTarget;//affected victim, maybe null.
+	this.started;
 	
     /*--------constructor---------*/
     //call super class's constructor method
     NanoEntity.call(this, -1, 0, Constant.NEUTRAL, width, height, x, y, spriteModule);
+	this.producer = _producer;
     this.duration = _duration;
 	this.affectedTarget = _affectedTarget;
 	
@@ -33,12 +36,26 @@ var Effect = function (_affectedTarget, _duration, width, height, x, y, spriteMo
 	//change the body type to kinematic
 	this.body.SetType(b2Body.b2_kinematicBody);
 	
-    //there is an abstract method called affect
+	this.started = false;
 }
 
 //inheritance from NanoEntity
 Effect.prototype = new NanoEntity();
 Effect.prototype.constructor = Effect;
+
+Effect.prototype.getProducerID = function()
+{
+	return this.producer.getID();
+}
+
+Effect.prototype.getProducerOwnerID = function()
+{
+	return this.producer.getOwner().getID();
+}
+
+Effect.prototype.getAffectedTarget = function(){
+	return this.affectedTarget;
+}
 
 //sub class should implement this method if they have area of effect
 //<entity> is the one detected to come into contact with the effect's region
@@ -46,9 +63,21 @@ Effect.prototype.areaAffect = function(entity){
 	//do nothing
 }
 
+//implementation dependent udpate
+Effect.prototype._implUpdate = function(elapsedTime){
+	//do nothing
+}
+
 Effect.prototype.update = function(elapsedTime){
 	//base class's update
 	NanoEntity.prototype.update.call(this, elapsedTime);
+	
+	if (this.started == false)
+	{
+		this.started = true;
+		if (this.affectedTarget != null)
+			this.affectedTarget.notifyEffectStarted(this);
+	}
 	
 	this._implUpdate(elapsedTime);//subclass must implement _implUpdate()
 }
@@ -60,17 +89,17 @@ var AcidEffect = function (_producer, affectedTarget) {
 	if (_producer == undefined)
 		return;//this may be called by prototype inheritance
 		
-    this.producer;
     this.damPerMs;//damage per millisecond
 
     /*--------constructor---------*/
     //call super class's constructor method
 
-    Effect.call(this, affectedTarget, _producer.getEffectDuration(), Constant.EFFECT_SIZE, Constant.EFFECT_SIZE, 0, 0, "AcidEffect");
-	this.producer = _producer;
+    Effect.call(this, _producer, affectedTarget, _producer.getEffectDuration(), Constant.EFFECT_SIZE, Constant.EFFECT_SIZE, 0, 0, "AcidEffect");
 	var damageDuration = this.producer.getEffectDuration();
 	var totalDamage=this.producer.getDamage();
     this.damPerMs=totalDamage/damageDuration;
+	
+	this.className = 'AcidEffect';
 }
 
 //inheritance from Effect
@@ -107,19 +136,19 @@ AcidEffect.prototype._implUpdate = function (elapsedTime) {
 
 /*-----------LifeLeechEffect class (extends Effect)--------------*/
 
-var LifeLeechEffect = function (_leecher, _damage, affectedTarget) {
-	if (_leecher == undefined)
+var LifeLeechEffect = function (_producer, affectedTarget) {
+	if (_producer == undefined)
 		return;//this may be called by prototype inheritance
 		
     this.leecher;
-	this.damage;
 
     /*--------constructor---------*/
     //call super class's constructor method
 
-    Effect.call(this, affectedTarget, 1, Constant.CELL_SIZE, Constant.CELL_SIZE, 0, 0, "LifeLeechEffect");
-	this.leecher = _leecher;
-	this.damage = _damage;
+    Effect.call(this, _producer, affectedTarget, 1, Constant.CELL_SIZE, Constant.CELL_SIZE, 0, 0, "LifeLeechEffect");
+	this.leecher = _producer.getOwner();
+	
+	this.className = 'LifeLeechEffect';
 }
 
 //inheritance from Effect
@@ -129,12 +158,93 @@ LifeLeechEffect.prototype.constructor = LifeLeechEffect;
 LifeLeechEffect.prototype._implUpdate = function (elapsedTime) {
 	if (Director.dummyClient == false)
 	{
-		var dHP = this.affectedTarget.decreaseHP(this.damage);
+		var dHP = this.affectedTarget.decreaseHP(this.producer.getDamage());
 		this.leecher.increaseHP(dHP);
 	}
 	
 	this.destroy();//this is one time effect, so it should be destroyed immediately
 }
+
+
+/*------------------WebAreaEffect (extends Effect)--------------*/
+var WebAreaEffect = function (_producer, x, y) {
+	this.affectedTargets;//list of targets inside this effect's region
+
+    /*--------constructor---------*/
+    //call super class's constructor method
+    Effect.call(this, _producer, null, 200, 5 * Constant.CELL_SIZE, 5 * Constant.CELL_SIZE, x, y, "WebAreaEffect");
+	
+	this.ground = true;//hint for renderer to draw this effect below any other entities
+	this.affectedTargets = new Utils.List();
+}
+
+//inheritance from Effect
+WebAreaEffect.prototype = new Effect();
+WebAreaEffect.prototype.constructor = WebAreaEffect;
+
+//someone has gone to my region
+WebAreaEffect.prototype.areaAffect = function(entity){
+	if (entity.getSide() == Constant.NEUTRAL || entity.getSide() == this.producer.getOwner().getSide())
+		return;//not enemy
+	if (Director.dummyClient)
+		return;//dummy client does nothing
+	this.affectedTargets.insertBack(entity);//add to pending affected targets list
+}
+
+WebAreaEffect.prototype._implUpdate = function (elapsedTime){
+	this.duration -= elapsedTime;
+	
+	while (this.affectedTargets.getNumElements() > 0)
+	{
+		var entity = this.affectedTargets.getFirstElem();
+		this.affectedTargets.popFront();
+		//slow him down
+		var effect = new WebEffect(this.producer, entity);
+		entity.addEffect(effect);
+	}
+	
+	if (this.duration <= 0)
+	{
+		this.destroy();
+	}
+}
+
+/*------------------WebEffect (extends Effect)--------------*/
+var WebEffect = function (_producer, affectedTarget) {
+	this.speedReduceAmount;
+	/*--------constructor---------*/
+    //call super class's constructor method
+	//8s effect
+    Effect.call(this, _producer, affectedTarget, _producer.getEffectDuration(), Constant.CELL_SIZE, Constant.CELL_SIZE, 0, 0, "WebEffect");
+	
+	var speedReduceAmount = _producer.getDamage();
+	
+	//reduce the speed of affected target by <speedReduceAmount>
+	affectedTarget.changeSpeed(- speedReduceAmount);
+	
+	this.className = 'WebEffect';
+}
+
+//inheritance from Effect
+WebEffect.prototype = new Effect();
+WebEffect.prototype.constructor = WebEffect;
+
+
+WebEffect.prototype._implUpdate = function (elapsedTime){
+	this.duration -= elapsedTime;
+	
+	if (this.duration <= 0 || this.affectedTarget.isAlive() == false)
+	{
+		var speedReduceAmount = this.producer.getDamage();
+		
+		//revert back the speed of the affected target
+		this.affectedTarget.changeSpeed(speedReduceAmount);
+		
+		this.destroy();
+	}
+}
+
+
 
 // For node.js require
 if (typeof global != 'undefined')
@@ -142,4 +252,6 @@ if (typeof global != 'undefined')
 	global.Effect = Effect;
 	global.AcidEffect = AcidEffect;
 	global.LifeLeechEffect = LifeLeechEffect;
+	global.WebAreaEffect = WebAreaEffect;
+	global.WebEffect = WebEffect;
 }

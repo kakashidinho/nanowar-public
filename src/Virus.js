@@ -18,7 +18,10 @@ var LeechVirus = function(id, x, y)
 				);
 				
 	//add LifeLeech skill
-	this.skills.push(new LifeLeech(this));
+	this.skills.push(new LifeLeech(this, 0));
+	
+	//add WebGun skill
+	this.skills.push(new WebGun(this, 1));
 	
 	this.className = "LeechVirus";
 }

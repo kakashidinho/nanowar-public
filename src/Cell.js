@@ -18,7 +18,9 @@ var WarriorCell = function(id, x, y)
 				);
 				
 	//add AcidWeapon skill
-	this.skills.push(new AcidWeapon(this));
+	this.skills.push(new AcidWeapon(this, 0));
+	//add AcidWeapon skill. TO DO: remove later
+	this.skills.push(new AcidWeapon(this, 1));
 	
 	this.className = "WarriorCell";
 }

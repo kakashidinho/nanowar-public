@@ -94,6 +94,23 @@ Director.init = function(canvas, displayWidth, displayHeight, initFileXML, onIni
 	//mark the target
 	Director.markTarget = function(entity){
 		targetEntity = entity;
+		targetMark.setVisible(true);
+	}
+	
+	//mark the firing destination
+	Director.markFireDest = function(x, y){
+		targetMark.centerAt(x, y);
+		targetMark.setVisible(true);
+	}
+	
+	Director.hideTargetMark = function(){
+		targetEntity = null;
+		targetMark.setVisible(false);
+	}
+	
+	//mark the target
+	Director.markTarget = function(entity){
+		targetEntity = entity;
 	}
 	
 	//get the current marked target
@@ -148,6 +165,7 @@ Director.init = function(canvas, displayWidth, displayHeight, initFileXML, onIni
 		}
 	}
 	
+	
 	Director._getCAATDirector = function()
 	{
 		return caatDirector;
@@ -185,7 +203,7 @@ Director.init = function(canvas, displayWidth, displayHeight, initFileXML, onIni
 		if (entity == mainCharacter)
 			mainCharacter = null;
 		else if (entity == targetEntity)
-			targetEntity = null;
+			Director.hideTargetMark();
 			
 		var visualEntity = entity.visualPart;
 		
@@ -205,6 +223,25 @@ Director.init = function(canvas, displayWidth, displayHeight, initFileXML, onIni
 			visualEntity.setFrameTime(currentSceneTime, 1000);//dying in 1s
 		}
 	   
+	}
+	
+	//an entity has died
+	Director._onEntityDeathImpl = function(entity){
+		//stop marking this target
+		if (entity == targetEntity)
+			Director.hideTargetMark();
+			
+		var visualEntity = entity.visualPart;
+		
+		if (visualEntity != null)
+			visualEntity.commitChanges();//reflect current state of the entity first
+			
+		if (visualEntity != null)
+		{
+			visualEntity.playAnimation("die");//play dying animation
+			visualEntity.enableEvents(false);//disable mouse click
+			visualEntity.setFrameTime(currentSceneTime, 1000);//dying in 1s
+		}
 	}
 	
 	//game loop
@@ -267,13 +304,7 @@ Director.init = function(canvas, displayWidth, displayHeight, initFileXML, onIni
 		//update the target mark
 		if (targetEntity != null && targetEntity.isAlive()){
 			//we currently have a marked target
-			targetMark.setVisible(true);
 			targetMark.centerAt(targetEntity.getPosition().x, targetEntity.getPosition().y);
-		}
-		else//dont have any marked target
-		{
-			//hide the mark
-			targetMark.setVisible(false);
 		}
 		
 		lastUpdateTime = currentUpdateTime;
@@ -682,7 +713,7 @@ Director.init = function(canvas, displayWidth, displayHeight, initFileXML, onIni
 		visualTile.enableEvents(false);
 		
 		if (!tileType.isObstacle)
-			worldNode.setZOrder(visualTile, -1);
+			worldNode.setZOrder(visualTile, -2);
 	}
 	
 	function createSpriteSheet(imgID, subImgsPerRow, subImgsPerCol) {
@@ -761,6 +792,9 @@ Director.init = function(canvas, displayWidth, displayHeight, initFileXML, onIni
 	    this.playAnimation("normal");//play the animation named "normal"
 	    //caatActor.setScale(entity.getWidth() / caatActor.width, entity.getHeight() / caatActor.height);
 		
+		if (this.entity.isGround())//should make it ground level
+			worldNode.setZOrder(this, -1);
+		
 	    //add mouse click event listener
 	    if (this.entity.getHP() <= 0)
 		{
@@ -820,6 +854,8 @@ Director.init = function(canvas, displayWidth, displayHeight, initFileXML, onIni
 	
 		
 		this.entity.visualPart = this;//now the entity will know what is its visual part
+		
+		this.commitChanges();
 		
 	}//VisualEntity = function(entity)
 	

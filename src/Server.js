@@ -273,8 +273,13 @@ Server.prototype.startGame = function()
 		return that.handleMessage(msg);
 	}
 	
-	//director's entity death notification
+	//director's entity destroyed notification
 	Director.onEntityDestroyed = function(id){
+		that.notifyEntityDestroyed(id);
+	}
+	
+	//director's entity death notification
+	Director.onEntityDeath = function(id){
 		that.notifyEntityDeath(id);
 	}
 	
@@ -370,6 +375,14 @@ Server.prototype.updateClientsAbout = function(player, elapsedTime){
 			managedWrapper.resetHPChange();//reset the HP change recording
 		}
 	}
+	
+	//notify current effects on player
+	var newEffects = player.character.getNewEffectList();
+	newEffects.traverse(function(newEffect){
+		var msg = new AddEffectMsg(newEffect);
+		that.unicast(player.connID, msg);
+		that.multicast(player.subscribers, msg);
+	});
 }
 
 //update ping time for player
@@ -452,9 +465,14 @@ Server.prototype.spawnPlayerCharacter = function(player){
 	}//if SERVER_USE_DK
 }
 
+//notify all players that entity has been destroyed
+Server.prototype.notifyEntityDestroyed = function(entityID){
+	this.broadcast(new EntityDestroyMsg(entityID));
+}
+
 //notify all players about the death of an entity
 Server.prototype.notifyEntityDeath = function(entityID){
-	this.broadcast(new EntityDeathMessage(entityID));
+	this.broadcast(new EntityDeathMsg(entityID));
 }
 
 //this will handle message that Director forwards back to Server.
@@ -506,8 +524,37 @@ Server.prototype.handleMessage = function(msg)
 			var player = this.players[msg.entityID];
 			//check if the attack range is valid
 			var entities = Director.getKnownEntities();
-			if (msg.entityID in entities == false || msg.targetID in entities == false ||
+			if (msg.targetID in entities == false ||
 				!entities[msg.entityID].canAttack(msg.skillIdx, entities[msg.targetID]))
+			{
+				//cannot attack because of out of range
+				this.unicast(player.connID, new AttackOutRangeMsg());//tell player
+				
+				//prevent the Director from processing this message
+				return true;
+			}
+			//check if skill is ready
+			else if (entities[msg.entityID].getSkill(msg.skillIdx).getCooldown() > 0)
+			{
+				//cannot attack because of not ready skill
+				this.unicast(player.connID, new SkillNotReadyMsg());//tell player
+				
+				//prevent the Director from processing this message
+				return true;
+			}
+			else//notify back to client
+				this.unicast(player.connID, msg);
+			
+			//forward it to all interested clients
+			this.multicast(player.subscribers, msg);
+		}
+		break;
+	case MsgType.FIRE_TO:
+		{
+			var player = this.players[msg.entityID];
+			//check if the attack range is valid
+			var entities = Director.getKnownEntities();
+			if (!entities[msg.entityID].canFireTo(msg.skillIdx, msg.destx, msg.desty))
 			{
 				//cannot attack because of out of range
 				this.unicast(player.connID, new AttackOutRangeMsg());//tell player

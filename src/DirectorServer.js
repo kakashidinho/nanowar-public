@@ -47,7 +47,9 @@ Director.init = function(initFileXML, onInitFinished)
 	lastUpdateTime = -1;
 	locked = false;
 	
+	//callback functions
 	Director.onUpdate = undefined;//no update callback
+	Director.onEntityDeath = function(id) {}
 	
 	/*------------create xml parser-------------------*/
 	xmlParser = new xml2js.Parser();
@@ -97,6 +99,11 @@ Director.init = function(initFileXML, onInitFinished)
 		
 		//if this entity is created during game update, then dont update this entity yet
 		managedEntity.locked = locked;
+	}
+	
+	//the death notification from entity
+	Director._notifyEntityDeath = function(entity){
+		Director.onEntityDeath(entity.getID());
 	}
 	
 	Director._destroyEntity = function(entity){
