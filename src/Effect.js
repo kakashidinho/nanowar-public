@@ -58,8 +58,14 @@ Effect.prototype.getAffectedTarget = function(){
 }
 
 //sub class should implement this method if they have area of effect
-//<entity> is the one detected to come into contact with the effect's region
-Effect.prototype.areaAffect = function(entity){
+//<entity> is the one detected to enter the effect's region
+Effect.prototype.enterArea = function(entity){
+	//do nothing
+}
+
+//sub class should implement this method if they have area of effect
+//<entity> is the one detected to exit the effect's region
+Effect.prototype.exitArea = function(entity){
 	//do nothing
 }
 
@@ -181,13 +187,17 @@ var WebAreaEffect = function (_producer, x, y) {
 WebAreaEffect.prototype = new Effect();
 WebAreaEffect.prototype.constructor = WebAreaEffect;
 
-//someone has gone to my region
-WebAreaEffect.prototype.areaAffect = function(entity){
+//someone has entered my region
+WebAreaEffect.prototype.enterArea = function(entity){
 	if (entity.getSide() == Constant.NEUTRAL || entity.getSide() == this.producer.getOwner().getSide())
 		return;//not enemy
 	if (Director.dummyClient)
 		return;//dummy client does nothing
 	this.affectedTargets.insertBack(entity);//add to pending affected targets list
+}
+
+//someone has exited my region
+WebAreaEffect.prototype.exitArea = function(entity){
 }
 
 WebAreaEffect.prototype._implUpdate = function (elapsedTime){

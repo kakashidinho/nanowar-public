@@ -97,13 +97,13 @@ function DirectorBase()
 			entityA.isAlive())//A is an effect
 		{
 			if (entityB!= null && entityB.isAlive())
-				entityA.areaAffect(entityB);
+				entityA.enterArea(entityB);
 		}
-		else if (bodyA.GetType() == b2Body.b2_kinematicBody && 
-			entityA.isAlive())//B is an effect
+		else if (bodyB.GetType() == b2Body.b2_kinematicBody && 
+			entityB.isAlive())//B is an effect
 		{
 			if (entityA!= null && entityA.isAlive())
-				entityB.areaAffect(entityA);
+				entityB.enterArea(entityA);
 		}
 		else if (bodyA.GetType() == b2Body.b2_dynamicBody && 
 			entityA.isAlive() &&
@@ -146,7 +146,19 @@ function DirectorBase()
 		var bodyB = contact.GetFixtureB().GetBody();
 		var entityA = bodyA.GetUserData();
 		var entityB = bodyB.GetUserData();
-		if (bodyA.GetType() == b2Body.b2_dynamicBody && bodyB.GetType() == b2Body.b2_staticBody)//A is moving object
+		if (bodyA.GetType() == b2Body.b2_kinematicBody && 
+			entityA.isAlive())//A is an effect
+		{
+			if (entityB!= null)
+				entityA.exitArea(entityB);
+		}
+		else if (bodyB.GetType() == b2Body.b2_kinematicBody && 
+			entityB.isAlive())//B is an effect
+		{
+			if (entityA!= null)
+				entityB.exitArea(entityA);
+		}
+		else if (bodyA.GetType() == b2Body.b2_dynamicBody && bodyB.GetType() == b2Body.b2_staticBody)//A is moving object
 		{
 			entityA.stop();//stop
 		}//if (bodyA.GetType() == b2Body.b2_dynamicBody)
