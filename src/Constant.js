@@ -6,6 +6,7 @@ var Constant = {
 	VIRUS_SIZE: 3,//units in physics
 	EFFECT_SIZE: 2,//units in physics
 	SPEED_NORMAL: 5,//typically, playable entity's speed in physics' units
+	SPEED_SLOW: 8,
 	SPEED_FAST: 10,
 	SPEED_VERY_FAST: 15,//typically, bullet's speed in physics' units
 	SKILL_RANGE_MED: 9,//units in physics

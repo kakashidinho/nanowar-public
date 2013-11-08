@@ -141,6 +141,11 @@ NanoEntity.prototype.getHeight = function() {
 }
 
 //return b2Vec2
+NanoEntity.prototype.getVelocity = function(){
+	return new b2Vec2(0,0);
+}
+
+//return b2Vec2
 NanoEntity.prototype.getPosition = function() {
 	return this.body.GetPosition();
 }
@@ -305,6 +310,8 @@ var MovingEntity = function(_id, _maxhp, _side, _width, _height, _x, _y, _oripee
 	this.afterConversePosition;//position after convergence ends
 	this.afterConverseDirection;//direction after convergence ends
 	
+	this.bounceEnabled;//allow bouncing back when collide with obstacle?
+	
 	/*--------constructor---------*/
 	//call super class's constructor method
 	NanoEntity.call(this, _id, _maxhp, _side, _width, _height, _x, _y, _sprite);
@@ -316,6 +323,7 @@ var MovingEntity = function(_id, _maxhp, _side, _width, _height, _x, _y, _oripee
 	this.movingPath = new Utils.List();
 	
 	
+	this.bounceEnabled = false;
 	this.deferConvergence = false;
 	this.convergeDuration = -1;
 	this.convergeVelocity = new b2Vec2();
@@ -474,6 +482,11 @@ MovingEntity.prototype.isConverging = function(){
 	return this.convergeDuration != -1;
 }
 
+MovingEntity.prototype.allowBounceBack = function()
+{
+	return this.bounceEnabled;
+}
+
 //return b2Vec2
 MovingEntity.prototype.getVelocity = function(){
 	return this.body.GetLinearVelocity();
@@ -608,6 +621,17 @@ MovingEntity.prototype._startConverge = function(){
 	this.velChangeListener.onVelocityChanged(this);//notify listener
 }
 
+//collided with another moving entity
+MovingEntity.prototype.onCollideMovingEntity = function(entity){
+	//do nothing. sub class should implement this
+}
+
+//notify entity that its velocity has been changed outside
+MovingEntity.prototype.notifyVChangedOutside = function(){
+	this.removeDestination();
+	
+	this.velChangeListener.onVelocityChanged(this);//notify listener
+}
 
 //update the entity after <elapsedTime>
 MovingEntity.prototype.update = function(elapsedTime){

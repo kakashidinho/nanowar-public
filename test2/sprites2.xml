@@ -36,6 +36,24 @@
 		cellsPerRow="2" 
 		cellsPerCol="1">
 	</spriteSheet>
+	<spriteSheet 
+		id="drug" 
+		imgID="drug"
+		cellsPerRow="5" 
+		cellsPerCol="3">
+	</spriteSheet>
+	<spriteSheet 
+		id="meat-cell" 
+		imgID="meat-cell"
+		cellsPerRow="2" 
+		cellsPerCol="1">
+	</spriteSheet>
+	<spriteSheet 
+		id="power-up" 
+		imgID="power-up"
+		cellsPerRow="3" 
+		cellsPerCol="1">
+	</spriteSheet>
 	<spriteModule 
 		name = "WarriorCell"
 		sheetID = "cell"
@@ -231,6 +249,57 @@
 			sequence="1"
 			interval="200"
 			loop="false"
+			/>
+	</spriteModule>
+	<spriteModule 
+		name = "HealingDrug"
+		sheetID = "drug"
+		>
+		<animation 
+			name="normal"
+			sequence="0,1,2,3,4,5,6,7,8,10,11,12"
+			interval="200"
+			loop="true"
+			/>
+		<animation 
+			name="die"
+			sequence="13"
+			interval="200"
+			loop="false"
+			/>
+	</spriteModule>
+	<spriteModule 
+		name = "MeatCell"
+		sheetID = "meat-cell"
+		>
+		<animation 
+			name="normal"
+			sequence="0"
+			interval="200"
+			loop="true"
+			/>
+		<animation 
+			name="die"
+			sequence="1"
+			interval="200"
+			loop="false"
+			/>
+	</spriteModule>
+	<spriteModule 
+		name = "HealingEffect"
+		sheetID = "power-up"
+		>
+		<animation 
+			name="normal"
+			sequence="2"
+			interval="100"
+			loop="true"
+			/>
+		<animation 
+			name="die"
+			sequence="0, 1"
+			interval="200"
+			loop="true"
 			/>
 	</spriteModule>
 </sprites>

@@ -89,15 +89,21 @@ function EntitySpawnMsg(entityID, className, hp, x, y){
 	this.className = className;
 	this.x = x;
 	this.y = y;
+	this.dirx = 0;
+	this.diry = 0;
 	this.hp = hp;
 }
 
 function EntitySpawnMsg2(entity){
+	var pos = entity.getPosition();
+	var vel = entity.getVelocity();
 	this.type = MsgType.ENTITY_SPAWN;
 	this.entityID = entity.getID();
 	this.className = entity.getClassName();
-	this.x = entity.getPosition().x;
-	this.y = entity.getPosition().y;
+	this.x = pos.x;
+	this.y = pos.y;
+	this.dirx = vel.x;
+	this.diry = vel.y;
 	this.hp = entity.getHP();
 }
 

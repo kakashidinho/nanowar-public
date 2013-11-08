@@ -72,6 +72,8 @@ function DirectorBase()
 			if(entityA.isConverging() || bodyB.GetType() == b2Body.b2_dynamicBody)
 			{
 				//if two entities are both moving objects
+				if (bodyB.GetType() == b2Body.b2_dynamicBody)
+					entityA.onCollideMovingEntity(entityB);
 				contact.SetEnabled(false);//for now. allow pass through
 			}
 		}//if (bodyA.GetType() == b2Body.b2_dynamicBody)
@@ -114,7 +116,7 @@ function DirectorBase()
 			{
 				if (isProjectile)//projectile
 					entityA.destroy();
-				else if (!entityA.isConverging())
+				else if (!entityA.isConverging() && !entityA.allowBounceBack())
 					entityA.startMoveBackward();//should stop reaching destination now
 			}
 			else if (isProjectile && entityB!= null && entityB.isAlive() && entityB == entityA.getTarget())
@@ -131,7 +133,7 @@ function DirectorBase()
 			{
 				if (isProjectile)//projectile
 					entityB.destroy();
-				else if (!entityB.isConverging())
+				else if (!entityB.isConverging() && !entityB.allowBounceBack())
 					entityB.startMoveBackward();//should stop reaching destination now
 			}
 			else if (isProjectile && entityA!= null && entityA.isAlive() && entityA == entityB.getTarget())
@@ -160,11 +162,19 @@ function DirectorBase()
 		}
 		else if (bodyA.GetType() == b2Body.b2_dynamicBody && bodyB.GetType() == b2Body.b2_staticBody)//A is moving object
 		{
-			entityA.stop();//stop
+			if (entityA.allowBounceBack())
+				entityA.notifyVChangedOutside();
+			else
+				entityA.stop();//stop
 		}//if (bodyA.GetType() == b2Body.b2_dynamicBody)
 		else if (bodyB.GetType() == b2Body.b2_dynamicBody && bodyA.GetType() == b2Body.b2_staticBody)//B is moving object
 		{
-			entityB.stop();//stop
+			if (entityB.allowBounceBack())
+			{
+				entityB.notifyVChangedOutside();
+			}
+			else
+				entityB.stop();//stop
 		}//if (bodyB.GetType() == b2Body.b2_dynamicBody)
 	}
 	
@@ -657,10 +667,12 @@ function DirectorBase()
 	
 	function addEffect(msg){
 		if (msg.producerOwnerID in that.knownEntity && msg.affectedTargetID in that.knownEntity){
-			var effectProducerOwner = that.knownEntity[msg.producerOwnerID];
+			var effectProducerOwner = msg.producerOwnerID == -1? null: that.knownEntity[msg.producerOwnerID];
 			var target = that.knownEntity[msg.affectedTargetID];
 			var skillID = msg.producerID;
-			var skill = effectProducerOwner.getSkill(skillID);
+			var skill = null;
+			if (effectProducerOwner != null && skillID != -1)
+				skill = effectProducerOwner.getSkill(skillID);
 			
 			var effect = null;
 			

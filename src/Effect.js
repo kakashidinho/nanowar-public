@@ -45,11 +45,15 @@ Effect.prototype.constructor = Effect;
 
 Effect.prototype.getProducerID = function()
 {
+	if (this.producer == null)
+		return -1;
 	return this.producer.getID();
 }
 
 Effect.prototype.getProducerOwnerID = function()
 {
+	if (this.producer == null)
+		return -1;
 	return this.producer.getOwner().getID();
 }
 
@@ -330,7 +334,31 @@ WebEffect.prototype._implUpdate = function (elapsedTime){
 	}
 }
 
+/*---------HealingEffect extends Effect---------*/
+var HealingEffect = function (affectedTarget, healingAmount) {
+	this.hpIncrease;//the amount of hp increase for affectedTarget
+	/*--------constructor---------*/
+    //call super class's constructor method
+	//1ms effect
+    Effect.call(this, null, affectedTarget, 1, Constant.CELL_SIZE / 2, Constant.CELL_SIZE / 2, 0, 0, "HealingEffect");
+	
+	this.hpIncrease = healingAmount;
+	
+	this.className = 'HealingEffect';
+}
 
+//inheritance from Effect
+HealingEffect.prototype = new Effect();
+HealingEffect.prototype.constructor = HealingEffect;
+
+
+HealingEffect.prototype._implUpdate = function (elapsedTime){
+	
+	if (!Director.dummyClient)
+		this.affectedTarget.increaseHP(this.hpIncrease);
+		
+	this.destroy();//one time effect
+}
 
 // For node.js require
 if (typeof global != 'undefined')
@@ -342,4 +370,5 @@ if (typeof global != 'undefined')
 	global.WebEffect = WebEffect;
 	global.AcidAreaEffect = AcidAreaEffect;
 	global.AcidEffectLv2 = AcidEffectLv2;
+	global.HealingEffect = HealingEffect;
 }

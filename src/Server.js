@@ -283,6 +283,14 @@ Server.prototype.startGame = function()
 		that.notifyEntityDeath(id);
 	}
 	
+	Director.onPowerUpAppear = function(powerUp){
+		that.notifyPowerUpAppear(powerUp);
+	}
+	
+	Director.onPowerUpChangedDir = function(powerUp){
+		that.notifyPowerUpChangedDir(powerUp);
+	}
+	
 	//update callback
 	Director.onUpdate = function(lastTime, currentTime) {
 		that.update(lastTime, currentTime)
@@ -473,6 +481,17 @@ Server.prototype.notifyEntityDestroyed = function(entityID){
 //notify all players about the death of an entity
 Server.prototype.notifyEntityDeath = function(entityID){
 	this.broadcast(new EntityDeathMsg(entityID));
+}
+
+//notify all players about the new power up on the map
+Server.prototype.notifyPowerUpAppear = function(powerUp){
+	this.broadcast(new EntitySpawnMsg2(powerUp));
+}
+
+//notify all players about the power up's change in direction
+Server.prototype.notifyPowerUpChangedDir = function(powerUp){
+	//console.log('notifyPowerUpChangedDir: ' + powerUp.getVelocity().x + ", " + powerUp.getVelocity().y);
+	this.broadcast(new EntityMoveMentMsg(powerUp));
 }
 
 //this will handle message that Director forwards back to Server.

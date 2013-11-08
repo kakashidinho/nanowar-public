@@ -79,6 +79,12 @@ Client.prototype.spawnEntity = function(msg){
 	case "LeechVirus":
 		spawn_entity = new LeechVirus(msg.entityID, msg.x, msg.y);
 		break;
+	case "HealingDrug":
+		spawn_entity = new HealingDrug(msg.entityID, msg.x, msg.y, msg.dirx, msg.diry);
+		break;
+	case "MeatCell":
+		spawn_entity = new MeatCell(msg.entityID, msg.x, msg.y, msg.dirx, msg.diry);
+		break;
 	}
 	
 	spawn_entity.setHP(msg.hp);
@@ -305,6 +311,18 @@ Client.prototype.handleMessage = function(msg){
 				//due to lag, we must reduce the cooldown
 				var skill = this.character.getSkill(msg.skillIdx);
 				skill.reduceCooldown(this.ping / 2.0);
+			}
+			break;
+		case MsgType.ADD_EFFECT:
+			switch (msg.className){
+				case 'HealingEffect':
+					{
+						var entities = Director.getKnownEntities();
+						var target = entities[msg.affectedTargetID];
+						var effect = new HealingEffect(target, 0);//2nd parameter is zero, since this is just for displaying
+						target.addEffect(effect);
+						return true;//dont need director to do any more work
+					}
 			}
 			break;
 	}
