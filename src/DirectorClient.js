@@ -495,13 +495,15 @@ Director.init = function(canvas, displayWidth, displayHeight, initFileXML, onIni
 		skillIcons = new Array();
 		skillIconMasks = new Array();
 		
-		var ICON_WIDTH = 60;
-		var ICON_HEIGHT = 60;
+		var minSize = displayWidth < displayHeight? displayWidth: displayHeight;
+		
+		var ICON_WIDTH = minSize / 5;
+		var ICON_HEIGHT = minSize / 5;
 		
 		for (var i = 0; i < Constant.MAX_SKILL_SLOTS; ++i){
 							
 			var skillIconFrame = new CAAT.Foundation.Actor().
-								setLocation(10 + i * (ICON_WIDTH + 5), displayHeight - ICON_HEIGHT - 10).
+								setLocation(10 + i * (ICON_WIDTH + 15), displayHeight - ICON_HEIGHT - 10).
 								setSize(ICON_WIDTH, ICON_HEIGHT).
 								setFillStyle('#333333').
 								setAlpha(0.5);
