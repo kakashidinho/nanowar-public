@@ -170,7 +170,7 @@ Client.prototype.onKeyUp = function(e) {
 
 //handle mouse click event
 Client.prototype.onClick = function(x, y, target, isControlDown){
-	if (this.character == null || !this.character.isAlive())
+	if (this.character == null)
 		return;
 	
 	var skillIdx;
@@ -324,6 +324,15 @@ Client.prototype.handleMessage = function(msg){
 						return true;//dont need director to do any more work
 					}
 			}
+			break;
+		case MsgType.ENTITY_DEATH:
+			Director.notifyEntityDeath(msg.entityID);
+			break;
+		case MsgType.ENTITY_RESPAWN:
+			Director.notifyEntityStartRespawn(msg.entityID);
+			break;
+		case MsgType.ENTITY_RESPAWN_END:
+			Director.notifyEntityEndRespawn(msg.entityID);
 			break;
 	}
 	return false;

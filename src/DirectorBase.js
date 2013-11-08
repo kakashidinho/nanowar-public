@@ -284,12 +284,31 @@ function DirectorBase()
 				{
 					that.knownEntity[msg.entityID].setHP(0);
 					that.knownEntity[msg.entityID].setAlive(false);
-					that._onEntityDeathImpl(that.knownEntity[msg.entityID]);//call implement dependent function
 				}
 				break;
 			case MsgType.ADD_EFFECT:
 				{
 					addEffect(msg)
+				}
+				break;
+			
+			case MsgType.ENTITY_RESPAWN:
+				{
+					if (msg.entityID in that.knownEntity)
+					{
+						var entity = that.knownEntity[msg.entityID];
+						entity.setPosition(new b2Vec2(msg.x, msg.y));
+						entity.setHP(msg.hp);
+					}
+				}
+				break;
+			case MsgType.ENTITY_RESPAWN_END:
+				{
+					if (msg.entityID in that.knownEntity)
+					{
+						var entity = that.knownEntity[msg.entityID];
+						entity.setAlive(true);
+					}
 				}
 				break;
 			default:

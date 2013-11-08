@@ -11,6 +11,8 @@ var Player = function(_connID, _playerID, num_dk_versions) {
 	this.pingSamplesSum;//sum of samples of network ping delay
 	this.pingUpdateInterval;
 	this.fakeDelay;//fake additional network one-way delay for this player
+	this.respawnWaitTime;
+	this.respawnDuration;
 	this.subscribers;//list of updating subscribers
 	this.updateMsgQueue;
 	
@@ -31,6 +33,8 @@ var Player = function(_connID, _playerID, num_dk_versions) {
 	this.pingSamples = new Utils.List();
 	this.pingSamplesSum = 0;
 	this.pingUpdateInterval = undefined;
+	
+	this.respawnWaitTime = this.respawnDuration = 0;
 	
 	this.subscribers = new Utils.List();
 	this.updateMsgQueue = new Utils.List();

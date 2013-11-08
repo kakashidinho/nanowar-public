@@ -166,7 +166,7 @@ LifeLeechEffect.prototype = new Effect();
 LifeLeechEffect.prototype.constructor = LifeLeechEffect;
 
 LifeLeechEffect.prototype._implUpdate = function (elapsedTime) {
-	if (Director.dummyClient == false)
+	if (Director.dummyClient == false && this.affectedTarget.isAlive())
 	{
 		var dHP = this.affectedTarget.decreaseHP(this.producer.getDamage());
 		this.leecher.increaseHP(dHP);
@@ -328,7 +328,8 @@ WebEffect.prototype._implUpdate = function (elapsedTime){
 	if (this.duration <= 0 || this.affectedTarget.isAlive() == false)
 	{
 		//revert back the speed of the affected target
-		this.affectedTarget.changeSpeed(-this.speedReducedAmount);
+		if (this.affectedTarget.isAlive())
+			this.affectedTarget.changeSpeed(-this.speedReducedAmount);
 		
 		this.destroy();
 	}

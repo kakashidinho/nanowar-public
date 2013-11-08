@@ -11,6 +11,8 @@ var SERVER_USE_DK = true;
 var NUM_DK_VERSIONS = 3;//number of dead reckoning versions, each version is for a certain range of distance
 var DK_DISTANCES = [{min:0, max:50}, {min:50, max:100}, {min:100, max:150}];// list of range of distance, each range has different dead reckoning threshold
 var DK_THREASHOLDS = [2, 4, 10];//3 versions of dead reckoning thresholds
+var RESPAWN_WAIT_TIME = 3000;//3s waiting for respawn
+var RESPAWN_DURATION = 5000;//5s of immortal for respawn player
 
 function Server() {
     this.count;        // Keeps track how many people are connected to server 
@@ -329,11 +331,17 @@ Server.prototype.update = function(lastTime, currentTime){
 
 //update clients about the player <player>
 Server.prototype.updateClientsAbout = function(player, elapsedTime){
-	if (player.character == null || !player.character.isAlive())
+	if (player.character == null)
 		return;
+	if(!player.character.isAlive())
+	{
+		this.updatePlayerRespawn(player, elapsedTime);
+	}
+		
 	var that = this;
 	var managedWrapper = player.character.managedWrapper;
 	
+	//update position
 	if (SERVER_USE_DK)
 	{
 		//update predicted versions
@@ -393,6 +401,43 @@ Server.prototype.updateClientsAbout = function(player, elapsedTime){
 	});
 }
 
+Server.prototype.updatePlayerRespawn = function(player, elapsedTime){
+	if (player.respawnWaitTime > 0)
+	{
+		player.respawnWaitTime -= elapsedTime;
+		if (player.respawnWaitTime <= 0)
+		{
+			//start repawning player
+			player.respawnDuration = RESPAWN_DURATION;//this is the duration that player is immortal.
+			player.respawnWaitTime = 0;
+			
+			player.character.setHP(player.character.getMaxHP());
+			this.randomPlacePlayerChar(player);
+			
+			//notify all players
+			this.broadcast(new EntityRespawnMsg2(player.character));
+		}
+	}
+	else if (player.respawnDuration > 0)
+	{
+		player.respawnDuration -= elapsedTime;
+		if (player.respawnDuration <= 0)//respawn period has ended
+		{
+			player.respawnDuration = 0;
+			player.character.setAlive(true);
+			//notify all players
+			this.broadcast(new EntityRespawnEndMsg(player.playerID));
+		}
+	}
+	else //player has died but repawning waiting timer has started yet
+	{
+		player.respawnWaitTime = RESPAWN_WAIT_TIME;
+			
+		//reset HP change
+		player.character.managedWrapper.resetHPChange();
+	}
+}
+
 //update ping time for player
 Server.prototype.updatePing = function(player, timeSendPingMsg){
 	var MAX_SAMPLES = 10;
@@ -435,11 +480,16 @@ Server.prototype.spawnPlayerCharacter = function(player){
 		break;
 	}
 	
+	this.randomPlacePlayerChar(player);
+}
+
+//randomly put the player's character to a position
+Server.prototype.randomPlacePlayerChar = function(player){
 	var spawnPosition = new b2Vec2(0, 0);
 	//list of possible spawn points for the entity
 	var spawnPoints = player.character.getSide() == Constant.VIRUS? Director.getVirusSpawnPoints(): Director.getCellSpawnPoints();
 	
-	//random spawn point
+	//random spawning point
 	var rand = Math.random();//between [0..1)
 	var idx = Math.round(rand * (spawnPoints.length - 1));
 	var spawnPoint = spawnPoints[idx];
@@ -543,7 +593,7 @@ Server.prototype.handleMessage = function(msg)
 			var player = this.players[msg.entityID];
 			//check if the attack range is valid
 			var entities = Director.getKnownEntities();
-			if (msg.targetID in entities == false ||
+			if (msg.targetID in entities == false || entities[msg.targetID].isAlive() == false ||
 				!entities[msg.entityID].canAttack(msg.skillIdx, entities[msg.targetID]))
 			{
 				//cannot attack because of out of range
@@ -552,8 +602,8 @@ Server.prototype.handleMessage = function(msg)
 				//prevent the Director from processing this message
 				return true;
 			}
-			//check if skill is ready
-			else if (entities[msg.entityID].getSkill(msg.skillIdx).getCooldown() > 0)
+			//check if skill is ready or whether the player's character is alive or not
+			else if (entities[msg.entityID].isAlive() == false || entities[msg.entityID].getSkill(msg.skillIdx).getCooldown() > 0)
 			{
 				//cannot attack because of not ready skill
 				this.unicast(player.connID, new SkillNotReadyMsg());//tell player
@@ -561,8 +611,8 @@ Server.prototype.handleMessage = function(msg)
 				//prevent the Director from processing this message
 				return true;
 			}
-			else//notify back to client
-				this.unicast(player.connID, msg);
+			//notify back to client
+			this.unicast(player.connID, msg);
 			
 			//forward it to all interested clients
 			this.multicast(player.subscribers, msg);
@@ -581,8 +631,8 @@ Server.prototype.handleMessage = function(msg)
 				//prevent the Director from processing this message
 				return true;
 			}
-			//check if skill is ready
-			else if (entities[msg.entityID].getSkill(msg.skillIdx).getCooldown() > 0)
+			//check if skill is ready or whether the player's character is alive or not
+			else if (entities[msg.entityID].isAlive() == false || entities[msg.entityID].getSkill(msg.skillIdx).getCooldown() > 0)
 			{
 				//cannot attack because of not ready skill
 				this.unicast(player.connID, new SkillNotReadyMsg());//tell player
@@ -590,8 +640,8 @@ Server.prototype.handleMessage = function(msg)
 				//prevent the Director from processing this message
 				return true;
 			}
-			else//notify back to client
-				this.unicast(player.connID, msg);
+			//notify back to client
+			this.unicast(player.connID, msg);
 			
 			//forward it to all interested clients
 			this.multicast(player.subscribers, msg);

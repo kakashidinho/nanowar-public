@@ -15,8 +15,8 @@
 	<spriteSheet 
 		id="virus" 
 		imgID="virus"
-		cellsPerRow="1" 
-		cellsPerCol="1">
+		cellsPerRow="3" 
+		cellsPerCol="3">
 	</spriteSheet>
 	<spriteSheet 
 		id="projectiles" 
@@ -77,13 +77,13 @@
 		>
 		<animation 
 			name="normal"
-			sequence="0"
+			sequence="0,1,2,3,6"
 			interval="200"
 			loop="true"
 			/>
 		<animation 
 			name="die"
-			sequence="0"
+			sequence="7"
 			interval="200"
 			loop="false"
 			/>

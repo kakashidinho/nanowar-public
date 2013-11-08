@@ -27,6 +27,7 @@ Director.init = function(canvas, displayWidth, displayHeight, initFileXML, onIni
 	var guiNode;//scene's gui node, for containing GUI elements
 	var pingText;//ping value text
 	var attackFailText;//text the display the reason why attack failed
+	var hpText;
 	var skillIcons;
 	var skillIconMasks;
 	
@@ -138,6 +139,69 @@ Director.init = function(canvas, displayWidth, displayHeight, initFileXML, onIni
 		attackFailText.setVisible(false);
 	}
 	
+	//an entity has died
+	Director.notifyEntityDeath = function(entityID){
+		if (entityID in this.knownEntity == false)
+			return;
+		var entity = this.knownEntity[entityID];
+		//stop marking this target
+		if (entity == targetEntity)
+			Director.hideTargetMark();
+			
+		var visualEntity = entity.visualPart;
+		
+		if (visualEntity != null)
+			visualEntity.commitChanges();//reflect current state of the entity first
+			
+		if (visualEntity != null)
+		{
+			visualEntity.playAnimation("die");//play dying animation
+			visualEntity.enableEvents(false);//disable mouse click
+			visualEntity.setFrameTime(currentSceneTime, 1000);//dying in 1s
+		}
+	}
+	
+	//an entity has started respawning
+	Director.notifyEntityStartRespawn = function(entityID){
+		if (entityID in this.knownEntity == false)
+			return;
+		var entity = this.knownEntity[entityID];
+			
+		var visualEntity = entity.visualPart;
+			
+		if (visualEntity != null)
+		{
+			visualEntity.playAnimation("normal");//play normal animation
+			visualEntity.setVisible(true);
+			visualEntity.setFrameTime(0, Number.MAX_VALUE);
+			
+			//add alpha behaviour
+			var alphaBehavior = new CAAT.Behavior.AlphaBehavior().
+				setPingPong().
+				setCycle(true).
+				setFrameTime(0, 1000).
+				setValues(0, 1);
+				
+			visualEntity.addBehavior(alphaBehavior);
+		}
+	}
+	
+	//an entity has ended respawning
+	Director.notifyEntityEndRespawn = function(entityID){
+		if (entityID in this.knownEntity == false)
+			return;
+		var entity = this.knownEntity[entityID];
+			
+		var visualEntity = entity.visualPart;
+			
+		if (visualEntity != null)
+		{
+			visualEntity.emptyBehaviorList();
+			visualEntity.setAlpha(1.0);
+			visualEntity.enableEvents(true);
+		}
+	}
+	
 	//display information about the current skill slots of main character
 	Director.displaySkillInfos = function(skillSlots){
 		if (mainCharacter == null)
@@ -225,25 +289,6 @@ Director.init = function(canvas, displayWidth, displayHeight, initFileXML, onIni
 	   
 	}
 	
-	//an entity has died
-	Director._onEntityDeathImpl = function(entity){
-		//stop marking this target
-		if (entity == targetEntity)
-			Director.hideTargetMark();
-			
-		var visualEntity = entity.visualPart;
-		
-		if (visualEntity != null)
-			visualEntity.commitChanges();//reflect current state of the entity first
-			
-		if (visualEntity != null)
-		{
-			visualEntity.playAnimation("die");//play dying animation
-			visualEntity.enableEvents(false);//disable mouse click
-			visualEntity.setFrameTime(currentSceneTime, 1000);//dying in 1s
-		}
-	}
-	
 	//game loop
 	function gameUpdate(scene_time){
 		var currentUpdateTime = Utils.getTimestamp();
@@ -284,14 +329,23 @@ Director.init = function(canvas, displayWidth, displayHeight, initFileXML, onIni
 		
 		locked = false;//unlock certain operations
 		
+		graphicsUpdate();
 		
-		//move camera to follow target
+		lastUpdateTime = currentUpdateTime;
+	}
+	
+	function graphicsUpdate(){
+		
 		if (mainCharacter != null)
 		{
+			//move camera to follow target
 			var pos = mainCharacter.getPosition();
 			worldNode.setLocation(
 				displayWidth * 0.5 - pos.x * Constant.PHYSICS_UNIT_SCALE, 
 				displayHeight * 0.5 - pos.y * Constant.PHYSICS_UNIT_SCALE);
+				
+			//update the hp text
+			hpText.setText("HP: " + Math.floor(mainCharacter.getHP()));
 		}
 		
 		//update the destination mark
@@ -306,8 +360,6 @@ Director.init = function(canvas, displayWidth, displayHeight, initFileXML, onIni
 			//we currently have a marked target
 			targetMark.centerAt(targetEntity.getPosition().x, targetEntity.getPosition().y);
 		}
-		
-		lastUpdateTime = currentUpdateTime;
 	}
 	
 	//initialize graphics
@@ -355,14 +407,11 @@ Director.init = function(canvas, displayWidth, displayHeight, initFileXML, onIni
 	
 		//animations for the 2 marks
 		var initScale = 1.0 / Constant.PHYSICS_UNIT_SCALE;
-		var cycleDraw = new CAAT.Behavior.ContainerBehavior().
-		setCycle(true).
-		setFrameTime(0, 1000);
-		var scaleMarker = new CAAT.Behavior.ScaleBehavior().
-		setPingPong().
-		setFrameTime(0, 1000).
-		setValues(initScale, 2 * initScale, initScale, 2 * initScale, .50, .50);
-		cycleDraw.addBehavior(scaleMarker);
+		var scaleBehavior = new CAAT.Behavior.ScaleBehavior().
+			setPingPong().
+			setCycle(true).
+			setFrameTime(0, 1000).
+			setValues(initScale, 2 * initScale, initScale, 2 * initScale, .50, .50);
 		
 		//movement's destination mark
 		destMark = new CAAT.Foundation.UI.ShapeActor();
@@ -373,7 +422,7 @@ Director.init = function(canvas, displayWidth, displayHeight, initFileXML, onIni
 		destMark.setStrokeStyle('#000');
 		destMark.setSize(15 , 15 );
 		destMark.setVisible(false);//initially invisible
-		destMark.addBehavior(cycleDraw);
+		destMark.addBehavior(scaleBehavior);
 		
 		worldNode.addChild(destMark);
 		
@@ -387,7 +436,7 @@ Director.init = function(canvas, displayWidth, displayHeight, initFileXML, onIni
 		targetMark.setStrokeStyle('#000');
 		targetMark.setSize(20 , 20 );
 		targetMark.setVisible(false);//initially invisible
-		targetMark.addBehavior(cycleDraw);
+		targetMark.addBehavior(scaleBehavior);
 		
 		worldNode.addChild(targetMark);
 	}
@@ -404,11 +453,11 @@ Director.init = function(canvas, displayWidth, displayHeight, initFileXML, onIni
 		
 		
 		/*---create "ping value" text--------*/
-		var font= "15px sans-serif";
+		var font15= "15px sans-serif";
 		pingText =  new CAAT.Foundation.UI.TextActor()
 										.setLocation(10, 36)
 										.setText("Ping: 0")
-										.setFont(font)
+										.setFont(font15)
 										.setAlign("left")
 										.setTextFillStyle('#ff0000')
 										.enableEvents(false)
@@ -417,11 +466,11 @@ Director.init = function(canvas, displayWidth, displayHeight, initFileXML, onIni
 		guiNode.addChild(pingText);
 		
 		/*---create "attack failed" text------*/
-		var font2= "18px sans-serif";
+		var font18= "18px sans-serif";
 		attackFailText =  new CAAT.Foundation.UI.TextActor()
 										.setLocation(displayWidth / 2.0, 36)
 										.setText("Out of range!!!")
-										.setFont(font2)
+										.setFont(font18)
 										.setAlign("center")
 										.setTextFillStyle('#ff0000')
 										.setVisible(false)
@@ -429,6 +478,18 @@ Director.init = function(canvas, displayWidth, displayHeight, initFileXML, onIni
 										;
 		
 		guiNode.addChild(attackFailText);
+		
+		/*---------create HP text------------*/
+		hpText =  new CAAT.Foundation.UI.TextActor()
+										.setLocation(10, 72)
+										.setText("HP: 0")
+										.setFont(font15)
+										.setAlign("left")
+										.setTextFillStyle('#ff0000')
+										.enableEvents(false)
+										;
+		
+		guiNode.addChild(hpText);
 		
 		/*-------create skill icons----------*/
 		skillIcons = new Array();

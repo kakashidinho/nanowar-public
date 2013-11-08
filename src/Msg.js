@@ -24,7 +24,9 @@ var MsgType = {
 	SKILL_NOT_READY: 19,
 	FIRE_TO: 20,
 	ADD_EFFECT: 21,
-	ENTITY_DESTROY: 22
+	ENTITY_DESTROY: 22,
+	ENTITY_RESPAWN: 23,
+	ENTITY_RESPAWN_END: 24
 };
 
 function MoveAlongMsg(entity, dirx, diry){
@@ -107,6 +109,16 @@ function EntitySpawnMsg2(entity){
 	this.hp = entity.getHP();
 }
 
+function EntityRespawnMsg2(entity){
+	var pos = entity.getPosition();
+	var vel = entity.getVelocity();
+	this.type = MsgType.ENTITY_RESPAWN;
+	this.entityID = entity.getID();
+	this.x = pos.x;
+	this.y = pos.y;
+	this.hp = entity.getHP();
+}
+
 function EntityMoveMentMsg(entity){
 	var position = entity.getPosition();
 	var velocity = entity.getVelocity();
@@ -168,6 +180,11 @@ function AddEffectMsg(effect){
 	this.className = effect.getClassName();
 }
 
+function EntityRespawnEndMsg(entityID){
+	this.type = MsgType.ENTITY_RESPAWN_END;
+	this.entityID = entityID;
+}
+
 // For node.js require
 if (typeof global != 'undefined')
 {
@@ -181,6 +198,7 @@ if (typeof global != 'undefined')
 	global.PlayerIDMsg = PlayerIDMsg;
 	global.EntitySpawnMsg = EntitySpawnMsg;
 	global.EntitySpawnMsg2 = EntitySpawnMsg2;
+	global.EntityRespawnMsg2 = EntityRespawnMsg2;
 	global.EntityMoveMentMsg = EntityMoveMentMsg;
 	global.EntityHPChange = EntityHPChange;
 	global.EntityDeathMsg = EntityDeathMsg;
@@ -192,5 +210,6 @@ if (typeof global != 'undefined')
 	global.FireToMsg = FireToMsg;
 	global.AddEffectMsg = AddEffectMsg;
 	global.EntityDestroyMsg = EntityDestroyMsg;
+	global.EntityRespawnEndMsg = EntityRespawnEndMsg;
 	global.MsgType = MsgType;
 }
