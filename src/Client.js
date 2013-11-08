@@ -12,11 +12,15 @@ function Client(canvasElementID)
 	this.charPredict;//prediction version of my character, for dead reckoning
 	this.dk_threshold;//dead reckoning threshold
 	this.skillSlots;
+	this.skillCtrlKeyDown;//skill control keys
 	this.ping;
 		
 	//while(document.readyState !== "complete") {console.log("loading...");};
 		
 	this.canvas = document.getElementById(canvasElementID);
+	
+	canvas.width  = window.innerWidth;
+	canvas.height  = window.innerHeight;
 }
 
 Client.prototype.startGame = function()
@@ -106,7 +110,7 @@ Client.prototype.onVelocityChanged = function(entity){
 		this.sendToServer(new EntityMoveMentMsg(entity));
 }
 
-Client.prototype.onKeyPress = function(e) {
+Client.prototype.onKeyDown = function(e) {
 	/*
 	keyCode represents keyboard button
 	38: up arrow
@@ -125,6 +129,36 @@ Client.prototype.onKeyPress = function(e) {
 			this.sendToServer(new ChangeFakeDelayMsg(-50));
 			break;
 		}
+		case 49: { //"1"
+			this.skillCtrlKeyDown[0] = true;
+			break;
+		}
+		
+		case 50: { //"2"
+			this.skillCtrlKeyDown[1] = true;
+			break;
+		}
+	}
+}
+
+Client.prototype.onKeyUp = function(e) {
+	/*
+	keyCode represents keyboard button
+	38: up arrow
+	40: down arrow
+	37: left arrow
+	39: right arrow
+	*/
+	switch(e.keyCode) {
+		case 49: { //"1"
+			this.skillCtrlKeyDown[0] = false;
+			break;
+		}
+		
+		case 50: { //"2"
+			this.skillCtrlKeyDown[1] = false;
+			break;
+		}
 	}
 }
 
@@ -132,7 +166,17 @@ Client.prototype.onKeyPress = function(e) {
 Client.prototype.onClick = function(x, y, target, isControlDown){
 	if (this.character == null || !this.character.isAlive())
 		return;
-	if (target == null && !isControlDown)
+	
+	var skillIdx;
+	//check if player is holding down some skill's key
+	if (this.skillCtrlKeyDown[0])
+		skillIdx = this.skillSlots[0];
+	else if (this.skillCtrlKeyDown[1])
+		skillIdx = this.skillSlots[1];
+	else 
+		skillIdx = -1;
+	
+	if (target == null && skillIdx == -1)
 	{
 	    //will start moving to new destination
 		var msg = new MoveToMsg(this.character, x, y);
@@ -145,11 +189,12 @@ Client.prototype.onClick = function(x, y, target, isControlDown){
 	}
 	else if (target != null)
 	{	
+		if (skillIdx == -1)
+			skillIdx = this.skillSlots[0];
+			
 		if (target.getSide() != Constant.NEUTRAL && target.getSide() != 
 			this.character.getSide())
 		{
-			var skillIdx = isControlDown? this.skillSlots[1]: this.skillSlots[0];
-		
 			//send attacking message to server
 			this.sendToServer(new AttackMsg(this.character, target, skillIdx));
 		
@@ -158,10 +203,8 @@ Client.prototype.onClick = function(x, y, target, isControlDown){
 		}
 
 	}
-	else if (isControlDown)
+	else
 	{
-		var skillIdx = isControlDown? this.skillSlots[1]: this.skillSlots[0];
-		
 		//send firing message to server
 		this.sendToServer(new FireToMsg(this.character, x, y, skillIdx));
 		
@@ -346,7 +389,10 @@ Client.prototype.start = function()
 	
 	//add event listeners
 	document.addEventListener("keydown", function(e) {
-            that.onKeyPress(e);
+            that.onKeyDown(e);
+            }, false);
+	document.addEventListener("keyup", function(e) {
+            that.onKeyUp(e);
             }, false);
 	
 	this.gameStarted = false;
@@ -354,6 +400,7 @@ Client.prototype.start = function()
 	this.playerClassName = null;
 	this.character = null;
 	this.skillSlots = [0, 1];
+	this.skillCtrlKeyDown = [false, false];
 	this.charPredict = null;
 	this.dk_threshold = 2;//initial dead reckoning threshold
 	this.ping = 0;

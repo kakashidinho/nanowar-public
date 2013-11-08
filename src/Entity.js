@@ -516,6 +516,7 @@ MovingEntity.prototype.changeSpeed = function(dSpeed){
 	if (newSpeed < 0)
 		newSpeed = 0;
 	
+	var dSpeed = newSpeed - this.currentSpeed;
 	this.currentSpeed = newSpeed;
 	
 	//change the speed of physical body
@@ -530,6 +531,8 @@ MovingEntity.prototype.changeSpeed = function(dSpeed){
 		this.removeDestination();
 	
 	this.velChangeListener.onVelocityChanged(this);//notify listener
+	
+	return dSpeed;
 	
 }
 

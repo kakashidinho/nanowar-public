@@ -210,16 +210,14 @@ WebAreaEffect.prototype._implUpdate = function (elapsedTime){
 
 /*------------------WebEffect (extends Effect)--------------*/
 var WebEffect = function (_producer, affectedTarget) {
-	this.speedReduceAmount;
+	this.speedReducedAmount;
 	/*--------constructor---------*/
     //call super class's constructor method
 	//8s effect
     Effect.call(this, _producer, affectedTarget, _producer.getEffectDuration(), Constant.CELL_SIZE, Constant.CELL_SIZE, 0, 0, "WebEffect");
 	
-	var speedReduceAmount = _producer.getDamage();
-	
 	//reduce the speed of affected target by <speedReduceAmount>
-	affectedTarget.changeSpeed(- speedReduceAmount);
+	this.speedReducedAmount = affectedTarget.changeSpeed(- _producer.getDamage());
 	
 	this.className = 'WebEffect';
 }
@@ -234,10 +232,8 @@ WebEffect.prototype._implUpdate = function (elapsedTime){
 	
 	if (this.duration <= 0 || this.affectedTarget.isAlive() == false)
 	{
-		var speedReduceAmount = this.producer.getDamage();
-		
 		//revert back the speed of the affected target
-		this.affectedTarget.changeSpeed(speedReduceAmount);
+		this.affectedTarget.changeSpeed(-this.speedReducedAmount);
 		
 		this.destroy();
 	}

@@ -111,9 +111,7 @@ Skill.prototype.fireToDest = function(destination) {
 	if (this.cooldown > 0 || this.fired)
 		return;
 		
-	this._fireToDestForReal(destination);//sub class's specific implementation 
-	
-	this.fired = true;
+	this.fired = this._fireToDestForReal(destination);//sub class's specific implementation 
 }
 
 /**
@@ -122,6 +120,7 @@ Skill.prototype.fireToDest = function(destination) {
 */
 Skill.prototype._fireToDestForReal = function(destination) {
 	//do nothing
+	return false;//return false to indicate that this skill does not support arbitrary destination
 }
 
 
@@ -235,6 +234,8 @@ WebGun.prototype._fireToDestForReal = function(dest) {
 	var ownerPos = this.owner.getPosition();
 	//shoot the web projectile starting from the skill owner's position
 	var web = new Web(this, dest, ownerPos.x, ownerPos.y);
+	
+	return true;
 }
 
 // For node.js require
