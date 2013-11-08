@@ -14,6 +14,7 @@ function Client(canvasElementID)
 	this.skillSlots;
 	this.skillCtrlKeyDown;//skill control keys
 	this.ping;
+	this.atkCursor = false;
 		
 	//while(document.readyState !== "complete") {console.log("loading...");};
 		
@@ -35,9 +36,9 @@ Client.prototype.startGame = function()
 	   
 	}
 
-	Director.onMouseEnterExit = function (target,enter,x,y) {
+	Director.onMouseMove = function (target,x,y) {
 
-	    that.onMouseEnterExit(target,enter,x,y);
+	    that.onMouseMove(target,x,y);
 	  
       
 	}
@@ -219,20 +220,28 @@ Client.prototype.onClick = function(x, y, target, isControlDown){
 	}
 }
 
-//handle mouse enters or exits a target
-Client.prototype.onMouseEnterExit = function (target,enter,x,y) {
+//handle mouse move
+Client.prototype.onMouseMove = function (target,x,y) {
    
-    var enemy = target.getSide() != Constant.NEUTRAL && target.getSide() != this.character.getSide();
+    var enemy = target != null && target.getSide() != Constant.NEUTRAL && target.getSide() != this.character.getSide();
    
     var context = this.canvas;
 
-    if (!enemy || !enter) { 
-        //cursor is move cursor
-        context.style.cursor = "url(./moveCursor.ani) 16 16, url(./moveCursor.gif) 16 16, progress";
+    if (!enemy) {
+		if (this.atkCursor)
+		{
+			this.atkCursor = false;
+			//cursor is move cursor
+			context.style.cursor = "url(./moveCursor.ani) 16 16, url(./moveCursor.gif) 16 16, progress";
+		}
     }
     else { 
-        //cursor is attack cursor
-        context.style.cursor = "url(./attackCursor.ani) 16 16, url(./attackCursor.png) 16 16, progress";
+		if (!this.atkCursor)
+		{
+			this.atkCursor = true;
+			//cursor is attack cursor
+			context.style.cursor = "url(./attackCursor.ani) 16 16, url(./attackCursor.png) 16 16, progress";
+		}
     }
 
 }

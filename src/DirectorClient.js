@@ -40,6 +40,7 @@ Director.init = function(canvas, displayWidth, displayHeight, initFileXML, onIni
 
 	Director.onClick;//on mouse click callback function. should be function(mouseX, mouseY, clickedEntity, isControlButtonDown)
 	Director.onMouseEnterExit;//on mouse enter/exit callback function
+	Director.onMouseMove;//on mouse move callback function
 	Director.onUpdate;//update callback function. should be function(lastUpdateTime, currentTime)
 	Director.preUpdate;//pre-update callback function
 	
@@ -63,6 +64,7 @@ Director.init = function(canvas, displayWidth, displayHeight, initFileXML, onIni
 	//initially, no callbacks
 	Director.onClick = function (x, y, target, isControlButtonDown) { };//do nothing
 	Director.onMouseEnterExit = function (target, enter,x,y) { };//do nothing
+	Director.onMouseMove = function(entity, x, y) {}
 	Director.onUpdate = undefined;
 	Director.preUpdate = undefined;
 	
@@ -384,6 +386,10 @@ Director.init = function(canvas, displayWidth, displayHeight, initFileXML, onIni
 		worldNode.mouseDown = function(mouse){
 			Director.onClick(mouse.x, mouse.y, null, mouse.isControlDown() );
 		};
+		
+		worldNode.mouseMove = function(mouse){
+			Director.onMouseMove(null, mouse.x, mouse.y);
+		}
 	 
 		sceneRoot.addChild(worldNode);
 		
@@ -933,16 +939,16 @@ Director.init = function(canvas, displayWidth, displayHeight, initFileXML, onIni
 	}
 	//mouse enter and exit listener, use it to detect whether cursor enter or exit the actor
 	VisualEntity.prototype.mouseEnter = function (mouse) {
-		Director.onMouseEnterExit(this.entity, true ,this.x,this.y);
+		Director.onMouseEnterExit(this.entity, true ,mouse.x,mouse.y);
 	}
 
 
 	VisualEntity.prototype.mouseExit = function (mouse) {
-		Director.onMouseEnterExit(this.entity, false, this.x, this.y);	   
+		Director.onMouseEnterExit(this.entity, false, mouse.x, mouse.y);	   
 	}
 
 	VisualEntity.prototype.mouseMove = function (mouse) {
-		//TO DO
+		Director.onMouseMove(this.entity, mouse.x, mouse.y);
 	}
 	
 	//let the visual part change to reflect its physical counterpart
