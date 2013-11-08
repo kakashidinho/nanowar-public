@@ -11,7 +11,7 @@ var   b2Vec2 = Box2D.Common.Math.b2Vec2
 	,	b2CircleShape = Box2D.Collision.Shapes.b2CircleShape
 
 /*-----------------nano entity class--------------*/
-var NanoEntity = function(_id, _maxhp, _side, _width, _height, _x, _y, _spriteModule) {
+var NanoEntity = function(_id, _maxhp, _side, _width, _height, _x, _y, _spriteModule, ground) {
 	if (_id == undefined)//this may be called by prototype inheritance
 		return;
 	this.id;//unique id
@@ -39,7 +39,7 @@ var NanoEntity = function(_id, _maxhp, _side, _width, _height, _x, _y, _spriteMo
 	this.spriteModuleName = _spriteModule;	
 	this.alive = true;
 	
-	this.ground = false;
+	this.ground = ground == undefined? false: ground;
 	
 	this.effects = new Utils.List();
 	this.newEffects = new Utils.List();

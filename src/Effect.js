@@ -15,7 +15,7 @@ var   b2Vec2 = Box2D.Common.Math.b2Vec2
 
 /*-----------Effect class (extends NanoEntity)--------------*/
 
-var Effect = function (_producer, _affectedTarget, _duration, width, height, x, y, spriteModule) {
+var Effect = function (_producer, _affectedTarget, _duration, width, height, x, y, spriteModule, ground) {
 	if (typeof _affectedTarget == 'undefined')
 		return;//this may be called by prototype inheritance
 	
@@ -26,7 +26,7 @@ var Effect = function (_producer, _affectedTarget, _duration, width, height, x, 
 	
     /*--------constructor---------*/
     //call super class's constructor method
-    NanoEntity.call(this, -1, 0, Constant.NEUTRAL, width, height, x, y, spriteModule);
+    NanoEntity.call(this, -1, 0, Constant.NEUTRAL, width, height, x, y, spriteModule, ground == undefined? false: ground);
 	this.producer = _producer;
     this.duration = _duration;
 	this.affectedTarget = _affectedTarget;
@@ -172,9 +172,8 @@ var WebAreaEffect = function (_producer, x, y) {
 
     /*--------constructor---------*/
     //call super class's constructor method
-    Effect.call(this, _producer, null, 200, 5 * Constant.CELL_SIZE, 5 * Constant.CELL_SIZE, x, y, "WebAreaEffect");
+    Effect.call(this, _producer, null, 200, 5 * Constant.CELL_SIZE, 5 * Constant.CELL_SIZE, x, y, "WebAreaEffect", true);
 	
-	this.ground = true;//hint for renderer to draw this effect below any other entities
 	this.affectedTargets = new Utils.List();
 }
 
