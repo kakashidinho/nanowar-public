@@ -172,6 +172,87 @@ LifeLeechEffect.prototype._implUpdate = function (elapsedTime) {
 }
 
 
+/*------------------AcidAreaEffect (extends Effect)--------------*/
+var AcidAreaEffect = function (_producer, _duration, x, y) {
+	this.affectedTargets;//list of targets inside this effect's region
+
+    /*--------constructor---------*/
+    //call super class's constructor method
+    Effect.call(this, _producer, null, _duration, 4 * Constant.CELL_SIZE, 4 * Constant.CELL_SIZE, x, y, "AcidAreaEffect", true);
+	
+	this.affectedTargets = new Utils.List();
+}
+
+//inheritance from Effect
+AcidAreaEffect.prototype = new Effect();
+AcidAreaEffect.prototype.constructor = AcidAreaEffect;
+
+//someone has entered my region
+AcidAreaEffect.prototype.enterArea = function(entity){
+	if (entity.getSide() == Constant.NEUTRAL || entity.getSide() == this.producer.getOwner().getSide())
+		return;//not enemy
+	if (Director.dummyClient)
+		return;//dummy client does nothing
+	this.affectedTargets.insertBack(entity);//add to pending affected targets list
+}
+
+//someone has exited my region
+AcidAreaEffect.prototype.exitArea = function(entity){
+}
+
+AcidAreaEffect.prototype._implUpdate = function (elapsedTime){
+	this.duration -= elapsedTime;
+	
+	while (this.affectedTargets.getNumElements() > 0)
+	{
+		var entity = this.affectedTargets.getFirstElem();
+		this.affectedTargets.popFront();
+		//inject acid to him
+		var effect = new AcidEffectLv2(this.producer, entity);
+		entity.addEffect(effect);
+	}
+	
+	if (this.duration <= 0)
+	{
+		this.destroy();
+	}
+}
+
+/*-----------AcidEffectLv2 class (extends AcidEffect)--------------*/
+//this effect also slow down its target
+var AcidEffectLv2 = function (_producer, affectedTarget) {
+	if (_producer == undefined)
+		return;//this may be called by prototype inheritance
+		
+	this.speedReducedAmount;
+	
+     /*--------constructor---------*/
+    //call super class's constructor method
+
+    AcidEffect.call(this, _producer, affectedTarget);
+	
+	//reduce the speed of affected target
+	this.speedReducedAmount = affectedTarget.changeSpeed(- Constant.SPEED_NORMAL / 2);
+	
+	this.className = 'AcidEffectLv2';
+}
+
+//inheritance from Effect
+AcidEffectLv2.prototype = new AcidEffect();
+AcidEffectLv2.prototype.constructor = AcidEffectLv2;
+
+
+AcidEffectLv2.prototype._implUpdate = function (elapsedTime) {
+	//call super class's method
+	AcidEffect.prototype._implUpdate.call(this, elapsedTime);
+	
+	if (this.duration == 0 && this.affectedTarget.isAlive())
+	{
+		//revert back the speed of the affected target
+		this.affectedTarget.changeSpeed(-this.speedReducedAmount);	
+	}
+}
+
 /*------------------WebAreaEffect (extends Effect)--------------*/
 var WebAreaEffect = function (_producer, x, y) {
 	this.affectedTargets;//list of targets inside this effect's region
@@ -259,4 +340,6 @@ if (typeof global != 'undefined')
 	global.LifeLeechEffect = LifeLeechEffect;
 	global.WebAreaEffect = WebAreaEffect;
 	global.WebEffect = WebEffect;
+	global.AcidAreaEffect = AcidAreaEffect;
+	global.AcidEffectLv2 = AcidEffectLv2;
 }

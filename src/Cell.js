@@ -9,7 +9,7 @@ var WarriorCell = function(id, x, y)
 	//call super class's initializing method
 	PlayableEntity.call( this,
 				id, //unique ID
-				100, //hit point
+				300, //hit point
 				Constant.CELL, //this object is on cell's side 
 				Constant.CELL_SIZE, Constant.CELL_SIZE, //the size of the object
 				x, y,//position
@@ -19,8 +19,8 @@ var WarriorCell = function(id, x, y)
 				
 	//add AcidWeapon skill
 	this.skills.push(new AcidWeapon(this, 0));
-	//add AcidWeapon skill. TO DO: remove later
-	this.skills.push(new AcidWeapon(this, 1));
+	//add AcidCannon skill. 
+	this.skills.push(new AcidCannon(this, 1));
 	
 	this.className = "WarriorCell";
 }

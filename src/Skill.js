@@ -192,6 +192,63 @@ LifeLeech.prototype._fireForReal = function(target) {
 
 
 /**
+ * AcidCannon Class
+ * A skill used by WarriorCell
+ */
+var AcidCannon = function (_owner, skillID) {
+	if (_owner == undefined)
+		return;
+	
+	this.effectDuration; // Duration of the acid area
+	
+	// calls superclass constructor
+	Skill.call(this, skillID, 
+			Constant.SKILL_RANGE_MED, 
+			30, //total damage
+			_owner,
+			10000, //10s cooldown
+			"AcidCannon");
+			
+	this.effectDuration = 6000;//6s
+	
+}
+
+
+//inheritance from Skill
+AcidCannon.prototype = new Skill();
+AcidCannon.prototype.constructor = AcidCannon;
+
+AcidCannon.prototype.getAreaEffectDuration = function() {
+	return this.effectDuration;
+}
+
+//the duration of the effect that produces by acid area effect
+AcidCannon.prototype.getEffectDuration = function() {
+	return this.effectDuration;
+}
+	
+/**
+ * Implements Skill._fireForReal(target)
+ * @param target A NanoEntity to fire at
+ */
+AcidCannon.prototype._fireForReal = function(target) {
+	this._fireToDestForReal(target.getPosition());
+}
+
+/**
+ * Implements Skill._fireToDestForReal(dest)
+ * @param dest A destination position to fire to
+ */
+AcidCannon.prototype._fireToDestForReal = function(dest) {
+	var ownerPos = this.owner.getPosition();
+	//shoot the acid bomb projectile starting from the skill owner's position
+	var web = new AcidBomb(this, dest, ownerPos.x, ownerPos.y);
+	
+	return true;
+}
+
+
+/**
  * WebGun Class
  * A skill used by LeechVirus
  */
@@ -244,5 +301,6 @@ if (typeof global != 'undefined')
 	global.Skill = Skill;
 	global.AcidWeapon = AcidWeapon;
 	global.LifeLeech = LifeLeech;
+	global.AcidCannon = AcidCannon;
 	global.WebGun = WebGun;
 }

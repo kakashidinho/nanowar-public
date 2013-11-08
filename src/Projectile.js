@@ -145,6 +145,50 @@ Acid.prototype.onHitTarget = function () {
 }
 
 
+/*-----------AcidBomb class (extends Projectile)--------------*/
+
+var AcidBomb = function (_producer, destPos, x, y) {
+	if (_producer == undefined)
+		return;
+    this.producer;
+	this.hit ;//does it hit target yet?
+    /*------constructor---------*/
+	//first create the fake target for the projectile
+	var fakeTarget = new FakeTarget(destPos.x, destPos.y);
+	
+    //call super class's constructor method
+    Projectile.call(this,fakeTarget,2,2,x,y,Constant.SPEED_FAST,"Acid");
+	
+	this.producer = _producer;
+	this.hit = false;
+
+}
+
+//inheritance from Projectile
+AcidBomb.prototype = new Projectile();
+AcidBomb.prototype.constructor = AcidBomb;
+
+//update the entity after <elapsedTime>
+AcidBomb.prototype.update = function(elapsedTime){
+	if (this.hit)//hit
+	{
+		var effect = new AcidAreaEffect(this.producer, this.producer.getAreaEffectDuration(), this.Target.getPosition().x, this.Target.getPosition().y);
+		this.destroy();
+		this.Target.destroy();//destroy fake target
+	}
+	else
+	{	
+		//super class update
+		Projectile.prototype.update.call(this, elapsedTime);
+	}
+}
+
+//call when web hit the target
+AcidBomb.prototype.onHitTarget = function () {
+	
+	this.hit = true;//set the "hit" flag, so that next update will do something based on this flag
+}
+
 /*-----------Web class (extends Projectile)--------------*/
 
 var Web = function (_producer, destPos, x, y) {
@@ -194,5 +238,6 @@ if (typeof global != 'undefined')
 {
 	global.Projectile = Projectile;
 	global.Acid = Acid;
+	global.AcidBomb = AcidBomb;
 	global.Web = Web;
 }

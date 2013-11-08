@@ -93,6 +93,17 @@
 			/>
 	</spriteModule>
 	<spriteModule 
+		name = "AcidCannon"
+		sheetID = "projectiles"
+		>
+		<animation 
+			name="icon"
+			sequence="6"
+			interval="200"
+			loop="true"
+			/>
+	</spriteModule>
+	<spriteModule 
 		name = "Acid"
 		sheetID = "projectiles"
 		>
@@ -116,6 +127,23 @@
 		<animation 
 			name="normal"
 			sequence="5,6,7,8"
+			interval="200"
+			loop="true"
+			/>
+		<animation 
+			name="die"
+			sequence="8,9,10"
+			interval="200"
+			loop="false"
+			/>
+	</spriteModule>
+	<spriteModule 
+		name = "AcidAreaEffect"
+		sheetID = "projectiles"
+		>
+		<animation 
+			name="normal"
+			sequence="5,6,7,8,9,10"
 			interval="200"
 			loop="true"
 			/>

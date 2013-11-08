@@ -9,7 +9,7 @@ var LeechVirus = function(id, x, y)
 	//call super class's initializing method
 	PlayableEntity.call( this,
 				id, //unique id
-				100, //hit point
+				300, //hit point
 				Constant.VIRUS, //this object is on virus's side 
 				Constant.VIRUS_SIZE, Constant.VIRUS_SIZE, //the size of the object
 				x, y,//position

@@ -668,6 +668,9 @@ function DirectorBase()
 				case 'AcidEffect':
 					effect = new AcidEffect(skill, target);
 					break;
+				case 'AcidEffectLv2':
+					effect = new AcidEffectLv2(skill, target);
+					break;
 				case 'LifeLeechEffect':
 					effect = new LifeLeechEffect(skill, target);
 					break;
