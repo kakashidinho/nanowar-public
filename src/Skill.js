@@ -206,7 +206,7 @@ var AcidCannon = function (_owner, skillID) {
 			Constant.SKILL_RANGE_MED, 
 			30, //total damage
 			_owner,
-			10000, //10s cooldown
+			12000, //12s cooldown
 			"AcidCannon");
 			
 	this.effectDuration = 6000;//6s

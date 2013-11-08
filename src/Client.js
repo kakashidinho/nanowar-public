@@ -19,8 +19,8 @@ function Client(canvasElementID)
 		
 	this.canvas = document.getElementById(canvasElementID);
 	
-	canvas.width  = window.innerWidth;
-	canvas.height  = window.innerHeight;
+	canvas.width  = document.documentElement.clientWidth;
+	canvas.height  = document.documentElement.clientHeight;
 }
 
 Client.prototype.startGame = function()
