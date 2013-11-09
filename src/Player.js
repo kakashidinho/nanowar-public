@@ -6,6 +6,8 @@ var Player = function(_connID, _playerID, num_dk_versions) {
 	this.character;
 	this.charPredict;//prediction versions of my character, for dead reckoning. 
 	this.className;//name of the character class that player chose
+	this.killCount;
+	this.deathCount;
 	this.ping;//network ping delay of this player
 	this.pingSamples;//sampled ping values
 	this.pingSamplesSum;//sum of samples of network ping delay
@@ -28,6 +30,9 @@ var Player = function(_connID, _playerID, num_dk_versions) {
 	{
 		this.charPredict.push(null);
 	}
+	
+	this.killCount = this.deathCount = 0;
+	
 	this.ping = 0;
 	this.fakeDelay = 0;
 	this.pingSamples = new Utils.List();

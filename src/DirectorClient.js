@@ -28,6 +28,8 @@ Director.init = function(canvas, displayWidth, displayHeight, initFileXML, onIni
 	var pingText;//ping value text
 	var attackFailText;//text the display the reason why attack failed
 	var hpText;
+	var killText;
+	var deathText;
 	var skillIcons;
 	var skillIconMasks;
 	
@@ -202,6 +204,14 @@ Director.init = function(canvas, displayWidth, displayHeight, initFileXML, onIni
 			visualEntity.setAlpha(1.0);
 			visualEntity.enableEvents(true);
 		}
+	}
+	
+	Director.notifyMyKillCount = function(killCount){
+		killText.setText("Kills: " + killCount);
+	}
+	
+	Director.notifyMyDeathCount = function(deathCount){
+		deathText.setText("Deaths: " + deathCount);
 	}
 	
 	//display information about the current skill slots of main character
@@ -496,6 +506,30 @@ Director.init = function(canvas, displayWidth, displayHeight, initFileXML, onIni
 										;
 		
 		guiNode.addChild(hpText);
+		
+		/*----------create kill count text------*/
+		killText = new CAAT.Foundation.UI.TextActor()
+										.setLocation(10, 108)
+										.setText("Kills: 0")
+										.setFont(font15)
+										.setAlign("left")
+										.setTextFillStyle('#ff0000')
+										.enableEvents(false)
+										;
+		
+		guiNode.addChild(killText);
+		
+		/*----------create death count text------*/
+		deathText = new CAAT.Foundation.UI.TextActor()
+										.setLocation(10, 144)
+										.setText("Deaths: 0")
+										.setFont(font15)
+										.setAlign("left")
+										.setTextFillStyle('#ff0000')
+										.enableEvents(false)
+										;
+		
+		guiNode.addChild(deathText);
 		
 		/*-------create skill icons----------*/
 		skillIcons = new Array();

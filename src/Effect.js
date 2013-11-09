@@ -89,7 +89,22 @@ Effect.prototype.update = function(elapsedTime){
 			this.affectedTarget.notifyEffectStarted(this);
 	}
 	
-	this._implUpdate(elapsedTime);//subclass must implement _implUpdate()
+	if (this.affectedTarget != null)
+	{
+		var targetAliveBefore = this.affectedTarget.isAlive();
+	
+		this._implUpdate(elapsedTime);//subclass must implement _implUpdate()
+	
+		if (targetAliveBefore != this.affectedTarget.isAlive() && this.producer != null)//I killed him!!
+		{
+			if (!Director.dummyClient)
+				Director._notifyKillCount(this.producer.getOwner(), this.affectedTarget);
+		}
+	}
+	else
+	{
+		this._implUpdate(elapsedTime);//subclass must implement _implUpdate()
+	}
 }
 
 
@@ -250,7 +265,7 @@ AcidEffectLv2.prototype._implUpdate = function (elapsedTime) {
 	//call super class's method
 	AcidEffect.prototype._implUpdate.call(this, elapsedTime);
 	
-	if (this.duration == 0 && this.affectedTarget.isAlive())
+	if (this.isAlive() == false)
 	{
 		//revert back the speed of the affected target
 		this.affectedTarget.changeSpeed(-this.speedReducedAmount);	
@@ -328,8 +343,7 @@ WebEffect.prototype._implUpdate = function (elapsedTime){
 	if (this.duration <= 0 || this.affectedTarget.isAlive() == false)
 	{
 		//revert back the speed of the affected target
-		if (this.affectedTarget.isAlive())
-			this.affectedTarget.changeSpeed(-this.speedReducedAmount);
+		this.affectedTarget.changeSpeed(-this.speedReducedAmount);
 		
 		this.destroy();
 	}

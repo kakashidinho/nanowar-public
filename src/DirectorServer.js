@@ -48,6 +48,7 @@ Director.init = function(initFileXML, onInitFinished)
 	Director.onEntityDeath ;
 	Director.onPowerUpAppear ;
 	Director.onPowerUpChangedDir;//callback being called when power up item has changed its direction
+	Director.onKillHappen;//callback function called when an enity killed a target
 	
 	var that = this;
 	
@@ -63,6 +64,7 @@ Director.init = function(initFileXML, onInitFinished)
 	Director.onEntityDeath = function(id) {}
 	Director.onPowerUpAppear = function(powerUp) {}
 	Director.onPowerUpChangedDir = function(powerUp) {}
+	Director.onKillHappen = function(killer, killed){}
 	
 	/*------------create xml parser-------------------*/
 	xmlParser = new xml2js.Parser();
@@ -126,6 +128,10 @@ Director.init = function(initFileXML, onInitFinished)
 		managedEntityList.removeNode(managedEntity.listNode );//remove this entity from the managed list
 	}
 	
+	
+	Director._notifyKillCount = function(killer, victim){
+		this.onKillHappen(killer, victim);//notify outsider
+	}
 	
 	
 	function gameLoop() {

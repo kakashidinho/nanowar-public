@@ -19,6 +19,7 @@ function Server() {
     this.availPIDList; // list of available PID to assign to next connected player (i.e. which player slot is open) 
     this.connections;      // Associative array for connections, indexed via socket ID
     this.players;      // Associative array for players, indexed via player ID
+	this.playerCharMap;	   // player mapping via his character. useful when the player has disconnected but his character is still around in the system
 	this.gameStarted; //game started or not?
 	this.gameInitXML;//the configuration file for the game session
 }
@@ -215,6 +216,12 @@ Server.prototype.deletePlayer = function(connectionID){
 	//delete from the player list
 	delete this.players[player.playerID];
 	
+	if (player.character != null)
+	{
+		//delete from character to player map
+		delete this.playerCharMap[player.character.getHashKey()];
+	}
+	
 	//simple interest management, unsubcribe all update from this player
 	if (SIMPLE_IM)
 	{
@@ -283,6 +290,10 @@ Server.prototype.startGame = function()
 	//director's entity death notification
 	Director.onEntityDeath = function(id){
 		that.notifyEntityDeath(id);
+	}
+	
+	Director.onKillHappen = function(killer, killed){
+		that.changeKillCount(killer, killed);
 	}
 	
 	Director.onPowerUpAppear = function(powerUp){
@@ -480,6 +491,10 @@ Server.prototype.spawnPlayerCharacter = function(player){
 		break;
 	}
 	
+	//insert to "character to player" map
+	this.playerCharMap[player.character.getHashKey()] = player;
+	
+	//randomize the character's position
 	this.randomPlacePlayerChar(player);
 }
 
@@ -542,6 +557,26 @@ Server.prototype.notifyPowerUpAppear = function(powerUp){
 Server.prototype.notifyPowerUpChangedDir = function(powerUp){
 	//console.log('notifyPowerUpChangedDir: ' + powerUp.getVelocity().x + ", " + powerUp.getVelocity().y);
 	this.broadcast(new EntityMoveMentMsg(powerUp));
+}
+
+Server.prototype.changeKillCount = function(killer, killed){
+	//the reason we use entity's hash key instead of entity's id
+	//is because id may be reused when player disconnected and another player comes in.
+	//while hash key is guaranteed to be unique
+	if (killer.getHashKey() in this.playerCharMap){
+		var killingPlayer = this.playerCharMap[killer.getHashKey()];
+		killingPlayer.killCount ++;
+		
+		//notify player
+		this.unicast(killingPlayer.connID, new KillDeathCountMsg(true, killingPlayer.killCount));
+	}
+	if (killed.getHashKey() in this.playerCharMap){
+		var killedPlayer = this.playerCharMap[killed.getHashKey()];
+		killedPlayer.deathCount ++;
+		
+		//notify player
+		this.unicast(killedPlayer.connID, new KillDeathCountMsg(false, killedPlayer.deathCount));
+	}
 }
 
 //this will handle message that Director forwards back to Server.
@@ -681,6 +716,7 @@ Server.prototype.onMessageFromPlayer = function(player, msg){
 }
 
 Server.prototype.start = function (httpServer) {
+	
 	try {
 		var that = this;
 		var http = require('http');
@@ -688,12 +724,14 @@ Server.prototype.start = function (httpServer) {
 		var sock = sockjs.createServer();
 
 		// reinitialize
+		EntityHashKeySeed.reset();
 		this.gameStarted = false;
 		this.count = 0;
 		this.availPIDList = new Utils.List();
 		for (var i = 0 ; i < Constant.SERVER_MAX_CONNECTIONS; ++i)
 			this.availPIDList.insertBack(i);
 		this.players = new Object;
+		this.playerCharMap = new Object;
 		this.connections = new Object;
 		
 		// Upon connection established from a client socket

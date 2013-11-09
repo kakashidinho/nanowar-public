@@ -48,9 +48,6 @@ function DirectorBase()
 	this.onMessageHandling = function(msg) {/*do nothing*/ return false;}
 	this.onEntityDestroyed = function(id) {}
 	
-	//implementation dependent
-	this._onEntityDeathImpl = function(entity) {}
-	
 	/*----------------------physics-----------------------------------------*/
 		
 	//create physics world
@@ -72,7 +69,7 @@ function DirectorBase()
 			if(entityA.isConverging() || bodyB.GetType() == b2Body.b2_dynamicBody)
 			{
 				//if two entities are both moving objects
-				if (bodyB.GetType() == b2Body.b2_dynamicBody)
+				if (bodyB.GetType() == b2Body.b2_dynamicBody && entityA.isAlive() && entityB.isAlive())
 					entityA.onCollideMovingEntity(entityB);
 				contact.SetEnabled(false);//for now. allow pass through
 			}
@@ -342,6 +339,10 @@ function DirectorBase()
 			//remove it from the known entity list
 			delete this.knownEntity[entity.getID()];
 		}
+	}
+	
+	this._notifyKillCount = function(killer, victim){
+		//default doing nothing.
 	}
 	
 	this._createPhysicsBody = function(bodyDef, fixtureDef)

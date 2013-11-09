@@ -10,11 +10,22 @@ var   b2Vec2 = Box2D.Common.Math.b2Vec2
 	,	b2PolygonShape = Box2D.Collision.Shapes.b2PolygonShape
 	,	b2CircleShape = Box2D.Collision.Shapes.b2CircleShape
 
+var EntityHashKeySeed = {
+	seedNumber: 0,
+	nextKey : function(){
+		return this.seedNumber ++;
+	},
+	reset : function(){
+		this.seedNumber = 0;
+	}
+}	
+	
 /*-----------------nano entity class--------------*/
 var NanoEntity = function(_id, _maxhp, _side, _width, _height, _x, _y, _spriteModule, ground) {
 	if (_id == undefined)//this may be called by prototype inheritance
 		return;
-	this.id;//unique id
+	this.id;//id
+	this.hashKey;//guarantee to be unique if 2 entities are created at different time
 	this.body;//b2Body
 	this.width;//body's width
 	this.height;//body's height
@@ -69,6 +80,8 @@ var NanoEntity = function(_id, _maxhp, _side, _width, _height, _x, _y, _spriteMo
 	this.body = Director._createPhysicsBody(bodyDef, fixDef);//create body object
 	this.body.SetUserData(this);
 	
+	this.hashKey = EntityHashKeySeed.nextKey();
+	
 	//add to director's managed list
 	Director._addEntity(this);
 }
@@ -104,6 +117,10 @@ NanoEntity.prototype.hasID = function()
 NanoEntity.prototype.getID = function()
 {
 	return this.id;
+}
+
+NanoEntity.prototype.getHashKey = function(){
+	return this.hashKey;
 }
 
 NanoEntity.prototype.setHP = function(hp) {
@@ -243,6 +260,12 @@ NanoEntity.prototype.decreaseHP = function(dhp){
 		this.HP = newHP;
 		
 		Director._onHPChanged(this, realdDHP, true);//notify director
+			
+		if (this.HP == 0 && !Director.dummyClient)
+		{
+			this.setAlive(false);
+			Director._notifyEntityDeath(this);
+		}
 		
 		return realdDHP;
 	}
@@ -262,7 +285,7 @@ NanoEntity.prototype.notifyEffectStarted = function(effect){
 
 NanoEntity.prototype.updateEffects = function(elapsedTime){
 	var node = this.effects. getFirstNode();
-	while (node != null)
+	while (node != null && this.isAlive())
 	{
 		//stick the effect to its affected target
 		node.item.setPosition(this.getPosition());
@@ -284,12 +307,6 @@ NanoEntity.prototype.updateEffects = function(elapsedTime){
 //update the entity after <elapsedTime>
 NanoEntity.prototype.update = function(elapsedTime){
 	this.updateEffects(elapsedTime);
-	
-	if (this.maxHP > 0 && this.HP <= 0 && !Director.dummyClient)
-	{
-		this.setAlive(false);
-		Director._notifyEntityDeath(this);
-	}
 }
 
 
@@ -735,5 +752,6 @@ if (typeof global != 'undefined')
 	global.NanoEntity = NanoEntity;
 	global.MovingEntity = MovingEntity;
 	global.PlayableEntity = PlayableEntity;
+	global.EntityHashKeySeed = EntityHashKeySeed;
 }
 

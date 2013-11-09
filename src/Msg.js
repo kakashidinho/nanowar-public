@@ -26,7 +26,9 @@ var MsgType = {
 	ADD_EFFECT: 21,
 	ENTITY_DESTROY: 22,
 	ENTITY_RESPAWN: 23,
-	ENTITY_RESPAWN_END: 24
+	ENTITY_RESPAWN_END: 24,
+	KILL_COUNT: 25,
+	DEATH_COUNT: 26
 };
 
 function MoveAlongMsg(entity, dirx, diry){
@@ -185,6 +187,11 @@ function EntityRespawnEndMsg(entityID){
 	this.entityID = entityID;
 }
 
+function KillDeathCountMsg(isKillCountMsg, count){
+	this.type = isKillCountMsg? MsgType.KILL_COUNT: MsgType.DEATH_COUNT;
+	this.count = count;
+}
+
 // For node.js require
 if (typeof global != 'undefined')
 {
@@ -211,5 +218,6 @@ if (typeof global != 'undefined')
 	global.AddEffectMsg = AddEffectMsg;
 	global.EntityDestroyMsg = EntityDestroyMsg;
 	global.EntityRespawnEndMsg = EntityRespawnEndMsg;
+	global.KillDeathCountMsg = KillDeathCountMsg;
 	global.MsgType = MsgType;
 }

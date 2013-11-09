@@ -343,6 +343,12 @@ Client.prototype.handleMessage = function(msg){
 		case MsgType.ENTITY_RESPAWN_END:
 			Director.notifyEntityEndRespawn(msg.entityID);
 			break;
+		case MsgType.KILL_COUNT:
+			Director.notifyMyKillCount(msg.count);
+			break;
+		case MsgType.DEATH_COUNT:
+			Director.notifyMyDeathCount(msg.count);
+			break;
 	}
 	return false;
 }
@@ -440,4 +446,6 @@ Client.prototype.start = function()
 	this.charPredict = null;
 	this.dk_threshold = 2;//initial dead reckoning threshold
 	this.ping = 0;
+	
+	EntityHashKeySeed.reset();
 }
