@@ -21,7 +21,8 @@ var MsgType = {
 	PING: 16,
 	PING_NOTIFICATION: 17,
 	SELF_CORRECT_PREDICTION: 18,
-	SKILL_NOT_READY: 19
+	SKILL_NOT_READY: 19,
+	JOIN : 20
 };
 
 function MoveAlongMsg(entity, dirx, diry){
@@ -49,6 +50,11 @@ function StartGameMsg(initXML)
 {
 	this.type = MsgType.START;
 	this.initXML = initXML;
+}
+
+function JoinMsg(className) {
+	this.type = MsgType.JOIN;
+	this.className = className;
 }
 
 //player ready to receive in-game messages
