@@ -369,6 +369,7 @@ Server.prototype.endGame = function()
 		}
 			
 		player.character = null;
+		player.killCount = player.deathCount = 0;//reset kill & death count
 	}
 	function rankSort(a,b) {
 		if (a.killCount > b.killCount)
