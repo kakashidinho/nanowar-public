@@ -98,7 +98,7 @@ function DirectorBase()
 			if (entityB!= null && entityB.isAlive())
 			{
 				entityA.enterArea(entityB);
-				console.log('entityA.enterArea(entityB)');
+				//console.log('entityA.enterArea(entityB)');
 			}
 		}
 		else if (bodyB.GetType() == b2Body.b2_kinematicBody && 
@@ -107,7 +107,7 @@ function DirectorBase()
 			if (entityA!= null && entityA.isAlive())
 			{
 				console.log('entityA.enterArea(entityB)');
-				entityB.enterArea(entityA);
+				//entityB.enterArea(entityA);
 			}
 		}
 		else if (bodyA.GetType() == b2Body.b2_dynamicBody && 
@@ -342,15 +342,7 @@ function DirectorBase()
 	this._baseDestroyEntity = function(entity){
 		var body = entity.getPhysicsBody();
 		
-		if (this.physicsWorld.IsLocked())
-		{
-			//body.SetActive(false);//disable physics simulation
-			this.deleteBodyList.insertBack(body);//add to being deleted list
-		}
-		else
-		{
-			this.physicsWorld.DestroyBody(body);
-		}
+		this.deleteBodyList.insertBack(body);//add to being deleted list
 	
 		if (entity.hasID())//this entity has an ID
 		{
@@ -367,9 +359,16 @@ function DirectorBase()
 	}
 	
 	this._baseStop = function(){
+		//clean up
 		for (var id in this.knownEntity){
 			this.knownEntity[id].destroy();
 		}
+		
+		//delete all pending bodies
+		this.deleteBodyList.traverse(function(body)
+		{
+			that.physicsWorld.DestroyBody(body);
+		});
 	}
 	
 	this._createPhysicsBody = function(bodyDef, fixtureDef)
