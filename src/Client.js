@@ -414,6 +414,9 @@ Client.prototype.onMessageFromServer = function(msg){
 					that.gameReady();//start after the Director has finished its initialization
 				})
 			}
+			else//display join button
+				Director.displayStartButton(false);
+				
 		break;
 		case MsgType.ENTITY_SPAWN:
 			{
