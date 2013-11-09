@@ -15,7 +15,7 @@ Director.init = function(canvas, displayWidth, displayHeight, initFileXML, onIni
 	var visualEntityList;
 	var lastUpdateTime;
 	var currentSceneTime;//for using during update
-	var initXmlRequest;
+	var xmlRequest;
 	var mainCharacter;//the main entity in the game
 	var targetEntity;//the attacking target of main character
 	
@@ -49,13 +49,8 @@ Director.init = function(canvas, displayWidth, displayHeight, initFileXML, onIni
 	//init base instance
 	DirectorBase.call(this);
 	
-	/*------------open connection to initializing xml file-------------------*/
-	initXmlRequest = new XMLHttpRequest();
-	// define which file to open and
-	// send the request.
-	initXmlRequest.open("GET", initFileXML, false);
-	initXmlRequest.setRequestHeader("Content-Type", "text/xml");
-	initXmlRequest.send(null);
+	/*------------initialize xml file request-------------------*/
+	xmlRequest = new XMLHttpRequest();
 	
 	/*-------------------------------*/
 	//no target to follow
@@ -578,174 +573,193 @@ Director.init = function(canvas, displayWidth, displayHeight, initFileXML, onIni
 		return spriteModuleName + "-" + animation;
 	}
 	
+	function readXMLFile(xmlFile, callback_func){
+		function handler() {
+			if(this.readyState == this.DONE) {
+				if(this.status == 200) {
+				  // success!
+				  callback_func(this.responseXML);
+				  return;
+				}
+			}//if(this.readyState == this.DONE)
+		}//function handler()
+		
+		
+		// define which file to open and
+		// send the request.
+		xmlRequest.onreadystatechange  = handler;
+		xmlRequest.open("GET", xmlFile, true);
+		xmlRequest.setRequestHeader("Content-Type", "text/xml");
+		xmlRequest.send(null);
+	}
+	
 	//init the game using the initXMLFile
 	function readInitFile()
 	{
-		//pre-load all images used in the game
-		var root = initXmlRequest.responseXML.childNodes[0];
-		var imageGroups = root.getElementsByTagName("images");
-		var images = new Array();
-		
-		for (var i = 0; i < imageGroups.length; ++i)
-		{
-			var imageInfos = imageGroups[i].getElementsByTagName("image");
-			for (var j = 0; j < imageInfos.length; ++j)
+		readXMLFile(initFileXML, function(responseXML){
+			//pre-load all images used in the game
+			var root = responseXML.childNodes[0];
+			var imageGroups = root.getElementsByTagName("images");
+			var images = new Array();
+			
+			for (var i = 0; i < imageGroups.length; ++i)
 			{
-				var image = {
-					id: imageInfos[j].getAttribute("id"),
-					url: imageInfos[j].getAttribute("url")
-				};
-				
-				images.push(image);
-			}//for (var j = 0; j < imageInfos.length; ++j)
-		}//for (var i = 0; i < imageGroups.length; ++i)
-		
-		new CAAT.ImagePreloader().loadImages(
-			images,
-			function (counter, images) {
-				if (counter == images.length)
+				var imageInfos = imageGroups[i].getElementsByTagName("image");
+				for (var j = 0; j < imageInfos.length; ++j)
 				{
-					//finish loading images
-					caatDirector.setImagesCache(images);
+					var image = {
+						id: imageInfos[j].getAttribute("id"),
+						url: imageInfos[j].getAttribute("url")
+					};
 					
-					var spritesFileElems = root.getElementsByTagName("spritesFile");
-					var spritesFile = spritesFileElems[0].childNodes[0].nodeValue;//get sprites information file name
-					var mapFileElems = root.getElementsByTagName("mapFile");
-					var mapFile = mapFileElems[0].childNodes[0].nodeValue;//get map file name
-					
-					//init sprites
-					initSpriteModules(spritesFile);
-					
-					//init map
-					initMap(mapFile);	
-								
-					//now the Director is ready to be used
-					onInitFinished();
-				}
-			}
-		);
+					images.push(image);
+				}//for (var j = 0; j < imageInfos.length; ++j)
+			}//for (var i = 0; i < imageGroups.length; ++i)
+			
+			new CAAT.ImagePreloader().loadImages(
+				images,
+				function (counter, images) {
+					if (counter == images.length)
+					{
+						//finish loading images
+						caatDirector.setImagesCache(images);
+						
+						var spritesFileElems = root.getElementsByTagName("spritesFile");
+						var spritesFile = spritesFileElems[0].childNodes[0].nodeValue;//get sprites information file name
+						var mapFileElems = root.getElementsByTagName("mapFile");
+						var mapFile = mapFileElems[0].childNodes[0].nodeValue;//get map file name
+						
+						//next step is init sprites
+						initSpriteModules(spritesFile, function()
+						{
+							//next step is init map
+							initMap(mapFile, function(){	
+								//next step is notifying that now the Director is ready to be used
+								onInitFinished();
+							});
+						});//initSpriteModules
+									
+					}
+				}//function (counter, images) 
+			);//new CAAT.ImagePreloader().loadImages
+		});//readXMLFile(function(responseXML)
 	}
 	
 	//initialize sprite modules from xml
-	function initSpriteModules(xmlFile)
+	function initSpriteModules(xmlFile, nextStep)
 	{
-		spriteSheetList = new Array();//list of sprite sheet objects
-		spriteModuleList = new Array();//list of sprite modules
-		var Connect = initXmlRequest;
- 
-		// define which file to open and
-		// send the request.
-		Connect.open("GET", xmlFile, false);
-		Connect.setRequestHeader("Content-Type", "text/xml");
-		Connect.send(null);
+		readXMLFile(xmlFile, function(responseXML){
+			spriteSheetList = new Array();//list of sprite sheet objects
+			spriteModuleList = new Array();//list of sprite modules
 
-		var root = Connect.responseXML.childNodes[0];
+			var root = responseXML.childNodes[0];
 
-		//get list of sprites sheet
-		var spriteSheets = root.getElementsByTagName("spriteSheet");
-		
-		//for each sprites sheet
-		for (var i = 0; i < spriteSheets.length; i++)
-		{
-			var sheet = spriteSheets[i];
-			var id = sheet.getAttribute("id");
-			var imgID = sheet.getAttribute("imgID");
-			var cellsPerRow = parseInt(sheet.getAttribute("cellsPerRow"));
-			var cellsPerCol = parseInt(sheet.getAttribute("cellsPerCol"));
-			//load image and create CAAT's sprite
-			spriteSheetList[id] = createSpriteSheet(imgID, cellsPerCol, cellsPerRow );
-		}
-		
-		//get list of sprite modules
-		var spriteModules = root.getElementsByTagName("spriteModule");
-		
-		for (var i = 0; i < spriteModules.length; ++i)
-		{
-			var spriteModuleInfo = spriteModules[i];
-			var name = spriteModuleInfo.getAttribute("name");
-			var sheetID = spriteModuleInfo.getAttribute("sheetID");
-			var animationInfos = spriteModuleInfo.getElementsByTagName("animation");
+			//get list of sprites sheet
+			var spriteSheets = root.getElementsByTagName("spriteSheet");
 			
-			var newSpriteModule = 
-			 {
-				sheetID: sheetID,//sprite sheet id
-				animations: new Array()
-			};
+			//for each sprites sheet
+			for (var i = 0; i < spriteSheets.length; i++)
+			{
+				var sheet = spriteSheets[i];
+				var id = sheet.getAttribute("id");
+				var imgID = sheet.getAttribute("imgID");
+				var cellsPerRow = parseInt(sheet.getAttribute("cellsPerRow"));
+				var cellsPerCol = parseInt(sheet.getAttribute("cellsPerCol"));
+				//load image and create CAAT's sprite
+				spriteSheetList[id] = createSpriteSheet(imgID, cellsPerCol, cellsPerRow );
+			}
 			
-			//initialize animations:
-			for (var a = 0; a < animationInfos.length; ++a)
-			{	
-				var aName = animationInfos[a].getAttribute("name");//animation name
-				var sequenceStr = animationInfos[a].getAttribute("sequence").split(",");//cell sequence of the animation
-				var interval = parseInt(animationInfos[a].getAttribute("interval"));//animation interval
-				var loop = animationInfos[a].getAttribute("loop") == "true";
-				var sequence = new Array();
-				//convert to integer array
-				for (var j = 0; j < sequenceStr.length; ++j)
-					sequence.push(parseInt(sequenceStr[j]));
+			//get list of sprite modules
+			var spriteModules = root.getElementsByTagName("spriteModule");
 			
-				var afullName = getFullAnimName(name, aName);
-				if (!loop)
-				{
-					spriteSheetList[newSpriteModule.sheetID].addAnimation(afullName, sequence, interval, function(spriteImage, time) {
-						//stop at last sub-image
-						spriteImage.setAnimationImageIndex([spriteImage.animationImageIndex[spriteImage.animationImageIndex.length - 1]]);
-						spriteImage.callback = null;
-					});
-				}//if (!loop)
-				else
-					spriteSheetList[newSpriteModule.sheetID].addAnimation(afullName, sequence, interval);
+			for (var i = 0; i < spriteModules.length; ++i)
+			{
+				var spriteModuleInfo = spriteModules[i];
+				var name = spriteModuleInfo.getAttribute("name");
+				var sheetID = spriteModuleInfo.getAttribute("sheetID");
+				var animationInfos = spriteModuleInfo.getElementsByTagName("animation");
 				
-				newSpriteModule.animations[aName] = afullName;//store the animation full name
-			}//for (var a = 0; a < sprites[i].animations.length; ++a)
+				var newSpriteModule = 
+				 {
+					sheetID: sheetID,//sprite sheet id
+					animations: new Array()
+				};
+				
+				//initialize animations:
+				for (var a = 0; a < animationInfos.length; ++a)
+				{	
+					var aName = animationInfos[a].getAttribute("name");//animation name
+					var sequenceStr = animationInfos[a].getAttribute("sequence").split(",");//cell sequence of the animation
+					var interval = parseInt(animationInfos[a].getAttribute("interval"));//animation interval
+					var loop = animationInfos[a].getAttribute("loop") == "true";
+					var sequence = new Array();
+					//convert to integer array
+					for (var j = 0; j < sequenceStr.length; ++j)
+						sequence.push(parseInt(sequenceStr[j]));
+				
+					var afullName = getFullAnimName(name, aName);
+					if (!loop)
+					{
+						spriteSheetList[newSpriteModule.sheetID].addAnimation(afullName, sequence, interval, function(spriteImage, time) {
+							//stop at last sub-image
+							spriteImage.setAnimationImageIndex([spriteImage.animationImageIndex[spriteImage.animationImageIndex.length - 1]]);
+							spriteImage.callback = null;
+						});
+					}//if (!loop)
+					else
+						spriteSheetList[newSpriteModule.sheetID].addAnimation(afullName, sequence, interval);
+					
+					newSpriteModule.animations[aName] = afullName;//store the animation full name
+				}//for (var a = 0; a < sprites[i].animations.length; ++a)
+				
+				//insert to sprite module list
+				spriteModuleList[name] = newSpriteModule;
+			}//for (var i = 0; i < sprites.length; ++i)
 			
-			//insert to sprite module list
-			spriteModuleList[name] = newSpriteModule;
-		}//for (var i = 0; i < sprites.length; ++i)
+			//done, now do the next step
+			nextStep();
+		});//readXMLFile(xmlFile, function(responseXML)
 	}
 	
-	function initMap(mapFile)
+	function initMap(mapFile, nextStep)
 	{
-		var Connect = initXmlRequest;
- 
-		// define which file to open and
-		// send the request.
-		Connect.open("GET", mapFile, false);
-		Connect.setRequestHeader("Content-Type", "text/xml");
-		Connect.send(null);
-
-		var map = Connect.responseXML.childNodes[0];
-		
-		var width = parseInt(map.getAttribute("width"));
-		var height = parseInt(map.getAttribute("height"));
-		var backgroundImgID = map.getAttribute("background");
-		var tilesMapStr = map.getElementsByTagName("tilesMap")[0].childNodes[0].nodeValue;
-		var tilesInfo = map.getElementsByTagName("tilesInfo")[0];
-		that.tilesPerRow = parseInt(map.getAttribute("tilesPerRow"));
-		that.tilesPerCol = parseInt(map.getAttribute("tilesPerCol"));
-		
-		/*----------boundary-------*/
-		//set boundary
-		worldNode.setBounds(0,0,width,height);
-		worldNode.setSize(width,height);
-		//physics boundary
-		that._initPhysicsBounds(width,height);
-		
-		/*----background-----------*/
-		if (backgroundImgID != null)
-		{
-			var spriteSheet = createSpriteSheet(backgroundImgID, 1, 1);
-			worldNode.setBackgroundImage(spriteSheet, false);
+		readXMLFile(mapFile, function(responseXML){
+			var map = responseXML.childNodes[0];
 			
-			worldNode.paint = function(director, time) {
-				if (this.backgroundImage) {
-					this.backgroundImage.paintScaled(director, time, 0, 0);//require the sprite image to draw using actor's size
+			var width = parseInt(map.getAttribute("width"));
+			var height = parseInt(map.getAttribute("height"));
+			var backgroundImgID = map.getAttribute("background");
+			var tilesMapStr = map.getElementsByTagName("tilesMap")[0].childNodes[0].nodeValue;
+			var tilesInfo = map.getElementsByTagName("tilesInfo")[0];
+			that.tilesPerRow = parseInt(map.getAttribute("tilesPerRow"));
+			that.tilesPerCol = parseInt(map.getAttribute("tilesPerCol"));
+			
+			/*----------boundary-------*/
+			//set boundary
+			worldNode.setBounds(0,0,width,height);
+			worldNode.setSize(width,height);
+			//physics boundary
+			that._initPhysicsBounds(width,height);
+			
+			/*----background-----------*/
+			if (backgroundImgID != null)
+			{
+				var spriteSheet = createSpriteSheet(backgroundImgID, 1, 1);
+				worldNode.setBackgroundImage(spriteSheet, false);
+				
+				worldNode.paint = function(director, time) {
+					if (this.backgroundImage) {
+						this.backgroundImage.paintScaled(director, time, 0, 0);//require the sprite image to draw using actor's size
+					}
 				}
 			}
-		}
-		
-		/*---init the tiles on the map------*/
-		initTiles(tilesMapStr, tilesInfo);
+			
+			/*---init the tiles on the map------*/
+			initTiles(tilesMapStr, tilesInfo);
+			
+			//done, now do the next step
+			nextStep();
+		});//readXMLFile(xmlFile, function(responseXML)
 	}
 	
 	function initTiles(tileMapStr, tilesInfo) {

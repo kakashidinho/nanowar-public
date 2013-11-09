@@ -5,26 +5,46 @@ require("./../src/Server.js");
 process.chdir(__dirname);
 
 //start HTTP Server to serve web contents
-var express = require('express');
-var http = require('http');
+var http = require('http'),
+	url = require("url"),
+	path = require("path"),
+	fs = require("fs");
 			
-var app = express();
-var httpServer = http.createServer(app);
-var server_ip = process.env.OPENSHIFT_NODEJS_IP || "0.0.0.0";
+var httpServer = http.createServer(function(request, response) {
+ 
+	var uri = url.parse(request.url).pathname;
+	if (uri == '/test2/')
+		uri = '/test2/test2.html';
+	var filename = path.join(process.cwd() + '/../', uri);
+	
+	console.log('request uri ' + uri);
+	console.log('request ' + filename);
+	
+	path.exists(filename, function(exists) {
+		if(!exists) {
+			response.writeHead(404, {"Content-Type": "text/plain"});
+			response.write("404 Not Found\n");
+			response.end();
+			return;
+		}
+		 
+		fs.readFile(filename, "binary", function(err, file) {
+			if(err) {
+				response.writeHead(500, {"Content-Type": "text/plain"});
+				response.write(err + "\n");
+				response.end();
+				return;
+			}
+			 
+			response.writeHead(200);
+			response.write(file, "binary");
+			response.end();
+		});
+	});
+});
+var server_ip = "0.0.0.0";
 console.log("server " + server_ip  + 'is listening to ' + Constant.SERVER_PORT);
 httpServer.listen(Constant.SERVER_PORT, server_ip);
-app.use(express.static(__dirname + '/../'));
-app.use(express.static(__dirname));
-
-app.get('/test2/', function(req,res) {
-  console.log("get ('/')");
-  res.sendfile('test2.html');
-});
-
-app.get('/nanowar/info', function(req,res) {
-  console.log("/nanowar/info");
-  res.end('hello');
-});
 
 /*------start game server------*/
 var server = new Server();
