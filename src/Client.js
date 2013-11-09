@@ -1,5 +1,7 @@
 "use strict"
 
+var CLIENT_USE_DK = false;//do we use client side dead reckoning
+
 function Client(canvasElementID)
 {
 	this.canvas;
@@ -10,11 +12,16 @@ function Client(canvasElementID)
 	this.charPredict;//prediction version of my character, for dead reckoning
 	this.dk_threshold;//dead reckoning threshold
 	this.skillSlots;
+	this.skillCtrlKeyDown;//skill control keys
 	this.ping;
+	this.atkCursor = false;
 		
 	//while(document.readyState !== "complete") {console.log("loading...");};
 		
 	this.canvas = document.getElementById(canvasElementID);
+	
+	canvas.width  = document.documentElement.clientWidth;
+	canvas.height  = document.documentElement.clientHeight;
 }
 
 Client.prototype.startGame = function()
@@ -29,9 +36,9 @@ Client.prototype.startGame = function()
 	   
 	}
 
-	Director.onMouseEnterExit = function (target,enter,x,y) {
+	Director.onMouseMove = function (target,x,y) {
 
-	    that.onMouseEnterExit(target,enter,x,y);
+	    that.onMouseMove(target,x,y);
 	  
       
 	}
@@ -73,6 +80,12 @@ Client.prototype.spawnEntity = function(msg){
 	case "LeechVirus":
 		spawn_entity = new LeechVirus(msg.entityID, msg.x, msg.y);
 		break;
+	case "HealingDrug":
+		spawn_entity = new HealingDrug(msg.entityID, msg.x, msg.y, msg.dirx, msg.diry);
+		break;
+	case "MeatCell":
+		spawn_entity = new MeatCell(msg.entityID, msg.x, msg.y, msg.dirx, msg.diry);
+		break;
 	}
 	
 	spawn_entity.setHP(msg.hp);
@@ -85,23 +98,26 @@ Client.prototype.spawnEntity = function(msg){
 		
 		Director.setMainCharacter(this.character);
 		
-		//create the dummy entity for dead reckoning
-		this.charPredict = new MovingEntity( -1, 0, 
-			Constant.NEUTRAL, 
-			this.character.getWidth(), this.character.getHeight(), 
-			this.character.getPosition().x, this.character.getPosition().y, 
-			this.character.getOriSpeed(), 
-			null);
+		if (CLIENT_USE_DK)
+		{
+			//create the dummy entity for dead reckoning
+			this.charPredict = new MovingEntity( -1, 0, 
+				Constant.NEUTRAL, 
+				this.character.getWidth(), this.character.getHeight(), 
+				this.character.getPosition().x, this.character.getPosition().y, 
+				this.character.getOriSpeed(), 
+				null);
+		}
 	}
 }
 
 //when our character changes his movement
 Client.prototype.onVelocityChanged = function(entity){
-	if (entity.isMoving() == false)//should update server
+	if (CLIENT_USE_DK && entity.isMoving() == false)//should update server
 		this.sendToServer(new EntityMoveMentMsg(entity));
 }
 
-Client.prototype.onKeyPress = function(e) {
+Client.prototype.onKeyDown = function(e) {
 	/*
 	keyCode represents keyboard button
 	38: up arrow
@@ -120,29 +136,72 @@ Client.prototype.onKeyPress = function(e) {
 			this.sendToServer(new ChangeFakeDelayMsg(-50));
 			break;
 		}
+		case 49: { //"1"
+			this.skillCtrlKeyDown[0] = true;
+			break;
+		}
+		
+		case 50: { //"2"
+			this.skillCtrlKeyDown[1] = true;
+			break;
+		}
+	}
+}
+
+Client.prototype.onKeyUp = function(e) {
+	/*
+	keyCode represents keyboard button
+	38: up arrow
+	40: down arrow
+	37: left arrow
+	39: right arrow
+	*/
+	switch(e.keyCode) {
+		case 49: { //"1"
+			this.skillCtrlKeyDown[0] = false;
+			break;
+		}
+		
+		case 50: { //"2"
+			this.skillCtrlKeyDown[1] = false;
+			break;
+		}
 	}
 }
 
 //handle mouse click event
 Client.prototype.onClick = function(x, y, target, isControlDown){
-	if (this.character == null || !this.character.isAlive())
+	if (this.character == null)
 		return;
-	if (target == null && !isControlDown)
+	
+	var skillIdx;
+	//check if player is holding down some skill's key
+	if (this.skillCtrlKeyDown[0])
+		skillIdx = this.skillSlots[0];
+	else if (this.skillCtrlKeyDown[1])
+		skillIdx = this.skillSlots[1];
+	else 
+		skillIdx = -1;
+	
+	if (target == null && skillIdx == -1)
 	{
 	    //will start moving to new destination
-	 
-	    Director.postMessage(new MoveToMsg(this.character, x, y));
+		var msg = new MoveToMsg(this.character, x, y);
+		if (CLIENT_USE_DK == false)
+			this.sendToServer(msg);//send to server
+	    Director.postMessage(msg);//and simulate the movement locally
 	    
 		//mark the destination, just for the visual indication
 		Director.markDestination(x, y);
 	}
-	else
+	else if (target != null)
 	{	
+		if (skillIdx == -1)
+			skillIdx = this.skillSlots[0];
+			
 		if (target.getSide() != Constant.NEUTRAL && target.getSide() != 
 			this.character.getSide())
 		{
-			var skillIdx = isControlDown? this.skillSlots[1]: this.skillSlots[0];
-		
 			//send attacking message to server
 			this.sendToServer(new AttackMsg(this.character, target, skillIdx));
 		
@@ -151,22 +210,38 @@ Client.prototype.onClick = function(x, y, target, isControlDown){
 		}
 
 	}
+	else
+	{
+		//send firing message to server
+		this.sendToServer(new FireToMsg(this.character, x, y, skillIdx));
+		
+		//mark the firing target destination, just for the visual indication
+		Director.markFireDest(x, y);
+	}
 }
 
-//handle mouse enters or exits a target
-Client.prototype.onMouseEnterExit = function (target,enter,x,y) {
+//handle mouse move
+Client.prototype.onMouseMove = function (target,x,y) {
    
-    var enemy = target.getSide() != Constant.NEUTRAL && target.getSide() != this.character.getSide();
+    var enemy = target != null && target.getSide() != Constant.NEUTRAL && target.getSide() != this.character.getSide();
    
     var context = this.canvas;
 
-    if (!enemy || !enter) { 
-        //cursor is move cursor
-        context.style.cursor = "url(./moveCursor.ani) 16 16, url(./moveCursor.gif) 16 16, progress";
+    if (!enemy) {
+		if (this.atkCursor)
+		{
+			this.atkCursor = false;
+			//cursor is move cursor
+			context.style.cursor = "url(./moveCursor.ani) 16 16, url(./moveCursor.gif) 16 16, progress";
+		}
     }
     else { 
-        //cursor is attack cursor
-        context.style.cursor = "url(./attackCursor.ani) 16 16, url(./attackCursor.png) 16 16, progress";
+		if (!this.atkCursor)
+		{
+			this.atkCursor = true;
+			//cursor is attack cursor
+			context.style.cursor = "url(./attackCursor.ani) 16 16, url(./attackCursor.png) 16 16, progress";
+		}
     }
 
 }
@@ -187,7 +262,8 @@ Client.prototype.onUpdate = function(lastTime, currentTime){
 				this.charPredict = null;
 			}
 		}
-		else{
+		else if (CLIENT_USE_DK){
+			
 			//update predicted version
 			this.charPredict.update(currentTime - lastTime);
 		
@@ -209,7 +285,7 @@ Client.prototype.onUpdate = function(lastTime, currentTime){
 					movementCorrectMsg.dirx, movementCorrectMsg.diry,
 					false);
 			}
-		}
+		}//else if (CLIENT_USE_DK)
 		
 		//display skills' info
 		Director.displaySkillInfos(this.skillSlots);
@@ -227,23 +303,51 @@ Client.prototype.handleMessage = function(msg){
 			break;
 		case MsgType.ATTACK_OUT_OF_RANGE:
 			Director.displayOutOfRangeTxt();
-			Director.markTarget(null);
+			Director.hideTargetMark();
 			break;
 		case MsgType.SKILL_NOT_READY:
 			Director.displaySkillNotReadyTxt();
-			Director.markTarget(null);
+			Director.hideTargetMark();
 			break;
 		case MsgType.ATTACK:
+		case MsgType.FIRE_TO:
 			if (msg.entityID == this.playerID)
 			{
 				//should erase the "out of range"/"skill is not ready" text if it is displaying
 				Director.hideAtkFailTxt();
-				Director.markTarget(null);
+				Director.hideTargetMark();
 				
 				//due to lag, we must reduce the cooldown
 				var skill = this.character.getSkill(msg.skillIdx);
 				skill.reduceCooldown(this.ping / 2.0);
 			}
+			break;
+		case MsgType.ADD_EFFECT:
+			switch (msg.className){
+				case 'HealingEffect':
+					{
+						var entities = Director.getKnownEntities();
+						var target = entities[msg.affectedTargetID];
+						var effect = new HealingEffect(target, 0);//2nd parameter is zero, since this is just for displaying
+						target.addEffect(effect);
+						return true;//dont need director to do any more work
+					}
+			}
+			break;
+		case MsgType.ENTITY_DEATH:
+			Director.notifyEntityDeath(msg.entityID);
+			break;
+		case MsgType.ENTITY_RESPAWN:
+			Director.notifyEntityStartRespawn(msg.entityID);
+			break;
+		case MsgType.ENTITY_RESPAWN_END:
+			Director.notifyEntityEndRespawn(msg.entityID);
+			break;
+		case MsgType.KILL_COUNT:
+			Director.notifyMyKillCount(msg.count);
+			break;
+		case MsgType.DEATH_COUNT:
+			Director.notifyMyDeathCount(msg.count);
 			break;
 	}
 	return false;
@@ -328,20 +432,26 @@ Client.prototype.start = function()
 	
 	//add event listeners
 	document.addEventListener("keydown", function(e) {
-            that.onKeyPress(e);
+            that.onKeyDown(e);
+            }, false);
+	document.addEventListener("keyup", function(e) {
+            that.onKeyUp(e);
             }, false);
 	
 	this.gameStarted = false;
 	this.playerID = -1;
 	this.playerClassName = null;
 	this.character = null;
-	this.skillSlots = [0, 0];
+	this.skillSlots = [0, 1];
+	this.skillCtrlKeyDown = [false, false];
 	this.charPredict = null;
 	this.dk_threshold = 2;//initial dead reckoning threshold
 	this.ping = 0;
 	
 	// Init CAAT components
 	Director.init(this, canvas, canvas.height, canvas.width);
+	
+	EntityHashKeySeed.reset();
 }
 
 Client.prototype.blueTeam = function() {

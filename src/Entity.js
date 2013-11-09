@@ -10,11 +10,22 @@ var   b2Vec2 = Box2D.Common.Math.b2Vec2
 	,	b2PolygonShape = Box2D.Collision.Shapes.b2PolygonShape
 	,	b2CircleShape = Box2D.Collision.Shapes.b2CircleShape
 
+var EntityHashKeySeed = {
+	seedNumber: 0,
+	nextKey : function(){
+		return this.seedNumber ++;
+	},
+	reset : function(){
+		this.seedNumber = 0;
+	}
+}	
+	
 /*-----------------nano entity class--------------*/
-var NanoEntity = function(_id, _maxhp, _side, _width, _height, _x, _y, _spriteModule) {
+var NanoEntity = function(_id, _maxhp, _side, _width, _height, _x, _y, _spriteModule, ground) {
 	if (_id == undefined)//this may be called by prototype inheritance
 		return;
-	this.id;//unique id
+	this.id;//id
+	this.hashKey;//guarantee to be unique if 2 entities are created at different time
 	this.body;//b2Body
 	this.width;//body's width
 	this.height;//body's height
@@ -24,7 +35,9 @@ var NanoEntity = function(_id, _maxhp, _side, _width, _height, _x, _y, _spriteMo
 	this.spriteModuleName;
 	this.side;
 	this.effects;
+	this.newEffects;//list of newly added effects
 	this.alive;
+	this.ground;//is this entity at the ground. it means it is below the other entities. useful for rendering
 	this.className;//the class name
 	
 	/*---------------------------constructor-------------------------------------*/
@@ -37,7 +50,10 @@ var NanoEntity = function(_id, _maxhp, _side, _width, _height, _x, _y, _spriteMo
 	this.spriteModuleName = _spriteModule;	
 	this.alive = true;
 	
+	this.ground = ground == undefined? false: ground;
+	
 	this.effects = new Utils.List();
+	this.newEffects = new Utils.List();
 	
 	/*----------create physics body-----------*/
 	var bodyDef = new b2BodyDef;
@@ -64,6 +80,8 @@ var NanoEntity = function(_id, _maxhp, _side, _width, _height, _x, _y, _spriteMo
 	this.body = Director._createPhysicsBody(bodyDef, fixDef);//create body object
 	this.body.SetUserData(this);
 	
+	this.hashKey = EntityHashKeySeed.nextKey();
+	
 	//add to director's managed list
 	Director._addEntity(this);
 }
@@ -84,6 +102,11 @@ NanoEntity.prototype.getClassName = function()
 	return this.className;
 }
 
+NanoEntity.prototype.isGround = function()
+{
+	return this.ground;
+}
+
 //has ID?
 NanoEntity.prototype.hasID = function()
 {
@@ -94,6 +117,10 @@ NanoEntity.prototype.hasID = function()
 NanoEntity.prototype.getID = function()
 {
 	return this.id;
+}
+
+NanoEntity.prototype.getHashKey = function(){
+	return this.hashKey;
 }
 
 NanoEntity.prototype.setHP = function(hp) {
@@ -131,6 +158,11 @@ NanoEntity.prototype.getHeight = function() {
 }
 
 //return b2Vec2
+NanoEntity.prototype.getVelocity = function(){
+	return new b2Vec2(0,0);
+}
+
+//return b2Vec2
 NanoEntity.prototype.getPosition = function() {
 	return this.body.GetPosition();
 }
@@ -153,6 +185,18 @@ NanoEntity.prototype.distanceVecToEntity = function(entity)
 	return this.distanceVecTo(entity.getPosition());	
 }
 
+//get distance  between <anotherPoint> and current position
+NanoEntity.prototype.distanceTo = function(anotherPoint)
+{
+	return this.distanceVecTo(anotherPoint).Length();	
+}
+
+//get distance between <entity>'s position and current position
+NanoEntity.prototype.distanceToEntity = function(entity)
+{
+	return this.distanceVecTo(entity.getPosition()).Length();	
+}
+
 NanoEntity.prototype.isAlive = function()
 {
 	return this.alive;
@@ -161,6 +205,13 @@ NanoEntity.prototype.isAlive = function()
 NanoEntity.prototype.setAlive = function(_alive)
 {
 	this.alive = _alive;
+	
+	if (!this.alive)
+	{
+		//remove all effects
+		this.effects.removeAll();
+		this.newEffects.removeAll();
+	}
 }
 
 NanoEntity.prototype.destroy = function()
@@ -168,19 +219,16 @@ NanoEntity.prototype.destroy = function()
 	this.setAlive(false);
 	
 	Director._destroyEntity(this);//notify director
-	
-	//destroy all effects
-	this.effects.traverse(function(effect)
-	{
-		effect.destroy();
-	}
-	);
-	this.effects.removeAll();
+}
+
+NanoEntity.prototype.getNewEffectList = function()
+{
+	return this.newEffects;
 }
 
 NanoEntity.prototype.addEffect = function(effect)
 {
-	this.effects.insertBack(effect);
+	this.newEffects.insertBack(effect);
 	//stick effect to its affected target
 	effect.setPosition(this.getPosition());
 }
@@ -212,31 +260,45 @@ NanoEntity.prototype.decreaseHP = function(dhp){
 		this.HP = newHP;
 		
 		Director._onHPChanged(this, realdDHP, true);//notify director
+			
+		if (this.HP == 0 && !Director.dummyClient)
+		{
+			this.setAlive(false);
+			Director._notifyEntityDeath(this);
+		}
 		
 		return realdDHP;
 	}
 	return 0;
 }
 
+//notify entity that the effect has started
+NanoEntity.prototype.notifyEffectStarted = function(effect){
+	var node = this.newEffects.findNode(effect);
+	if (node == null)
+		return;
+	//pop new effect from the newEffects list and push to list of current effects
+	var neweffect = node.item;
+	this.newEffects.removeNode(node);
+	this.effects.insertBack(neweffect);
+}
+
 NanoEntity.prototype.updateEffects = function(elapsedTime){
 	var node = this.effects. getFirstNode();
-	while (node != null)
+	while (node != null && this.isAlive())
 	{
 		//stick the effect to its affected target
 		node.item.setPosition(this.getPosition());
 		
-		if (node.item.affect(this, elapsedTime))
+		if (node.item.isAlive() == false)
 		{
 			//the duration of effect has ended
 			var del = node;
 			node = node.next;
 			this.effects.removeNode(del);//remove the effect
-			
-			del.item.destroy();//destroy the effect
 		}
 		else
-		{
-			
+		{	
 			node = node.next;
 		}
 	}
@@ -245,9 +307,6 @@ NanoEntity.prototype.updateEffects = function(elapsedTime){
 //update the entity after <elapsedTime>
 NanoEntity.prototype.update = function(elapsedTime){
 	this.updateEffects(elapsedTime);
-	
-	if (this.maxHP > 0 && this.HP <= 0)
-		this.destroy();
 }
 
 
@@ -268,6 +327,8 @@ var MovingEntity = function(_id, _maxhp, _side, _width, _height, _x, _y, _oripee
 	this.afterConversePosition;//position after convergence ends
 	this.afterConverseDirection;//direction after convergence ends
 	
+	this.bounceEnabled;//allow bouncing back when collide with obstacle?
+	
 	/*--------constructor---------*/
 	//call super class's constructor method
 	NanoEntity.call(this, _id, _maxhp, _side, _width, _height, _x, _y, _sprite);
@@ -279,6 +340,7 @@ var MovingEntity = function(_id, _maxhp, _side, _width, _height, _x, _y, _oripee
 	this.movingPath = new Utils.List();
 	
 	
+	this.bounceEnabled = false;
 	this.deferConvergence = false;
 	this.convergeDuration = -1;
 	this.convergeVelocity = new b2Vec2();
@@ -437,6 +499,11 @@ MovingEntity.prototype.isConverging = function(){
 	return this.convergeDuration != -1;
 }
 
+MovingEntity.prototype.allowBounceBack = function()
+{
+	return this.bounceEnabled;
+}
+
 //return b2Vec2
 MovingEntity.prototype.getVelocity = function(){
 	return this.body.GetLinearVelocity();
@@ -452,6 +519,51 @@ MovingEntity.prototype.getSpeed = function()
 MovingEntity.prototype.getOriSpeed = function()
 {
 	return this.originalSpeed;
+}
+
+//set current speed
+MovingEntity.prototype.setSpeed = function(speed)
+{
+	this.currentSpeed = speed;
+}
+
+//set original speed
+MovingEntity.prototype.setOriSpeed = function(speed)
+{
+	this.originalSpeed = speed;
+}
+
+//set current speed by percent of original speed.
+//percent is 1.0 means 100%
+MovingEntity.prototype.setSpeedByPercent = function(percent)
+{
+	this.currentSpeed = this.originalSpeed * percent;
+}
+
+//change the speed by an amount <dSpeed>
+MovingEntity.prototype.changeSpeed = function(dSpeed){
+	var newSpeed = this.currentSpeed + dSpeed;
+	if (newSpeed < 0)
+		newSpeed = 0;
+	
+	var dSpeed = newSpeed - this.currentSpeed;
+	this.currentSpeed = newSpeed;
+	
+	//change the speed of physical body
+	var velocity = this.getVelocity();
+	
+	velocity.Normalize();
+	velocity.Multiply(this.currentSpeed);
+	
+	this.body.SetLinearVelocity(velocity);
+	
+	if (this.currentSpeed == 0)
+		this.removeDestination();
+	
+	this.velChangeListener.onVelocityChanged(this);//notify listener
+	
+	return dSpeed;
+	
 }
 
 MovingEntity.prototype.startMoveToNextPointInPath = function()
@@ -526,6 +638,17 @@ MovingEntity.prototype._startConverge = function(){
 	this.velChangeListener.onVelocityChanged(this);//notify listener
 }
 
+//collided with another moving entity
+MovingEntity.prototype.onCollideMovingEntity = function(entity){
+	//do nothing. sub class should implement this
+}
+
+//notify entity that its velocity has been changed outside
+MovingEntity.prototype.notifyVChangedOutside = function(){
+	this.removeDestination();
+	
+	this.velChangeListener.onVelocityChanged(this);//notify listener
+}
 
 //update the entity after <elapsedTime>
 MovingEntity.prototype.update = function(elapsedTime){
@@ -565,13 +688,35 @@ PlayableEntity.prototype.getSkill = function(skillIdx)
 }
 
 //check if the target in the skill's attacking range or not
-PlayableEntity.prototype.canAttack = function(skillIdx, target){
-	var dist = this.distanceVecToEntity(target)
+PlayableEntity.prototype.canFireTo = function(skillIdx, destx, desty){
+	var pos = this.getPosition();
+	var dist = new b2Vec2(pos.x - destx, pos.y - desty)
 				   .Length();
 	var skill = this.getSkill(skillIdx);
 	var range = skill.getRange();
 	
-	return (dist <= range && target.getSide() != Constant.NEUTRAL && this.getSide() != target.getSide());
+	return (dist <= range);
+}
+
+//check if the target in the skill's attacking range or not
+PlayableEntity.prototype.canAttack = function(skillIdx, target){
+	return (this.canFireTo(skillIdx, target.getPosition().x , target.getPosition().y) && 
+			target.getSide() != Constant.NEUTRAL && 
+			this.getSide() != target.getSide());
+}
+
+//fire to an arbitrary position
+PlayableEntity.prototype.fireToDest = function(skillIdx, dest){
+	var skill = this.getSkill(skillIdx);
+	
+	if (Director.dummyClient || //dummy client will do whatever it is told to do
+		this.canFireTo(skillIdx, dest.x, dest.y))
+	{
+		skill.fireToDest(dest);
+		return PlayableEntity.SUCCEED;
+	}
+	else
+		return PlayableEntity.ATTACK_OUT_OF_RANGE;
 }
 
 PlayableEntity.prototype.attack = function(skillIdx, target){
@@ -607,5 +752,6 @@ if (typeof global != 'undefined')
 	global.NanoEntity = NanoEntity;
 	global.MovingEntity = MovingEntity;
 	global.PlayableEntity = PlayableEntity;
+	global.EntityHashKeySeed = EntityHashKeySeed;
 }
 

@@ -19,6 +19,7 @@ require(LIB_PATH + "Projectile.js");
 require(LIB_PATH + "Skill.js");
 require(LIB_PATH + "Cell.js");
 require(LIB_PATH + "Virus.js");
+require(LIB_PATH + "PowerUp.js");
 
 /*-------Director instance-------*/	
 var Director = {};
@@ -27,15 +28,27 @@ Director.init = function(initFileXML, onInitFinished)
 {
 	/*---------Director instance definition-------------*/
 	//private
+	var MAX_POWER_UP_WAIT_TIME = 120000;//2 minutes
+	var MIN_POWER_UP_WAIT_TIME = 60000;//1 minute
 	var gameInterval; // Interval variable used for gameLoop 
 	var managedEntityList;//list of managed entity
 	var cellSpawnPoints;//list of spawning locations for cells 
-	var virusSpawnPoints;//list of spawning locations for viruses; 
+	var virusSpawnPoints;//list of spawning locations for viruses;
+	var width;//map's width
+	var height;//map's height
 	var lastUpdateTime;
 	var currentUpdateTime;//for using during update
 	var xmlParser;
+	var idSeed;//id seed
+	var timeUntilNextPUp;//amount of time until next power up
+	
+	var locked;//lock some operations during update
 	
 	Director.onUpdate;//update callback function. should be function(lastUpdateTime, currentTime)
+	Director.onEntityDeath ;
+	Director.onPowerUpAppear ;
+	Director.onPowerUpChangedDir;//callback being called when power up item has changed its direction
+	Director.onKillHappen;//callback function called when an enity killed a target
 	
 	var that = this;
 	
@@ -43,8 +56,15 @@ Director.init = function(initFileXML, onInitFinished)
 	DirectorBase.call(this);
 	
 	lastUpdateTime = -1;
+	locked = false;
+	idSeed = Constant.SERVER_MAX_CONNECTIONS;//reserve those smallest numbers for player's id
 	
+	//callback functions
 	Director.onUpdate = undefined;//no update callback
+	Director.onEntityDeath = function(id) {}
+	Director.onPowerUpAppear = function(powerUp) {}
+	Director.onPowerUpChangedDir = function(powerUp) {}
+	Director.onKillHappen = function(killer, killed){}
 	
 	/*------------create xml parser-------------------*/
 	xmlParser = new xml2js.Parser();
@@ -78,7 +98,6 @@ Director.init = function(initFileXML, onInitFinished)
 		return virusSpawnPoints;
 	}
 	
-	
 	//notification from an entity telling that is hp has changed
 	Director._onHPChanged = function(entity, dhp, isNegative){
 		entity.managedWrapper.cumulateHPChange(isNegative? -dhp: dhp);
@@ -91,6 +110,14 @@ Director.init = function(initFileXML, onInitFinished)
 		var managedEntity = new ManagedEntity(entity);
 		
 		managedEntity.listNode = managedEntityList.insertBack(managedEntity);
+		
+		//if this entity is created during game update, then dont update this entity yet
+		managedEntity.locked = locked;
+	}
+	
+	//the death notification from entity
+	Director._notifyEntityDeath = function(entity){
+		Director.onEntityDeath(entity.getID());
 	}
 	
 	Director._destroyEntity = function(entity){
@@ -102,6 +129,10 @@ Director.init = function(initFileXML, onInitFinished)
 	}
 	
 	
+	Director._notifyKillCount = function(killer, victim){
+		this.onKillHappen(killer, victim);//notify outsider
+	}
+	
 	
 	function gameLoop() {
 		currentUpdateTime = Utils.getTimestamp();
@@ -112,11 +143,21 @@ Director.init = function(initFileXML, onInitFinished)
 		//var elapsedTime = 1000/60.0;
 		//lastUpdateTime = currentUpdateTime - elapsedTime;
 		
+		locked = true;//lock some operations
+		
 		that._baseGameLoop(elapsedTime);//call base game update method
 		
 		//update the entities 
 		managedEntityList.traverse(function(managedEntity) {
-			managedEntity.getEntity().update(elapsedTime);
+			if (managedEntity.locked)
+			{
+				//this entity has just been created, dont update it yet
+				managedEntity.locked = false;
+			}
+			else
+			{
+				managedEntity.getEntity().update(elapsedTime);
+			}
 		}
 		);
 		
@@ -124,6 +165,10 @@ Director.init = function(initFileXML, onInitFinished)
 		if (Director.onUpdate != undefined)
 			Director.onUpdate(lastUpdateTime, currentUpdateTime);
 			
+		locked = false;//unlock some operations
+		
+		//randomly generate power up
+		generatePowerUp(elapsedTime);
 		
 		lastUpdateTime = currentUpdateTime;
 	}
@@ -155,8 +200,8 @@ Director.init = function(initFileXML, onInitFinished)
 	
 	function initMap(mapData)
 	{
-		var width = mapData['$'].width;
-		var height = mapData['$'].height;
+		width = mapData['$'].width;
+		height = mapData['$'].height;
 		var tilesInfo = mapData.tilesInfo[0];
 		var tilesMapStr = tilesInfo.tilesMap[0];
 		that.tilesPerRow = mapData['$'].tilesPerRow;
@@ -226,6 +271,71 @@ Director.init = function(initFileXML, onInitFinished)
 			cellSpawnPoints.push(tile.center);
 	}
 
+	//generate random power up
+	function generatePowerUp(elapsedTime){
+		timeUntilNextPUp -= elapsedTime;
+		
+		if (timeUntilNextPUp <= 0)
+		{
+			var POWER_UPS = ['HealingDrug', 'MeatCell'];
+			
+			var rand_idx = Math.round(Math.random() * (POWER_UPS.length - 1));
+			var powerupClass = POWER_UPS[rand_idx];
+			
+			//randomize starting position and direction
+			var startingTile = null;
+			do{
+				//find a starting tile
+				var rand_row = Math.round(Math.random() * (that.tilesPerCol - 1));
+				var rand_col = Math.round(Math.random() * (that.tilesPerRow - 1));
+				
+				if (that.tiles[rand_row][rand_col].isObstacle == false)
+					startingTile = that.tiles[rand_row][rand_col];
+			} while (startingTile == null);
+			
+			//direction
+			var rand_angle = Math.random() * Math.PI * 2;
+			var dirx = Math.cos(rand_angle);
+			var diry = Math.sin(rand_angle);
+			
+			var spawn_entity;
+			
+			switch (powerupClass)
+			{
+			case "HealingDrug":
+				spawn_entity = new HealingDrug(idSeed, startingTile.center.x, startingTile.center.y, dirx, diry);
+				break;
+			case "MeatCell":
+				spawn_entity = new MeatCell(idSeed, startingTile.center.x, startingTile.center.y, dirx, diry);
+				break;
+			}
+			
+			//listen to power up's direction change
+			spawn_entity.setVelChangeListener(
+			{
+				onVelocityChanged : function(powerUp){
+					Director.onPowerUpChangedDir(powerUp);//call calback function
+				}
+			}
+			);
+			
+			Director.onPowerUpChangedDir
+			
+			++idSeed;//increase the id seeding number
+			
+			randomPowerUpWaitTime();//calculate next waiting time
+			
+			//notify listener
+			Director.onPowerUpAppear(spawn_entity);
+		}
+	}
+	
+	//randomly calculate the wait time for next power up
+	function randomPowerUpWaitTime(){
+		var rand = Math.random();
+		timeUntilNextPUp = rand * MAX_POWER_UP_WAIT_TIME + (1.0 - rand) * MIN_POWER_UP_WAIT_TIME;
+	}
+	
 	/*----------------ManagedEntity - a wrapper for entity that is managed by director----------*/
 	function ManagedEntity(_entity)
 	{
@@ -275,6 +385,8 @@ Director.init = function(initFileXML, onInitFinished)
 	/*----------all functions and member properties are ready ------*/
 	/*----------start initialization using the configuration file---------*/
 	readInitFile(initFileXML);
+	//calculate next waiting time for power up
+	randomPowerUpWaitTime();
 }
 
 // For node.js require

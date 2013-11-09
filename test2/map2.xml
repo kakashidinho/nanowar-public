@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="ISO-8859-1"?>
-<map 	width="34" 
-		height="20"  
+<map 	width="51" 
+		height="30"  
 		background="mapBg"
 		tilesPerRow="9"
 		tilesPerCol="9"

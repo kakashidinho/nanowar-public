@@ -97,10 +97,12 @@ Director.loadMap = function(initFileXML, onInitFinished)
 	var spriteModuleList;
 	var visualEntityList;
 	var lastUpdateTime;
-	var currentUpdateTime;//for using during update
-	
+	var currentSceneTime;//for using during update
+	var initXmlRequest;
 	var mainCharacter;//the main entity in the game
 	var targetEntity;//the attacking target of main character
+	
+	var locked;//lock during game update
 	
 	var sceneRoot = this.sceneRoot;
 	
@@ -108,6 +110,9 @@ Director.loadMap = function(initFileXML, onInitFinished)
 	var guiNode;//scene's gui node, for containing GUI elements
 	var pingText;//ping value text
 	var attackFailText;//text the display the reason why attack failed
+	var hpText;
+	var killText;
+	var deathText;
 	var skillIcons;
 	var skillIconMasks;
 	
@@ -120,6 +125,7 @@ Director.loadMap = function(initFileXML, onInitFinished)
 
 	Director.onClick;//on mouse click callback function. should be function(mouseX, mouseY, clickedEntity, isControlButtonDown)
 	Director.onMouseEnterExit;//on mouse enter/exit callback function
+	Director.onMouseMove;//on mouse move callback function
 	Director.onUpdate;//update callback function. should be function(lastUpdateTime, currentTime)
 	Director.preUpdate;//pre-update callback function
 	
@@ -143,9 +149,12 @@ Director.loadMap = function(initFileXML, onInitFinished)
 	//initially, no callbacks
 	Director.onClick = function (x, y, target, isControlButtonDown) { };//do nothing
 	Director.onMouseEnterExit = function (target, enter,x,y) { };//do nothing
+	Director.onMouseMove = function(entity, x, y) {}
 	Director.onUpdate = undefined;
 	Director.preUpdate = undefined;
 	
+	//no locking yet
+	locked = false;
 	
 	//make camera follow an entity
 	Director.setMainCharacter = function(entity)
@@ -157,6 +166,23 @@ Director.loadMap = function(initFileXML, onInitFinished)
 	Director.markDestination = function(x, y){
 		destMark.setVisible(true);
 		destMark.centerAt(x, y);
+	}
+	
+	//mark the target
+	Director.markTarget = function(entity){
+		targetEntity = entity;
+		targetMark.setVisible(true);
+	}
+	
+	//mark the firing destination
+	Director.markFireDest = function(x, y){
+		targetMark.centerAt(x, y);
+		targetMark.setVisible(true);
+	}
+	
+	Director.hideTargetMark = function(){
+		targetEntity = null;
+		targetMark.setVisible(false);
 	}
 	
 	//mark the target
@@ -189,6 +215,77 @@ Director.loadMap = function(initFileXML, onInitFinished)
 		attackFailText.setVisible(false);
 	}
 	
+	//an entity has died
+	Director.notifyEntityDeath = function(entityID){
+		if (entityID in this.knownEntity == false)
+			return;
+		var entity = this.knownEntity[entityID];
+		//stop marking this target
+		if (entity == targetEntity)
+			Director.hideTargetMark();
+			
+		var visualEntity = entity.visualPart;
+		
+		if (visualEntity != null)
+			visualEntity.commitChanges();//reflect current state of the entity first
+			
+		if (visualEntity != null)
+		{
+			visualEntity.playAnimation("die");//play dying animation
+			visualEntity.enableEvents(false);//disable mouse click
+			visualEntity.setFrameTime(currentSceneTime, 1000);//dying in 1s
+		}
+	}
+	
+	//an entity has started respawning
+	Director.notifyEntityStartRespawn = function(entityID){
+		if (entityID in this.knownEntity == false)
+			return;
+		var entity = this.knownEntity[entityID];
+			
+		var visualEntity = entity.visualPart;
+			
+		if (visualEntity != null)
+		{
+			visualEntity.playAnimation("normal");//play normal animation
+			visualEntity.setVisible(true);
+			visualEntity.setFrameTime(0, Number.MAX_VALUE);
+			
+			//add alpha behaviour
+			var alphaBehavior = new CAAT.Behavior.AlphaBehavior().
+				setPingPong().
+				setCycle(true).
+				setFrameTime(0, 1000).
+				setValues(0, 1);
+				
+			visualEntity.addBehavior(alphaBehavior);
+		}
+	}
+	
+	//an entity has ended respawning
+	Director.notifyEntityEndRespawn = function(entityID){
+		if (entityID in this.knownEntity == false)
+			return;
+		var entity = this.knownEntity[entityID];
+			
+		var visualEntity = entity.visualPart;
+			
+		if (visualEntity != null)
+		{
+			visualEntity.emptyBehaviorList();
+			visualEntity.setAlpha(1.0);
+			visualEntity.enableEvents(true);
+		}
+	}
+	
+	Director.notifyMyKillCount = function(killCount){
+		killText.setText("Kills: " + killCount);
+	}
+	
+	Director.notifyMyDeathCount = function(deathCount){
+		deathText.setText("Deaths: " + deathCount);
+	}
+	
 	//display information about the current skill slots of main character
 	Director.displaySkillInfos = function(skillSlots){
 		if (mainCharacter == null)
@@ -216,6 +313,7 @@ Director.loadMap = function(initFileXML, onInitFinished)
 		}
 	}
 	
+	
 	Director._getCAATDirector = function()
 	{
 		return caatDirector;
@@ -240,6 +338,9 @@ Director.loadMap = function(initFileXML, onInitFinished)
 			var visualEntity = new VisualEntity(entity);
 		
 			visualEntity.listNode = visualEntityList.insertBack(visualEntity);
+			
+			//if this entity is created during game update, then dont update this entity yet
+			visualEntity.locked = locked;
 		}
 		else
 			entity.visualPart = null;//this entity doesn't have any visual aspect. maybe just for physics simulation
@@ -250,7 +351,7 @@ Director.loadMap = function(initFileXML, onInitFinished)
 		if (entity == mainCharacter)
 			mainCharacter = null;
 		else if (entity == targetEntity)
-			targetEntity = null;
+			Director.hideTargetMark();
 			
 		var visualEntity = entity.visualPart;
 		
@@ -267,14 +368,15 @@ Director.loadMap = function(initFileXML, onInitFinished)
 			visualEntity.playAnimation("die");//play dying animation
 			visualEntity.enableEvents(false);//disable mouse click
 			visualEntity.setDiscardable(true);
-			visualEntity.setFrameTime(currentUpdateTime, 1000);//dying in 1s
+			visualEntity.setFrameTime(currentSceneTime, 1000);//dying in 1s
 		}
 	   
 	}
 	
 	//game loop
 	function gameUpdate(scene_time){
-		currentUpdateTime = scene_time;
+		var currentUpdateTime = Utils.getTimestamp();
+		currentSceneTime = scene_time;
 		if (lastUpdateTime == -1)
 			lastUpdateTime = currentUpdateTime;
 		
@@ -286,12 +388,22 @@ Director.loadMap = function(initFileXML, onInitFinished)
 		if (Director.preUpdate != undefined)
 			Director.preUpdate(lastUpdateTime, currentUpdateTime);
 		
+		locked = true;//lock certain operations
+		
 		that._baseGameLoop(elapsedTime);//call base game update method
 			
 		//update the entities and commit changes to their visual parts
 		visualEntityList.traverse(function(visualEntity) {
-			visualEntity.getEntity().update(elapsedTime);
-			visualEntity.commitChanges();
+			if (visualEntity.locked)
+			{
+				//this entity has just been created, dont update it yet
+				visualEntity.locked = false;
+			}
+			else
+			{
+				visualEntity.getEntity().update(elapsedTime);
+				visualEntity.commitChanges();
+			}
 		}
 		);
 		
@@ -299,13 +411,25 @@ Director.loadMap = function(initFileXML, onInitFinished)
 		if (Director.onUpdate != undefined)
 			Director.onUpdate(lastUpdateTime, currentUpdateTime);
 		
-		//move camera to follow target
+		locked = false;//unlock certain operations
+		
+		graphicsUpdate();
+		
+		lastUpdateTime = currentUpdateTime;
+	}
+	
+	function graphicsUpdate(){
+		
 		if (mainCharacter != null)
 		{
+			//move camera to follow target
 			var pos = mainCharacter.getPosition();
 			worldNode.setLocation(
 				displayWidth * 0.5 - pos.x * Constant.PHYSICS_UNIT_SCALE, 
 				displayHeight * 0.5 - pos.y * Constant.PHYSICS_UNIT_SCALE);
+				
+			//update the hp text
+			hpText.setText("HP: " + Math.floor(mainCharacter.getHP()));
 		}
 		
 		//update the destination mark
@@ -318,16 +442,8 @@ Director.loadMap = function(initFileXML, onInitFinished)
 		//update the target mark
 		if (targetEntity != null && targetEntity.isAlive()){
 			//we currently have a marked target
-			targetMark.setVisible(true);
 			targetMark.centerAt(targetEntity.getPosition().x, targetEntity.getPosition().y);
 		}
-		else//dont have any marked target
-		{
-			//hide the mark
-			targetMark.setVisible(false);
-		}
-		
-		lastUpdateTime = currentUpdateTime;
 	}
 	
 	//initialize graphics
@@ -343,6 +459,10 @@ Director.loadMap = function(initFileXML, onInitFinished)
 		worldNode.mouseDown = function(mouse){
 			Director.onClick(mouse.x, mouse.y, null, mouse.isControlDown() );
 		};
+		
+		worldNode.mouseMove = function(mouse){
+			Director.onMouseMove(null, mouse.x, mouse.y);
+		}
 	 
 		sceneRoot.addChild(worldNode);
 		
@@ -366,14 +486,11 @@ Director.loadMap = function(initFileXML, onInitFinished)
 	
 		//animations for the 2 marks
 		var initScale = 1.0 / Constant.PHYSICS_UNIT_SCALE;
-		var cycleDraw = new CAAT.Behavior.ContainerBehavior().
-		setCycle(true).
-		setFrameTime(0, 1000);
-		var scaleMarker = new CAAT.Behavior.ScaleBehavior().
-		setPingPong().
-		setFrameTime(0, 1000).
-		setValues(initScale, 2 * initScale, initScale, 2 * initScale, .50, .50);
-		cycleDraw.addBehavior(scaleMarker);
+		var scaleBehavior = new CAAT.Behavior.ScaleBehavior().
+			setPingPong().
+			setCycle(true).
+			setFrameTime(0, 1000).
+			setValues(initScale, 2 * initScale, initScale, 2 * initScale, .50, .50);
 		
 		//movement's destination mark
 		destMark = new CAAT.Foundation.UI.ShapeActor();
@@ -384,7 +501,7 @@ Director.loadMap = function(initFileXML, onInitFinished)
 		destMark.setStrokeStyle('#000');
 		destMark.setSize(15 , 15 );
 		destMark.setVisible(false);//initially invisible
-		destMark.addBehavior(cycleDraw);
+		destMark.addBehavior(scaleBehavior);
 		
 		worldNode.addChild(destMark);
 		
@@ -398,7 +515,7 @@ Director.loadMap = function(initFileXML, onInitFinished)
 		targetMark.setStrokeStyle('#000');
 		targetMark.setSize(20 , 20 );
 		targetMark.setVisible(false);//initially invisible
-		targetMark.addBehavior(cycleDraw);
+		targetMark.addBehavior(scaleBehavior);
 		
 		worldNode.addChild(targetMark);
 	}
@@ -415,11 +532,11 @@ Director.loadMap = function(initFileXML, onInitFinished)
 		
 		
 		/*---create "ping value" text--------*/
-		var font= "15px sans-serif";
+		var font15= "15px sans-serif";
 		pingText =  new CAAT.Foundation.UI.TextActor()
 										.setLocation(10, 36)
 										.setText("Ping: 0")
-										.setFont(font)
+										.setFont(font15)
 										.setAlign("left")
 										.setTextFillStyle('#ff0000')
 										.enableEvents(false)
@@ -428,11 +545,11 @@ Director.loadMap = function(initFileXML, onInitFinished)
 		guiNode.addChild(pingText);
 		
 		/*---create "attack failed" text------*/
-		var font2= "18px sans-serif";
+		var font18= "18px sans-serif";
 		attackFailText =  new CAAT.Foundation.UI.TextActor()
 										.setLocation(displayWidth / 2.0, 36)
 										.setText("Out of range!!!")
-										.setFont(font2)
+										.setFont(font18)
 										.setAlign("center")
 										.setTextFillStyle('#ff0000')
 										.setVisible(false)
@@ -441,17 +558,55 @@ Director.loadMap = function(initFileXML, onInitFinished)
 		
 		guiNode.addChild(attackFailText);
 		
+		/*---------create HP text------------*/
+		hpText =  new CAAT.Foundation.UI.TextActor()
+										.setLocation(10, 72)
+										.setText("HP: 0")
+										.setFont(font15)
+										.setAlign("left")
+										.setTextFillStyle('#ff0000')
+										.enableEvents(false)
+										;
+		
+		guiNode.addChild(hpText);
+		
+		/*----------create kill count text------*/
+		killText = new CAAT.Foundation.UI.TextActor()
+										.setLocation(10, 108)
+										.setText("Kills: 0")
+										.setFont(font15)
+										.setAlign("left")
+										.setTextFillStyle('#ff0000')
+										.enableEvents(false)
+										;
+		
+		guiNode.addChild(killText);
+		
+		/*----------create death count text------*/
+		deathText = new CAAT.Foundation.UI.TextActor()
+										.setLocation(10, 144)
+										.setText("Deaths: 0")
+										.setFont(font15)
+										.setAlign("left")
+										.setTextFillStyle('#ff0000')
+										.enableEvents(false)
+										;
+		
+		guiNode.addChild(deathText);
+		
 		/*-------create skill icons----------*/
 		skillIcons = new Array();
 		skillIconMasks = new Array();
 		
-		var ICON_WIDTH = 60;
-		var ICON_HEIGHT = 60;
+		var minSize = displayWidth < displayHeight? displayWidth: displayHeight;
+		
+		var ICON_WIDTH = minSize / 5;
+		var ICON_HEIGHT = minSize / 5;
 		
 		for (var i = 0; i < Constant.MAX_SKILL_SLOTS; ++i){
 							
 			var skillIconFrame = new CAAT.Foundation.Actor().
-								setLocation(10 + i * (ICON_WIDTH + 5), displayHeight - ICON_HEIGHT - 10).
+								setLocation(10 + i * (ICON_WIDTH + 15), displayHeight - ICON_HEIGHT - 10).
 								setSize(ICON_WIDTH, ICON_HEIGHT).
 								setFillStyle('#333333').
 								setAlpha(0.5);
@@ -476,7 +631,7 @@ Director.loadMap = function(initFileXML, onInitFinished)
 	//display attack failed text
 	function displayAtkFailTxt(reasonText){
 		attackFailText.setVisible(true);
-		attackFailText.setFrameTime(currentUpdateTime, 3000);//appear in 3s
+		attackFailText.setFrameTime(currentSceneTime, 3000);//appear in 3s
 		attackFailText.setText(reasonText);
 	}
 	
@@ -539,7 +694,7 @@ Director.loadMap = function(initFileXML, onInitFinished)
 	{
 		spriteSheetList = new Array();//list of sprite sheet objects
 		spriteModuleList = new Array();//list of sprite modules
-		var Connect = new XMLHttpRequest();
+		var Connect = initXmlRequest;
  
 		// define which file to open and
 		// send the request.
@@ -614,7 +769,7 @@ Director.loadMap = function(initFileXML, onInitFinished)
 	
 	function initMap(mapFile)
 	{
-		var Connect = new XMLHttpRequest();
+		var Connect = initXmlRequest;
  
 		// define which file to open and
 		// send the request.
@@ -724,7 +879,7 @@ Director.loadMap = function(initFileXML, onInitFinished)
 		visualTile.enableEvents(false);
 		
 		if (!tileType.isObstacle)
-			worldNode.setZOrder(visualTile, -1);
+			worldNode.setZOrder(visualTile, -2);
 	}
 	
 	function createSpriteSheet(imgID, subImgsPerRow, subImgsPerCol) {
@@ -803,6 +958,9 @@ Director.loadMap = function(initFileXML, onInitFinished)
 	    this.playAnimation("normal");//play the animation named "normal"
 	    //caatActor.setScale(entity.getWidth() / caatActor.width, entity.getHeight() / caatActor.height);
 		
+		if (this.entity.isGround())//should make it ground level
+			worldNode.setZOrder(this, -1);
+		
 	    //add mouse click event listener
 	    if (this.entity.getHP() <= 0)
 		{
@@ -863,6 +1021,8 @@ Director.loadMap = function(initFileXML, onInitFinished)
 		
 		this.entity.visualPart = this;//now the entity will know what is its visual part
 		
+		this.commitChanges();
+		
 	}//VisualEntity = function(entity)
 	
 	//inheritance from SceneObject
@@ -876,16 +1036,16 @@ Director.loadMap = function(initFileXML, onInitFinished)
 	}
 	//mouse enter and exit listener, use it to detect whether cursor enter or exit the actor
 	VisualEntity.prototype.mouseEnter = function (mouse) {
-		Director.onMouseEnterExit(this.entity, true ,this.x,this.y);
+		Director.onMouseEnterExit(this.entity, true ,mouse.x,mouse.y);
 	}
 
 
 	VisualEntity.prototype.mouseExit = function (mouse) {
-		Director.onMouseEnterExit(this.entity, false, this.x, this.y);	   
+		Director.onMouseEnterExit(this.entity, false, mouse.x, mouse.y);	   
 	}
 
 	VisualEntity.prototype.mouseMove = function (mouse) {
-		//TO DO
+		Director.onMouseMove(this.entity, mouse.x, mouse.y);
 	}
 	
 	//let the visual part change to reflect its physical counterpart
@@ -913,7 +1073,7 @@ Director.loadMap = function(initFileXML, onInitFinished)
 			this.hpChangePosTxt.setText('+' + Math.floor(this.dHPPos).toString());
 			this.hpChangePosTxt.centerAt(x, y);
 			this.hpChangePosTxt.setVisible(true);
-			this.hpChangePosTxt.setFrameTime(currentUpdateTime, 500);//appear in 0.5s
+			this.hpChangePosTxt.setFrameTime(currentSceneTime, 500);//appear in 0.5s
 			
 			
 			this.dHPPos = 0;
@@ -929,7 +1089,7 @@ Director.loadMap = function(initFileXML, onInitFinished)
 			this.hpChangeNegTxt.setText(Math.floor(this.dHPNeg).toString());
 			this.hpChangeNegTxt.centerAt(x, y);
 			this.hpChangeNegTxt.setVisible(true);
-			this.hpChangeNegTxt.setFrameTime(currentUpdateTime, 500);//appear in 0.5s
+			this.hpChangeNegTxt.setFrameTime(currentSceneTime, 500);//appear in 0.5s
 			this.dHPNeg = 0;
 		}//if (this.dHPNeg < 0
 	}

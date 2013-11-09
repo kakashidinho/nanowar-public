@@ -194,6 +194,19 @@ Utils.List.prototype.removeNode = function(node)
 	this.numElements --;
 }
 
+//remove the element from this list
+Utils.List.prototype.remove = function(elem){
+	var node = this.head;
+	while(node != null){
+		if (node.item == elem)
+			break;
+		node = node.next;
+	}
+	
+	if (node != null)
+		this.removeNode(node);
+}
+
 Utils.List.prototype.removeAll = function()
 {
 	this.head = null;
@@ -209,6 +222,18 @@ Utils.List.prototype.getLastNode = function()
 Utils.List.prototype.getFirstNode = function()
 {
 	return this.head;
+}
+
+//find the element in this list
+Utils.List.prototype.findNode = function(elem){
+	var node = this.head;
+	while(node != null){
+		if (node.item == elem)
+			return node;
+		node = node.next;
+	}
+	
+	return null;
 }
 
 Utils.List.prototype.getNumElements = function()

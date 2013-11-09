@@ -7,6 +7,18 @@
 		cellsPerCol="4">
 	</spriteSheet>
 	<spriteSheet 
+		id="cell" 
+		imgID="cell"
+		cellsPerRow="1" 
+		cellsPerCol="1">
+	</spriteSheet>
+	<spriteSheet 
+		id="virus" 
+		imgID="virus"
+		cellsPerRow="3" 
+		cellsPerCol="3">
+	</spriteSheet>
+	<spriteSheet 
 		id="projectiles" 
 		imgID="projectiles"
 		cellsPerRow="5" 
@@ -18,13 +30,37 @@
 		cellsPerRow="6" 
 		cellsPerCol="1">
 	</spriteSheet>
+	<spriteSheet 
+		id="spider-web" 
+		imgID="spider-web"
+		cellsPerRow="2" 
+		cellsPerCol="1">
+	</spriteSheet>
+	<spriteSheet 
+		id="drug" 
+		imgID="drug"
+		cellsPerRow="5" 
+		cellsPerCol="3">
+	</spriteSheet>
+	<spriteSheet 
+		id="meat-cell" 
+		imgID="meat-cell"
+		cellsPerRow="2" 
+		cellsPerCol="1">
+	</spriteSheet>
+	<spriteSheet 
+		id="power-up" 
+		imgID="power-up"
+		cellsPerRow="3" 
+		cellsPerCol="1">
+	</spriteSheet>
 	<spriteModule 
 		name = "WarriorCell"
-		sheetID = "sprites1"
+		sheetID = "cell"
 		>
 		<animation 
 			name="normal"
-			sequence="0,1"
+			sequence="0"
 			interval="200"
 			loop="true"
 			/>
@@ -37,17 +73,17 @@
 	</spriteModule>
 	<spriteModule 
 		name = "LeechVirus"
-		sheetID = "sprites1"
+		sheetID = "virus"
 		>
 		<animation 
 			name="normal"
-			sequence="4,5,6,7"
+			sequence="0,1,2,3,6"
 			interval="200"
 			loop="true"
 			/>
 		<animation 
 			name="die"
-			sequence="4"
+			sequence="7"
 			interval="200"
 			loop="false"
 			/>
@@ -70,6 +106,17 @@
 		<animation 
 			name="icon"
 			sequence="0"
+			interval="200"
+			loop="true"
+			/>
+	</spriteModule>
+	<spriteModule 
+		name = "AcidCannon"
+		sheetID = "projectiles"
+		>
+		<animation 
+			name="icon"
+			sequence="6"
 			interval="200"
 			loop="true"
 			/>
@@ -109,6 +156,23 @@
 			/>
 	</spriteModule>
 	<spriteModule 
+		name = "AcidAreaEffect"
+		sheetID = "projectiles"
+		>
+		<animation 
+			name="normal"
+			sequence="5,6,7,8,9,10"
+			interval="200"
+			loop="true"
+			/>
+		<animation 
+			name="die"
+			sequence="8,9,10"
+			interval="200"
+			loop="false"
+			/>
+	</spriteModule>
+	<spriteModule 
 		name = "LifeLeechEffect"
 		sheetID = "blood"
 		>
@@ -123,6 +187,119 @@
 			sequence="0,1,2,3,4,5"
 			interval="200"
 			loop="false"
+			/>
+	</spriteModule>
+	<spriteModule 
+		name = "Web"
+		sheetID = "spider-web"
+		>
+		<animation 
+			name="normal"
+			sequence="0"
+			interval="200"
+			loop="true"
+			/>
+		<animation 
+			name="die"
+			sequence="1"
+			interval="200"
+			loop="false"
+			/>
+	</spriteModule>
+	<spriteModule 
+		name = "WebGun"
+		sheetID = "spider-web"
+		>
+		<animation 
+			name="icon"
+			sequence="0"
+			interval="200"
+			loop="true"
+			/>
+	</spriteModule>
+	<spriteModule 
+		name = "WebEffect"
+		sheetID = "spider-web"
+		>
+		<animation 
+			name="normal"
+			sequence="0"
+			interval="200"
+			loop="true"
+			/>
+		<animation 
+			name="die"
+			sequence="1"
+			interval="200"
+			loop="false"
+			/>
+	</spriteModule>
+	<spriteModule 
+		name = "WebAreaEffect"
+		sheetID = "spider-web"
+		>
+		<animation 
+			name="normal"
+			sequence="0"
+			interval="200"
+			loop="true"
+			/>
+		<animation 
+			name="die"
+			sequence="1"
+			interval="200"
+			loop="false"
+			/>
+	</spriteModule>
+	<spriteModule 
+		name = "HealingDrug"
+		sheetID = "drug"
+		>
+		<animation 
+			name="normal"
+			sequence="0,1,2,3,4,5,6,7,8,10,11,12"
+			interval="200"
+			loop="true"
+			/>
+		<animation 
+			name="die"
+			sequence="13"
+			interval="200"
+			loop="false"
+			/>
+	</spriteModule>
+	<spriteModule 
+		name = "MeatCell"
+		sheetID = "meat-cell"
+		>
+		<animation 
+			name="normal"
+			sequence="0"
+			interval="200"
+			loop="true"
+			/>
+		<animation 
+			name="die"
+			sequence="1"
+			interval="200"
+			loop="false"
+			/>
+	</spriteModule>
+	<spriteModule 
+		name = "HealingEffect"
+		sheetID = "power-up"
+		>
+		<animation 
+			name="normal"
+			sequence="2"
+			interval="100"
+			loop="true"
+			/>
+		<animation 
+			name="die"
+			sequence="0, 1"
+			interval="200"
+			loop="true"
 			/>
 	</spriteModule>
 </sprites>

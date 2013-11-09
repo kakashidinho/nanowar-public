@@ -6,6 +6,7 @@
 		<image id="sprites2" url="sprites2.png"/>
 		<image id="mapTileSheet1" url="mapTileSheet1.png"/>
 		<image id="projectiles" url="projectiles.png"/>
+		<image id="spider-web" url="spider-web-2.png"/>
 	</images>
 	<spritesFile>sprites.xml</spritesFile>
 	<mapFile>map.xml</mapFile>

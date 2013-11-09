@@ -22,7 +22,14 @@ var MsgType = {
 	PING_NOTIFICATION: 17,
 	SELF_CORRECT_PREDICTION: 18,
 	SKILL_NOT_READY: 19,
-	JOIN : 20
+	FIRE_TO: 20,
+	ADD_EFFECT: 21,
+	ENTITY_DESTROY: 22,
+	ENTITY_RESPAWN: 23,
+	ENTITY_RESPAWN_END: 24,
+	KILL_COUNT: 25,
+	DEATH_COUNT: 26,
+	JOIN : 27
 };
 
 function MoveAlongMsg(entity, dirx, diry){
@@ -43,6 +50,14 @@ function AttackMsg(entity, target, skillIdx){
 	this.type = MsgType.ATTACK;
 	this.entityID = entity.getID();
 	this.targetID = target.getID();
+	this.skillIdx = skillIdx;
+}
+
+function FireToMsg(entity, destx, desty, skillIdx){
+	this.type = MsgType.FIRE_TO;
+	this.entityID = entity.getID();
+	this.destx = destx;
+	this.desty = desty;
 	this.skillIdx = skillIdx;
 }
 
@@ -84,15 +99,31 @@ function EntitySpawnMsg(entityID, className, hp, x, y){
 	this.className = className;
 	this.x = x;
 	this.y = y;
+	this.dirx = 0;
+	this.diry = 0;
 	this.hp = hp;
 }
 
 function EntitySpawnMsg2(entity){
+	var pos = entity.getPosition();
+	var vel = entity.getVelocity();
 	this.type = MsgType.ENTITY_SPAWN;
 	this.entityID = entity.getID();
 	this.className = entity.getClassName();
-	this.x = entity.getPosition().x;
-	this.y = entity.getPosition().y;
+	this.x = pos.x;
+	this.y = pos.y;
+	this.dirx = vel.x;
+	this.diry = vel.y;
+	this.hp = entity.getHP();
+}
+
+function EntityRespawnMsg2(entity){
+	var pos = entity.getPosition();
+	var vel = entity.getVelocity();
+	this.type = MsgType.ENTITY_RESPAWN;
+	this.entityID = entity.getID();
+	this.x = pos.x;
+	this.y = pos.y;
 	this.hp = entity.getHP();
 }
 
@@ -116,8 +147,13 @@ function EntityHPChange(entityID, dHPPos, dHPNeg) {
 	this.dHPNeg = Math.abs(dHPNeg);//the absolute amount of HP changed negatively
 }
 
-function EntityDeathMessage(entityID){
+function EntityDeathMsg(entityID){
 	this.type = MsgType.ENTITY_DEATH;
+	this.entityID = entityID;
+}
+
+function EntityDestroyMsg(entityID){
+	this.type = MsgType.ENTITY_DESTROY;
 	this.entityID = entityID;
 }
 
@@ -144,6 +180,24 @@ function PingNotifyMsg(ping) {
 	this.ping = ping;
 }
 
+function AddEffectMsg(effect){
+	this.type = MsgType.ADD_EFFECT;
+	this.producerID = effect.getProducerID();
+	this.producerOwnerID = effect.getProducerOwnerID();
+	this.affectedTargetID = effect.getAffectedTarget().getID();
+	this.className = effect.getClassName();
+}
+
+function EntityRespawnEndMsg(entityID){
+	this.type = MsgType.ENTITY_RESPAWN_END;
+	this.entityID = entityID;
+}
+
+function KillDeathCountMsg(isKillCountMsg, count){
+	this.type = isKillCountMsg? MsgType.KILL_COUNT: MsgType.DEATH_COUNT;
+	this.count = count;
+}
+
 // For node.js require
 if (typeof global != 'undefined')
 {
@@ -157,13 +211,19 @@ if (typeof global != 'undefined')
 	global.PlayerIDMsg = PlayerIDMsg;
 	global.EntitySpawnMsg = EntitySpawnMsg;
 	global.EntitySpawnMsg2 = EntitySpawnMsg2;
+	global.EntityRespawnMsg2 = EntityRespawnMsg2;
 	global.EntityMoveMentMsg = EntityMoveMentMsg;
 	global.EntityHPChange = EntityHPChange;
-	global.EntityDeathMessage = EntityDeathMessage;
+	global.EntityDeathMsg = EntityDeathMsg;
 	global.AttackOutRangeMsg = AttackOutRangeMsg;
 	global.SkillNotReadyMsg = SkillNotReadyMsg;
 	global.ChangeFakeDelayMsg = ChangeFakeDelayMsg;
 	global.PingMsg = PingMsg;
 	global.PingNotifyMsg = PingNotifyMsg;
+	global.FireToMsg = FireToMsg;
+	global.AddEffectMsg = AddEffectMsg;
+	global.EntityDestroyMsg = EntityDestroyMsg;
+	global.EntityRespawnEndMsg = EntityRespawnEndMsg;
+	global.KillDeathCountMsg = KillDeathCountMsg;
 	global.MsgType = MsgType;
 }
