@@ -28,7 +28,8 @@ var MsgType = {
 	ENTITY_RESPAWN: 23,
 	ENTITY_RESPAWN_END: 24,
 	KILL_COUNT: 25,
-	DEATH_COUNT: 26
+	DEATH_COUNT: 26,
+	JOIN : 27
 };
 
 function MoveAlongMsg(entity, dirx, diry){
@@ -64,6 +65,11 @@ function StartGameMsg(initXML)
 {
 	this.type = MsgType.START;
 	this.initXML = initXML;
+}
+
+function JoinMsg(className) {
+	this.type = MsgType.JOIN;
+	this.className = className;
 }
 
 //player ready to receive in-game messages

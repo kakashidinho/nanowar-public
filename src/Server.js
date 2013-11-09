@@ -710,6 +710,10 @@ Server.prototype.onMessageFromPlayer = function(player, msg){
 		if (player.fakeDelay < 0)
 			player.fakeDelay = 0;
 		break;
+	case MsgType.JOIN:
+		player.className = msg.className;
+		this.sendMsgViaChannel(this.connections[player.connID].socket, new StartGameMsg(this.gameInitXML));
+		break;
 	default:
 		Director.postMessage(msg);//forward it to the director
 	}
@@ -745,12 +749,10 @@ Server.prototype.start = function (httpServer) {
 				// create a new player
 				var player = that.newPlayer(conn);
 				that.sendMsgViaChannel(conn, new PlayerIDMsg(player.playerID));//notify player about his ID
-				that.sendMsgViaChannel(conn, new PlayerClassMsg(player.className));//notify player about his initialized class name
+				//that.sendMsgViaChannel(conn, new PlayerClassMsg(player.className));//notify player about his initialized class name
 				
-				if (that.gameStarted)//game already started. let him know
-				{
-					that.sendMsgViaChannel(conn, new StartGameMsg(that.gameInitXML));
-				}//if (that.gameStarted)
+				//if (that.gameStarted)//game already started. let him know
+					//that.sendMsgViaChannel(conn, new StartGameMsg(that.gameInitXML));
 			}
 
 			// When the client closes the connection to the server/closes the window

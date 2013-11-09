@@ -3,13 +3,96 @@ this code is used by client
 */	
 
 /*-------Director instance on client side-------*/	
-var Director = {};
+var Director = {
+	caatDirector : null,
+	displayWidth : null,
+	displayHeight : null,
+	sceneRoot : null,
+	startGameLoop : function(frameRate) {
+		CAAT.loop(frameRate);
+	},
+	endGameLoop : function() {
+		CAAT.endLoop();
+	}
+};
 
-Director.init = function(canvas, displayWidth, displayHeight, initFileXML, onInitFinished)
+Director.init = function(client, canvas, displayWidth, displayHeight) {
+	var menuScene;
+	var menuImages;
+	this.displayWidth = displayWidth;
+	this.displayHeight = displayHeight;
+		
+	// create a CAAT director object for handling graphics
+	this.caatDirector = new CAAT.Foundation.Director().initialize(
+			displayWidth,    // pixels wide
+			displayHeight,    // pixels across
+			canvas
+	);
+	
+	var caatDirector = this.caatDirector;
+	
+	menuScene = caatDirector.createScene();
+	menuImages = [{id : 'menuButtons', url: 'menuButtons.png'}];
+	
+	new CAAT.ImagePreloader().loadImages(
+			menuImages,
+			function (counter, images) {
+				if (counter == images.length)
+				{
+					//finish loading images
+					caatDirector.setImagesCache(images);
+					
+					var buttonsSprite = new CAAT.SpriteImage().initialize(
+						caatDirector.getImage('menuButtons'), 2, 3 );
+					
+					var font= "32px sans-serif";
+					var menuTitle =  new CAAT.Foundation.UI.TextActor()
+													.setLocation(280, 80)
+													.setText("Select Your Side")
+													.setFont(font)
+													.setAlign("center")
+													.setTextFillStyle('#000000')
+													.enableEvents(false);
+													
+					menuScene.addChild(menuTitle);
+					
+					
+					var b1= new CAAT.Actor().setAsButton(
+						buttonsSprite.getRef(), 0, 1, 2, 0, function(button) {
+									client.redTeam();
+									caatDirector.setScene(1)
+									;
+				                }
+				        )
+						.setLocation(100, 200);
+					
+					var b2= new CAAT.Actor().setAsButton(
+						buttonsSprite.getRef(), 3, 4, 5, 3, function(button) {
+									client.blueTeam();
+									caatDirector.setScene(1);
+				                }
+				        )
+						.setLocation(350, 200);
+
+					menuScene.addChild(b1);
+					menuScene.addChild(b2);
+					
+					Director.startGameLoop(Constant.FRAME_RATE);
+				}
+			}
+		);
+		
+	this.sceneRoot = caatDirector.createScene();
+
+}
+
+Director.loadMap = function(initFileXML, onInitFinished)
 {
 	/*---------Director instance definition-------------*/
 	//private
-	var caatDirector;
+	var caatDirector = this.caatDirector;
+	var displayWidth = this.displayWidth;
+	var displayHeight = this.displayHeight;
 	var spriteSheetList;
 	var spriteModuleList;
 	var visualEntityList;
@@ -21,7 +104,7 @@ Director.init = function(canvas, displayWidth, displayHeight, initFileXML, onIni
 	
 	var locked;//lock during game update
 	
-	var sceneRoot;
+	var sceneRoot = this.sceneRoot;
 	
 	/*-------GUI items------*/
 	var guiNode;//scene's gui node, for containing GUI elements
@@ -67,17 +150,6 @@ Director.init = function(canvas, displayWidth, displayHeight, initFileXML, onIni
 	
 	//no locking yet
 	locked = false;
-	
-	/*---------method definitions----------------*/
-	Director.startGameLoop = function(frameRate)
-	{
-		CAAT.loop(frameRate);
-	}
-	
-	Director.endGameLoop = function()
-	{
-		CAAT.endLoop();
-	}
 	
 	//make camera follow an entity
 	Director.setMainCharacter = function(entity)
@@ -371,19 +443,10 @@ Director.init = function(canvas, displayWidth, displayHeight, initFileXML, onIni
 	
 	//initialize graphics
 	function initGraphics(){
-		// create a CAAT director object for handling graphics
-		caatDirector = new CAAT.Foundation.Director().initialize(
-				displayWidth,    // pixels wide
-				displayHeight,    // pixels across
-				canvas
-		);
-		
+
 		// create visual entity list
 		visualEntityList = new Utils.List();
-		
-		// add a scene object to the director.
-		sceneRoot =     caatDirector.createScene();
-		
+			
 		//world node
 		worldNode = new CAAT.Foundation.ActorContainer().
 				setFillStyle('#fff').

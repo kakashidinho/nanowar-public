@@ -56,7 +56,7 @@ Client.prototype.startGame = function()
 		return that.handleMessage(msg);
 	}
 	
-	Director.startGameLoop(Constant.FRAME_RATE);
+	//Director.startGameLoop(Constant.FRAME_RATE);
 }
 
 Client.prototype.endGame = function()
@@ -366,7 +366,8 @@ Client.prototype.onMessageFromServer = function(msg){
 			break;
 		case MsgType.START:
 			//init director
-			Director.init(canvas, canvas.width, canvas.height, msg.initXML, function() {
+			console.log("server responded with start");
+			Director.loadMap(msg.initXML, function() {
 				Director.dummyClient = true;//most processing will be done by server
 				that.startGame();//start after the Director has finished its initialization
 			})
@@ -447,5 +448,16 @@ Client.prototype.start = function()
 	this.dk_threshold = 2;//initial dead reckoning threshold
 	this.ping = 0;
 	
+	// Init CAAT components
+	Director.init(this, canvas, canvas.height, canvas.width);
+	
 	EntityHashKeySeed.reset();
+}
+
+Client.prototype.blueTeam = function() {
+	this.sendToServer(new JoinMsg("WarriorCell"));
+}
+
+Client.prototype.redTeam = function() {
+	this.sendToServer(new JoinMsg("LeechVirus"));
 }
