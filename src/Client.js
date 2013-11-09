@@ -406,12 +406,14 @@ Client.prototype.onMessageFromServer = function(msg){
 			}
 			break;
 		case MsgType.START:
-			//console.log("server responded with start");
-			this.initXMLFile = msg.initXML;
-			Director.loadMap(msg.initXML, function() {
-				Director.dummyClient = true;//most processing will be done by server
-				that.gameReady();//start after the Director has finished its initialization
-			})
+			if (!this.gameStarted && Director.isInMenu()){
+				//console.log("server responded with start");
+				this.initXMLFile = msg.initXML;
+				Director.loadMap(msg.initXML, function() {
+					Director.dummyClient = true;//most processing will be done by server
+					that.gameReady();//start after the Director has finished its initialization
+				})
+			}
 		break;
 		case MsgType.ENTITY_SPAWN:
 			{

@@ -51,6 +51,10 @@ Director.initMenu = function(canvas, displayWidth, displayHeight, onClassChosenF
 		startButtonText.setVisible(false);
 	}
 	
+	this.isInMenu = function(){
+		return caatDirector.getCurrentSceneIndex() == 0;
+	}
+	
 	this._switchToMenu = function(){
 		caatDirector.setScene(0);
 	}
@@ -249,7 +253,11 @@ Director.loadMap = function(initFileXML, onInitFinished)
 	//mark the target
 	Director.markTarget = function(entity){
 		targetEntity = entity;
-		targetMark.setVisible(true);
+		if (entity != null)
+		{
+			targetMark.centerAt(entity.getPosition().x, entity.getPosition().y);
+			targetMark.setVisible(true);
+		}
 	}
 	
 	//get the current marked target
