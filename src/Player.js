@@ -16,7 +16,7 @@ var Player = function(_connID, _playerID, num_dk_versions) {
 	this.respawnWaitTime;
 	this.respawnDuration;
 	this.subscribers;//list of updating subscribers
-	this.updateMsgQueue;
+	this.isHost;//is this player the one that decides the game map
 	
 	//Server will wait for this amount of time before updating clients 
 	//about the hp of this player's character
@@ -42,7 +42,7 @@ var Player = function(_connID, _playerID, num_dk_versions) {
 	this.respawnWaitTime = this.respawnDuration = 0;
 	
 	this.subscribers = new Utils.List();
-	this.updateMsgQueue = new Utils.List();
+	this.isHost = false;
 	
 	this.hpUpdateDelay = 500;//0.5s delay by default
 	

@@ -32,7 +32,9 @@ var MsgType = {
 	JOIN : 27,
 	END_GAME: 28,
 	GAME_ALREADY_START: 29,
-	GAME_DURATION: 30
+	GAME_DURATION: 30,
+	YOU_ARE_HOST: 31,
+	PLAYERS_INFO: 32
 };
 
 function MoveAlongMsg(entity, dirx, diry){
@@ -215,6 +217,16 @@ function GameAlreadyStartedMsg(){
 	this.type = MsgType.GAME_ALREADY_START;
 }
 
+function YouHostMsg(){
+	this.type = MsgType.YOU_ARE_HOST;
+}
+
+function PlayersInfoMsg(virusCount, cellCount){
+	this.type = MsgType.PLAYERS_INFO;
+	this.virusCount = virusCount;
+	this.cellCount = cellCount;
+}
+
 // For node.js require
 if (typeof global != 'undefined')
 {
@@ -245,5 +257,7 @@ if (typeof global != 'undefined')
 	global.EndMsg = EndMsg;
 	global.GameDurationMsg = GameDurationMsg;
 	global.GameAlreadyStartedMsg = GameAlreadyStartedMsg;
+	global.YouHostMsg = YouHostMsg;
+	global.PlayersInfoMsg = PlayersInfoMsg;
 	global.MsgType = MsgType;
 }

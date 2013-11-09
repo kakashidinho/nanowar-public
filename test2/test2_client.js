@@ -6,6 +6,7 @@ function start()
 	
 	var client = new Client("canvas");
 	client.start();
+	client.initXMLFile = 'init2.xml';
 }
 
 setTimeout(function() {

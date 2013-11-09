@@ -7,7 +7,7 @@ var Director = {
 	caatDirector : null,
 	displayWidth : null,
 	displayHeight : null,
-	sceneRoot : null,
+	ingameScene : null,
 	startGameLoop : function(frameRate) {
 		CAAT.loop(frameRate);
 	},
@@ -46,13 +46,17 @@ Director.initMenu = function(canvas, displayWidth, displayHeight, onClassChosenF
 			startButtonText.setText('Join');
 	}
 	
-	this._switchToMenu = function(){
-		caatDirector.setScene(0);
+	this.hideStartButton = function(){
 		startButton.setVisible(false);
 		startButtonText.setVisible(false);
 	}
 	
+	this._switchToMenu = function(){
+		caatDirector.setScene(0);
+	}
+	
 	menuScene = caatDirector.createScene();
+	ingameScene = caatDirector.createScene();
 	
 	startButton = new CAAT.Foundation.UI.ShapeActor().
                 centerAt(280, 60).
@@ -137,8 +141,6 @@ Director.initMenu = function(canvas, displayWidth, displayHeight, onClassChosenF
 				}
 			}
 		);
-		
-	this.sceneRoot = caatDirector.createScene();
 
 }
 
@@ -158,10 +160,11 @@ Director.loadMap = function(initFileXML, onInitFinished)
 	var mainCharacter;//the main entity in the game
 	var targetEntity;//the attacking target of main character
 	var gameDuration;
+	var numNonObstacleTiles;
 	
 	var locked;//lock during game update
 	
-	var sceneRoot = this.sceneRoot;
+	var gameSceneRoot;//scene root
 	
 	/*-------GUI items------*/
 	var attackFailText;//text the display the reason why attack failed
@@ -246,6 +249,7 @@ Director.loadMap = function(initFileXML, onInitFinished)
 	//mark the target
 	Director.markTarget = function(entity){
 		targetEntity = entity;
+		targetMark.setVisible(true);
 	}
 	
 	//get the current marked target
@@ -348,23 +352,29 @@ Director.loadMap = function(initFileXML, onInitFinished)
 		deathText.setText("Deaths: " + deathCount);
 	}
 	
-	Director.stop = function(virusesRank, cellsRank){
+	Director.stopGame = function(virusesRank, cellsRank){
 		//scene's rank display node
 		var rankTableNode = new CAAT.Foundation.ActorContainer()
 						.setAlpha(0.7)
 						.setFillStyle('#000000');
 		rankTableNode.setSize(displayWidth, displayHeight);
-		sceneRoot.addChild(rankTableNode);	
-		sceneRoot.setZOrder(rankTableNode, 1000);//always on top
+		gameSceneRoot.addChild(rankTableNode);	
+		gameSceneRoot.setZOrder(rankTableNode, 1000);//always on top
 		
 		rankTableNode.mouseUp = function(mouse){
 			//switch to menu scene
 			Director._switchToMenu();
-			
+			/*--clean up scene items---*/
 			this.setFrameTime(0, 0);
 			this.setDiscardable(true);
+			this.destroy();
 			worldNode.setFrameTime(0, 0);
 			worldNode.setDiscardable(true);
+			worldNode.destroy();
+			gameSceneRoot.setFrameTime(0, 0);
+			gameSceneRoot.setDiscardable(true);
+			gameSceneRoot.destroy();
+			ingameScene.removeChild(gameSceneRoot);
 		}
 		
 		/*----"touch screen to continue" text-------*/
@@ -648,8 +658,10 @@ Director.loadMap = function(initFileXML, onInitFinished)
 	
 	//initialize graphics
 	function initGraphics(){
-		//switch to in-game scene
-		caatDirector.setScene(1);
+		//create in-game scene root
+		gameSceneRoot = new CAAT.Foundation.ActorContainer().
+								setSize(displayWidth, displayHeight);
+		ingameScene.addChild(gameSceneRoot);
 		
 		// create visual entity list
 		visualEntityList = new Utils.List();
@@ -666,7 +678,7 @@ Director.loadMap = function(initFileXML, onInitFinished)
 			Director.onMouseMove(null, mouse.x, mouse.y);
 		}
 	 
-		sceneRoot.addChild(worldNode);
+		gameSceneRoot.addChild(worldNode);
 		
 		/*----init movement mark and target mark-------*/
 		initMarks();
@@ -677,9 +689,12 @@ Director.loadMap = function(initFileXML, onInitFinished)
 		/*-------rendering loop------------------*/
 		lastUpdateTime = -1;
 		
-		sceneRoot.onRenderStart = function(scene_time) {
+		ingameScene.onRenderStart = function(scene_time) {
 			gameUpdate(scene_time);
 		}
+	
+		//switch to in-game scene
+		caatDirector.setScene(1);
 	}
 	
 	//init destination and target marks
@@ -712,10 +727,10 @@ Director.loadMap = function(initFileXML, onInitFinished)
 		targetMark = new CAAT.Foundation.UI.ShapeActor();
 		targetMark.setShape(CAAT.Foundation.UI.ShapeActor.SHAPE_CIRCLE);
 		targetMark.enableEvents(false);
-		targetMark.setFillStyle('#ffff00');
+		targetMark.setFillStyle('#ff0000');
 		targetMark.setAlpha(0.2);
 		targetMark.setStrokeStyle('#000');
-		targetMark.setSize(20 , 20 );
+		targetMark.setSize(30 , 30 );
 		targetMark.setVisible(false);//initially invisible
 		targetMark.addBehavior(scaleBehavior);
 		
@@ -735,8 +750,8 @@ Director.loadMap = function(initFileXML, onInitFinished)
 										.enableEvents(false)
 										;
 										
-		sceneRoot.addChild(idText);
-		sceneRoot.setZOrder(idText, 999);//always on top
+		gameSceneRoot.addChild(idText);
+		gameSceneRoot.setZOrder(idText, 999);//always on top
 		
 		/*---create duration text--------*/
 		var font15= "15px sans-serif";
@@ -749,8 +764,8 @@ Director.loadMap = function(initFileXML, onInitFinished)
 										.enableEvents(false)
 										;
 										
-		sceneRoot.addChild(durationText);
-		sceneRoot.setZOrder(durationText, 999);//always on top
+		gameSceneRoot.addChild(durationText);
+		gameSceneRoot.setZOrder(durationText, 999);//always on top
 		
 		/*---create "ping value" text--------*/
 		var font15= "15px sans-serif";
@@ -763,8 +778,8 @@ Director.loadMap = function(initFileXML, onInitFinished)
 										.enableEvents(false)
 										;
 										
-		sceneRoot.addChild(pingText);
-		sceneRoot.setZOrder(pingText, 999);//always on top
+		gameSceneRoot.addChild(pingText);
+		gameSceneRoot.setZOrder(pingText, 999);//always on top
 		
 		/*---create "attack failed" text------*/
 		var font18= "18px sans-serif";
@@ -778,8 +793,8 @@ Director.loadMap = function(initFileXML, onInitFinished)
 										.enableEvents(false)
 										;
 		
-		sceneRoot.addChild(attackFailText);
-		sceneRoot.setZOrder(attackFailText, 999);//always on top
+		gameSceneRoot.addChild(attackFailText);
+		gameSceneRoot.setZOrder(attackFailText, 999);//always on top
 		
 		/*---------create HP text------------*/
 		hpText =  new CAAT.Foundation.UI.TextActor()
@@ -791,8 +806,8 @@ Director.loadMap = function(initFileXML, onInitFinished)
 										.enableEvents(false)
 										;
 		
-		sceneRoot.addChild(hpText);
-		sceneRoot.setZOrder(hpText, 999);//always on top
+		gameSceneRoot.addChild(hpText);
+		gameSceneRoot.setZOrder(hpText, 999);//always on top
 		
 		/*----------create kill count text------*/
 		killText = new CAAT.Foundation.UI.TextActor()
@@ -804,8 +819,8 @@ Director.loadMap = function(initFileXML, onInitFinished)
 										.enableEvents(false)
 										;
 		
-		sceneRoot.addChild(killText);
-		sceneRoot.setZOrder(killText, 999);//always on top
+		gameSceneRoot.addChild(killText);
+		gameSceneRoot.setZOrder(killText, 999);//always on top
 		
 		/*----------create death count text------*/
 		deathText = new CAAT.Foundation.UI.TextActor()
@@ -817,8 +832,8 @@ Director.loadMap = function(initFileXML, onInitFinished)
 										.enableEvents(false)
 										;
 		
-		sceneRoot.addChild(deathText);
-		sceneRoot.setZOrder(deathText, 999);//always on top
+		gameSceneRoot.addChild(deathText);
+		gameSceneRoot.setZOrder(deathText, 999);//always on top
 		
 		/*-------create skill icons----------*/
 		skillIcons = new Array();
@@ -845,12 +860,12 @@ Director.loadMap = function(initFileXML, onInitFinished)
 							setFillStyle('#ffffff').
 							setVisible(false);
 				
-			sceneRoot.addChild(skillIconFrame);
-			sceneRoot.setZOrder(skillIconFrame, 999);//always on top
-			sceneRoot.addChild(skillIcon);
-			sceneRoot.setZOrder(skillIcon, 999);//always on top
-			sceneRoot.addChild(skillIconMask);
-			sceneRoot.setZOrder(skillIconMask, 999);//always on top
+			gameSceneRoot.addChild(skillIconFrame);
+			gameSceneRoot.setZOrder(skillIconFrame, 999);//always on top
+			gameSceneRoot.addChild(skillIcon);
+			gameSceneRoot.setZOrder(skillIcon, 999);//always on top
+			gameSceneRoot.addChild(skillIconMask);
+			gameSceneRoot.setZOrder(skillIconMask, 999);//always on top
 			
 			skillIcons.push(skillIcon);
 			skillIconMasks.push(skillIconMask);
@@ -1082,6 +1097,7 @@ Director.loadMap = function(initFileXML, onInitFinished)
 		}//for (var i = 0; i < tileTypeInfos.length; ++i)
 		
 		//now init the tiles in the map
+		numNonObstacleTiles = 0;//number of non obstacle tiles
 		that.tiles = new Array();
 		that.tileWidth = worldNode.width / that.tilesPerRow;
 		that.tileHeight = worldNode.height / that.tilesPerCol;
@@ -1127,7 +1143,10 @@ Director.loadMap = function(initFileXML, onInitFinished)
 		visualTile.enableEvents(false);
 		
 		if (!tileType.isObstacle)
-			worldNode.setZOrder(visualTile, -2);
+		{
+			worldNode.setZOrder(visualTile, 0);
+			numNonObstacleTiles ++;
+		}
 	}
 	
 	function createSpriteSheet(imgID, subImgsPerRow, subImgsPerCol) {
@@ -1206,8 +1225,8 @@ Director.loadMap = function(initFileXML, onInitFinished)
 	    this.playAnimation("normal");//play the animation named "normal"
 	    //caatActor.setScale(entity.getWidth() / caatActor.width, entity.getHeight() / caatActor.height);
 		
-		if (this.entity.isGround())//should make it ground level
-			worldNode.setZOrder(this, -1);
+		if (this.entity.isGround())//should make it ground level, but still above map's non-obstacle tiles
+			worldNode.setZOrder(this, numNonObstacleTiles);
 		
 	    //add mouse click event listener
 	    if (this.entity.getHP() <= 0)

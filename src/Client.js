@@ -16,6 +16,7 @@ function Client(canvasElementID)
 	this.ping;
 	this.atkCursor = false;
 	this.isGuest;//guest can only join the game
+	this.initXMLFile;
 		
 	//while(document.readyState !== "complete") {console.log("loading...");};
 		
@@ -25,7 +26,11 @@ function Client(canvasElementID)
 	canvas.height  = document.documentElement.clientHeight;
 }
 
-Client.prototype.startGame = function()
+Client.prototype.setInitFile = function(xmlFile){
+	this.initXMLFile = xmlFile;
+}
+
+Client.prototype.gameReady = function()
 {
 	var that = this;
 
@@ -64,7 +69,7 @@ Client.prototype.endGame = function(virusesRank, cellsRank)
 {
 	this.gameStarted = false;
 	
-	Director.stop(virusesRank, cellsRank);
+	Director.stopGame(virusesRank, cellsRank);
 }
 
 Client.prototype.onClassChosen = function(className){
@@ -75,7 +80,15 @@ Client.prototype.onClassChosen = function(className){
 
 Client.prototype.enterGame = function(){
 	if (this.isGuest)
+	{
 		this.sendToServer(new JoinMsg());
+		Director.hideStartButton();
+	}
+	else
+	{
+		//tell server to start the game
+		this.sendToServer(new StartGameMsg(this.initXMLFile));
+	}
 }
 
 //spawn an entity
@@ -383,15 +396,21 @@ Client.prototype.onMessageFromServer = function(msg){
 			Director.displayClassName(this.playerClassName);
 			break;
 		case MsgType.GAME_ALREADY_START:
-			this.isGuest = true;
-			Director.displayStartButton(false);
+			if (this.isGuest)
+			{
+				Director.displayStartButton(false);
+			}
+			else{
+				//host should enter the game immediately
+				this.sendToServer(new JoinMsg());
+			}
 			break;
 		case MsgType.START:
-			//init director
-			console.log("server responded with start");
+			//console.log("server responded with start");
+			this.initXMLFile = msg.initXML;
 			Director.loadMap(msg.initXML, function() {
 				Director.dummyClient = true;//most processing will be done by server
-				that.startGame();//start after the Director has finished its initialization
+				that.gameReady();//start after the Director has finished its initialization
 			})
 		break;
 		case MsgType.ENTITY_SPAWN:
@@ -401,6 +420,10 @@ Client.prototype.onMessageFromServer = function(msg){
 			break;
 		case MsgType.PING:
 			this.sendToServer(msg);//reply to server
+			break;
+		case MsgType.YOU_ARE_HOST://I am host
+			Director.displayStartButton(true);
+			this.isGuest = false;
 			break;
 		default:
 		if (this.gameStarted)//forward to director
@@ -481,6 +504,7 @@ Client.prototype.start = function()
 	this.dk_threshold = 2;//initial dead reckoning threshold
 	this.ping = 0;
 	this.isGuest = true;
+	this.initXMLFile = 'init.xml';//default map
 	
 	
 	EntityHashKeySeed.reset();

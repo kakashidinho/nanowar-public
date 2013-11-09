@@ -14,6 +14,17 @@ var DK_THREASHOLDS = [2, 4, 10];//3 versions of dead reckoning thresholds
 var RESPAWN_WAIT_TIME = 3000;//3s waiting for respawn
 var RESPAWN_DURATION = 5000;//5s of immortal for respawn player
 
+
+//utility function, covert an message object to string
+function msgToString(msg){
+	if (msg.asString == undefined)
+	{
+		msg.asString = JSON.stringify(msg);
+	}
+	return msg.asString;
+}
+
+/*------------class Server------------*/
 function Server() {
     this.count;        // Keeps track how many people are connected to server 
     this.availPIDList; // list of available PID to assign to next connected player (i.e. which player slot is open) 
@@ -36,10 +47,10 @@ Server.prototype.broadcastAll = function (msg) {
 	var id;
 	for (id in this.connections) {
 		var conn = this.connections[id];
-		//conn.socket.write(JSON.stringify(msg));
+		//conn.socket.write(msgToString(msg));
 		//delay the message sending by player's <fakeDelay> amount
 		setTimeout(function(conn, msg) {
-				conn.socket.write(JSON.stringify(msg));
+				conn.socket.write(msgToString(msg));
 			},
 			conn.player.fakeDelay,
 			conn, msg);
@@ -60,10 +71,10 @@ Server.prototype.broadcast = function (msg) {
 		var conn = this.connections[id];
 		if (conn.player.character != null)//player must be ready
 		{
-			//conn.socket.write(JSON.stringify(msg));
+			//conn.socket.write(msgToString(msg));
 			//delay the message sending by player's <fakeDelay> amount
 			setTimeout(function(conn, msg) {
-					conn.socket.write(JSON.stringify(msg));
+					conn.socket.write(msgToString(msg));
 				},
 				conn.player.fakeDelay,
 				conn, msg);
@@ -87,10 +98,10 @@ Server.prototype.multicast = function (subscribers, msg) {
 		var conn = this.connections[player.connID];
 		if (player.character != null)//player must be ready
 		{
-			//conn.socket.write(JSON.stringify(msg));
+			//conn.socket.write(msgToString(msg));
 			//delay the message sending by player's <fakeDelay> amount
 			setTimeout(function(conn, msg) {
-					conn.socket.write(JSON.stringify(msg));
+					conn.socket.write(msgToString(msg));
 				},
 				player.fakeDelay,
 				conn, msg);
@@ -116,10 +127,10 @@ Server.prototype.broadcastExcept = function (playerID, msg) {
 			continue;
 		if (conn.player.character != null)//player must be ready
 		{
-			//conn.socket.write(JSON.stringify(msg));
+			//conn.socket.write(msgToString(msg));
 			//delay the message sending by player's <fakeDelay> amount
 			setTimeout(function(conn, msg) {
-					conn.socket.write(JSON.stringify(msg));
+					conn.socket.write(msgToString(msg));
 				},
 				conn.player.fakeDelay,
 				conn, msg);
@@ -139,10 +150,10 @@ Server.prototype.unicast = function (socketID, msg) {
 	var conn = this.connections[socketID];
 	if (conn.player.character != null)//player must be ready
 	{
-		//conn.socket.write(JSON.stringify(msg));
+		//conn.socket.write(msgToString(msg));
 		//delay the message sending by player's <fakeDelay> amount
 		setTimeout(function(conn, msg) {
-				conn.socket.write(JSON.stringify(msg));
+				conn.socket.write(msgToString(msg));
 			},
 			conn.player.fakeDelay,
 			conn, msg);
@@ -151,9 +162,8 @@ Server.prototype.unicast = function (socketID, msg) {
 
 //send message via a socket
 Server.prototype.sendMsgViaChannel = function(socket, msg){
-	socket.write(JSON.stringify(msg));
+	socket.write(msgToString(msg));
 }
-
 
 /*
  * private method: newPlayer()
@@ -169,6 +179,9 @@ Server.prototype.newPlayer = function (conn) {
 	
 	// Create player object and insert into players with key = nextPID
 	var newPlayer = new Player(conn.id, nextPID, NUM_DK_VERSIONS);
+	
+	if (this.count == 1)
+		newPlayer.isHost = true;//1st player is the host
 	
 	//simple interest management
 	if (SIMPLE_IM)
@@ -196,6 +209,7 @@ Server.prototype.deletePlayer = function(connectionID){
 	
 	var player = this.connections[connectionID].player;
 	
+	
 	if (this.gameStarted)
 	{
 		//this player disconnects in the middle of the game
@@ -220,6 +234,18 @@ Server.prototype.deletePlayer = function(connectionID){
 	{
 		//delete from character to player map
 		delete this.playerCharMap[player.character.getHashKey()];
+	}
+	
+	//find another host
+	if (player.isHost)
+	{
+		for (var i in this.players){
+			var anotherHost = this.players[i];
+			//find another player
+			anotherHost.isHost = true;
+			this.sendMsgViaChannel(this.connections[anotherHost.connID].socket, new YouHostMsg());//tell him
+			break;//enough, we stop here
+		}
 	}
 	
 	//simple interest management, unsubcribe all update from this player
@@ -284,7 +310,7 @@ Server.prototype.startGame = function()
 	
 	//director's entity destroyed notification
 	Director.onEntityDestroyed = function(id){
-		that.notifyEntityDestroyed(id);
+		that.onEntityDestroyed(id);
 	}
 	
 	//director's entity death notification
@@ -407,6 +433,8 @@ Server.prototype.updateClientsAbout = function(player, elapsedTime){
 				//notify players who have distance fall into DK_DISTANCES[i]
 				player.subscribers.traverse(function(subscriber)
 				{
+					if (subscriber.character == null)
+						return;
 					var distance = player.character.distanceToEntity(subscriber.character);
 					if (DK_DISTANCES[i].min <= distance && distance < DK_DISTANCES[i].max)
 					{
@@ -533,6 +561,9 @@ Server.prototype.spawnPlayerCharacter = function(player){
 	this.randomPlacePlayerChar(player);
 }
 
+Server.prototype.deletePlayerCharacter = function(player){
+}
+
 //randomly put the player's character to a position
 Server.prototype.randomPlacePlayerChar = function(player){
 	var spawnPosition = new b2Vec2(0, 0);
@@ -573,8 +604,16 @@ Server.prototype.randomPlacePlayerChar = function(player){
 	}//if SERVER_USE_DK
 }
 
-//notify all players that entity has been destroyed
-Server.prototype.notifyEntityDestroyed = function(entityID){
+
+Server.prototype.onEntityDestroyed = function(entityID){
+	//delete from "character to player" map
+	var entity = Director.getKnownEntity(entityID);
+	if (entity != null && entity.getHashKey() in this.playerCharMap)
+	{
+		delete this.playerCharMap[entity.getHashKey()];
+	}
+	
+	//notify all players that entity has been destroyed
 	this.broadcast(new EntityDestroyMsg(entityID));
 }
 
@@ -748,6 +787,9 @@ Server.prototype.onMessageFromPlayer = function(player, msg){
 		if (player.fakeDelay < 0)
 			player.fakeDelay = 0;
 		break;
+	case MsgType.START:
+		this.beginStartGame(msg.initXML);
+		break;
 	case MsgType.JOIN:
 		this.sendMsgViaChannel(this.connections[player.connID].socket, new StartGameMsg(this.gameInitXML));
 		break;
@@ -787,6 +829,8 @@ Server.prototype.start = function (httpServer) {
 				var player = that.newPlayer(conn);
 				that.sendMsgViaChannel(conn, new PlayerIDMsg(player.playerID));//notify player about his ID
 				that.sendMsgViaChannel(conn, new PlayerClassMsg(player.className));//notify player about his initialized class name
+				if (player.isHost)
+					that.sendMsgViaChannel(conn, new YouHostMsg());//tell player that he is the host
 				
 				if (that.gameStarted)//game already started. let him know
 					that.sendMsgViaChannel(conn, new GameAlreadyStartedMsg());

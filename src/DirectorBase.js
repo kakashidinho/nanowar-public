@@ -96,13 +96,19 @@ function DirectorBase()
 			entityA.isAlive())//A is an effect
 		{
 			if (entityB!= null && entityB.isAlive())
+			{
 				entityA.enterArea(entityB);
+				console.log('entityA.enterArea(entityB)');
+			}
 		}
 		else if (bodyB.GetType() == b2Body.b2_kinematicBody && 
 			entityB.isAlive())//B is an effect
 		{
 			if (entityA!= null && entityA.isAlive())
+			{
+				console.log('entityA.enterArea(entityB)');
 				entityB.enterArea(entityA);
+			}
 		}
 		else if (bodyA.GetType() == b2Body.b2_dynamicBody && 
 			entityA.isAlive() &&
@@ -192,6 +198,14 @@ function DirectorBase()
 	this.getKnownEntities = function(){
 		return this.knownEntity;
 	}
+	
+	//get known entity
+	this.getKnownEntity = function(id){
+		if (id in this.knownEntity)
+			return this.knownEntity[id];
+		return null;
+	}
+	
 	//post message to queue
 	this.postMessage = function(msg)
 	{
