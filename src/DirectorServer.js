@@ -36,6 +36,7 @@ Director.init = function(initFileXML, onInitFinished)
 	var virusSpawnPoints;//list of spawning locations for viruses;
 	var width;//map's width
 	var height;//map's height
+	var mapDuration;
 	var lastUpdateTime;
 	var currentUpdateTime;//for using during update
 	var xmlParser;
@@ -49,6 +50,7 @@ Director.init = function(initFileXML, onInitFinished)
 	Director.onPowerUpAppear ;
 	Director.onPowerUpChangedDir;//callback being called when power up item has changed its direction
 	Director.onKillHappen;//callback function called when an enity killed a target
+	Director.onEndGame;
 	
 	var that = this;
 	
@@ -65,6 +67,7 @@ Director.init = function(initFileXML, onInitFinished)
 	Director.onPowerUpAppear = function(powerUp) {}
 	Director.onPowerUpChangedDir = function(powerUp) {}
 	Director.onKillHappen = function(killer, killed){}
+	Director.onEndGame = function() {}
 	
 	/*------------create xml parser-------------------*/
 	xmlParser = new xml2js.Parser();
@@ -96,6 +99,15 @@ Director.init = function(initFileXML, onInitFinished)
 	Director.getVirusSpawnPoints = function()
 	{
 		return virusSpawnPoints;
+	}
+	
+	Director.getMapDuration = function(){
+		return mapDuration;
+	}
+	
+	Director.stop = function(){
+		this._baseStop();
+		Director.endGameLoop();
 	}
 	
 	//notification from an entity telling that is hp has changed
@@ -140,6 +152,9 @@ Director.init = function(initFileXML, onInitFinished)
 			lastUpdateTime = currentUpdateTime;
 		
 		var elapsedTime = currentUpdateTime - lastUpdateTime;
+		
+		mapDuration -= elapsedTime;
+		
 		//var elapsedTime = 1000/60.0;
 		//lastUpdateTime = currentUpdateTime - elapsedTime;
 		
@@ -167,6 +182,11 @@ Director.init = function(initFileXML, onInitFinished)
 			
 		locked = false;//unlock some operations
 		
+		if (mapDuration <= 0)//game ended
+		{
+			Director.onEndGame();
+		}
+		
 		//randomly generate power up
 		generatePowerUp(elapsedTime);
 		
@@ -188,6 +208,8 @@ Director.init = function(initFileXML, onInitFinished)
 	{
 		parseXMLFile(initFileXML, function(data){
 			var mapFileXML = data['initialization']['mapFile'][0];
+			var mapDurationStr = data['initialization']['mapDuration'][0];
+			mapDuration = parseInt(mapDurationStr);
 			
 			parseXMLFile(mapFileXML, function(mapData) {
 				initMap(mapData['map']);

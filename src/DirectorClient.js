@@ -16,9 +16,12 @@ var Director = {
 	}
 };
 
-Director.init = function(client, canvas, displayWidth, displayHeight) {
+Director.initMenu = function(canvas, displayWidth, displayHeight, onClassChosenFunc, onEnterFunc) {
 	var menuScene;
 	var menuImages;
+	var startButton;
+	var startButtonText;
+	var classText;
 	this.displayWidth = displayWidth;
 	this.displayHeight = displayHeight;
 		
@@ -31,7 +34,64 @@ Director.init = function(client, canvas, displayWidth, displayHeight) {
 	
 	var caatDirector = this.caatDirector;
 	
+	this.displayClassName = function(className){
+		classText.setText('Your current class is: ' + className);
+	}
+	this.displayStartButton = function(isStartButton){
+		startButton.setVisible(true);
+		startButtonText.setVisible(true);
+		if (isStartButton)
+			startButtonText.setText('Start');
+		else
+			startButtonText.setText('Join');
+	}
+	
+	this._switchToMenu = function(){
+		caatDirector.setScene(0);
+		startButton.setVisible(false);
+		startButtonText.setVisible(false);
+	}
+	
 	menuScene = caatDirector.createScene();
+	
+	startButton = new CAAT.Foundation.UI.ShapeActor().
+                centerAt(280, 60).
+                setSize(100, 50).
+                setShape(CAAT.Foundation.UI.ShapeActor.SHAPE_RECTANGLE).
+				setVisible(false).
+				setFillStyle('#00ff00');
+				
+	startButton.mouseDown = function(mouse){
+		onEnterFunc();
+	};
+				
+	menuScene.addChild(startButton);
+	
+	/* start button text */	
+	startButtonText =  new CAAT.Foundation.UI.TextActor()
+							.setLocation(startButton.x + startButton.width/2, startButton.y + startButton.height/2)
+							.setText('Start')
+							.setFont("18px sans-serif")
+							.setAlign("center")
+							.setTextFillStyle('#000000')
+							.setVisible(false)
+							.enableEvents(false)
+							;
+	
+	menuScene.addChild(startButtonText);
+	
+	/*class name text*/
+	classText =  new CAAT.Foundation.UI.TextActor()
+							.setLocation(displayWidth / 2, 36)
+							.setText('Your current class is: ')
+							.setFont("15px sans-serif")
+							.setAlign("center")
+							.setTextFillStyle('#000000')
+							.enableEvents(false)
+							;
+	
+	menuScene.addChild(classText);
+					
 	menuImages = [{id : 'menuButtons', url: 'menuButtons.png'}];
 	
 	new CAAT.ImagePreloader().loadImages(
@@ -47,7 +107,7 @@ Director.init = function(client, canvas, displayWidth, displayHeight) {
 					
 					var font= "32px sans-serif";
 					var menuTitle =  new CAAT.Foundation.UI.TextActor()
-													.setLocation(280, 80)
+													.setLocation(280, 120)
 													.setText("Select Your Side")
 													.setFont(font)
 													.setAlign("center")
@@ -56,22 +116,18 @@ Director.init = function(client, canvas, displayWidth, displayHeight) {
 													
 					menuScene.addChild(menuTitle);
 					
-					
 					var b1= new CAAT.Actor().setAsButton(
 						buttonsSprite.getRef(), 0, 1, 2, 0, function(button) {
-									client.redTeam();
-									caatDirector.setScene(1)
-									;
-				                }
-				        )
+									onClassChosenFunc('LeechVirus');
+							}
+						)
 						.setLocation(100, 200);
 					
 					var b2= new CAAT.Actor().setAsButton(
 						buttonsSprite.getRef(), 3, 4, 5, 3, function(button) {
-									client.blueTeam();
-									caatDirector.setScene(1);
-				                }
-				        )
+									onClassChosenFunc('WarriorCell');
+							}
+						)
 						.setLocation(350, 200);
 
 					menuScene.addChild(b1);
@@ -101,15 +157,17 @@ Director.loadMap = function(initFileXML, onInitFinished)
 	var xmlRequest;
 	var mainCharacter;//the main entity in the game
 	var targetEntity;//the attacking target of main character
+	var gameDuration;
 	
 	var locked;//lock during game update
 	
 	var sceneRoot = this.sceneRoot;
 	
 	/*-------GUI items------*/
-	var guiNode;//scene's gui node, for containing GUI elements
-	var pingText;//ping value text
 	var attackFailText;//text the display the reason why attack failed
+	var pingText;//ping value text
+	var durationText;
+	var idText;
 	var hpText;
 	var killText;
 	var deathText;
@@ -151,10 +209,15 @@ Director.loadMap = function(initFileXML, onInitFinished)
 	//no locking yet
 	locked = false;
 	
+	gameDuration = 0;
+	
 	//make camera follow an entity
 	Director.setMainCharacter = function(entity)
 	{
 		mainCharacter = entity;
+		
+		if (entity != null)
+			idText.setText("Your ID: " + entity.getID());
 	}
 	
 	//mark the destination, the mark will disappear after the main character stop moving
@@ -193,6 +256,10 @@ Director.loadMap = function(initFileXML, onInitFinished)
 	//update the ping value on screen
 	Director.updatePingValue = function(pingValue){
 		pingText.setText("Ping: " + pingValue.toString());
+	}
+	
+	Director.updateGameDuration = function(duration){
+		gameDuration = duration;
 	}
 	
 	//display attack "out of range" text
@@ -279,6 +346,120 @@ Director.loadMap = function(initFileXML, onInitFinished)
 	
 	Director.notifyMyDeathCount = function(deathCount){
 		deathText.setText("Deaths: " + deathCount);
+	}
+	
+	Director.stop = function(virusesRank, cellsRank){
+		//scene's rank display node
+		var rankTableNode = new CAAT.Foundation.ActorContainer()
+						.setAlpha(0.7)
+						.setFillStyle('#000000');
+		rankTableNode.setSize(displayWidth, displayHeight);
+		sceneRoot.addChild(rankTableNode);	
+		sceneRoot.setZOrder(rankTableNode, 1000);//always on top
+		
+		rankTableNode.mouseUp = function(mouse){
+			//switch to menu scene
+			Director._switchToMenu();
+			
+			this.setFrameTime(0, 0);
+			this.setDiscardable(true);
+			worldNode.setFrameTime(0, 0);
+			worldNode.setDiscardable(true);
+		}
+		
+		/*----"touch screen to continue" text-------*/
+		var alphaBehavior = new CAAT.Behavior.AlphaBehavior().
+				setPingPong().
+				setCycle(true).
+				setFrameTime(0, 1000).
+				setValues(0, 1);
+		
+		var continueText =  new CAAT.Foundation.UI.TextActor()
+											.setLocation(displayWidth/2, displayHeight/2)
+											.setText('Touch screen to continue')
+											.setFont("35px sans-serif")
+											.setAlign("center")
+											.setTextFillStyle('#ffffff')
+											.enableEvents(false)
+											;
+											
+		continueText.addBehavior(alphaBehavior);
+		
+		rankTableNode.addChild(continueText);
+		rankTableNode.setZOrder(continueText, 1001);
+		
+		
+		/*---create record texts--------*/
+		var font18= "18px sans-serif";
+		/*-----viruses--------*/
+		var virusSideText =  new CAAT.Foundation.UI.TextActor()
+											.setLocation(10, 36)
+											.setText('Viruses: ')
+											.setFont(font18)
+											.setAlign("left")
+											.setTextFillStyle('#ffffff')
+											.enableEvents(false)
+											;
+											
+		rankTableNode.addChild(virusSideText);
+			
+		var record_y = 56;
+		var font15= "15px sans-serif";
+		/*---rank records-------*/
+		for (var i = 0; i < virusesRank.length; ++i){
+			var record = virusesRank[i];
+			var text = (i + 1) + '.ID: ' + record.id + '		Kills: ' + record.killCount + '		Deaths: ' + record.deathCount;
+			var recordText =  new CAAT.Foundation.UI.TextActor()
+											.setLocation(13, record_y)
+											.setText(text)
+											.setFont(font15)
+											.setAlign("left")
+											.setTextFillStyle('#ffffff')
+											.enableEvents(false)
+											;
+											
+			rankTableNode.addChild(recordText);
+			
+			record_y += 20;
+		}
+		
+		/*---------cells--------------*/
+		record_y += 16;
+		
+		var cellSideText =  new CAAT.Foundation.UI.TextActor()
+											.setLocation(10, record_y)
+											.setText('Cells: ')
+											.setFont(font18)
+											.setAlign("left")
+											.setTextFillStyle('#ffffff')
+											.enableEvents(false)
+											;
+											
+		rankTableNode.addChild(cellSideText);
+		
+		record_y += 20;
+		
+		/*---rank records-------*/
+		for (var i = 0; i < cellsRank.length; ++i){
+			var record = cellsRank[i];
+			var text = (i + 1) + '.ID: ' + record.id + '		Kills: ' + record.killCount + '		Deaths: ' + record.deathCount;
+			var recordText =  new CAAT.Foundation.UI.TextActor()
+											.setLocation(13, record_y)
+											.setText(text)
+											.setFont(font15)
+											.setAlign("left")
+											.setTextFillStyle('#ffffff')
+											.enableEvents(false)
+											;
+											
+			rankTableNode.addChild(recordText);
+			
+			record_y += 20;
+		}
+		
+		
+		//destroy all entities
+		this._baseStop();
 	}
 	
 	//display information about the current skill slots of main character
@@ -376,6 +557,11 @@ Director.loadMap = function(initFileXML, onInitFinished)
 			lastUpdateTime = currentUpdateTime;
 		
 		var elapsedTime = currentUpdateTime - lastUpdateTime;
+		
+		gameDuration -= elapsedTime;
+		if (gameDuration < 0)
+			gameDuration = 0;
+		
 		//var elapsedTime = 1000/60.0;
 		//lastUpdateTime = currentUpdateTime - elapsedTime;
 		
@@ -439,11 +625,32 @@ Director.loadMap = function(initFileXML, onInitFinished)
 			//we currently have a marked target
 			targetMark.centerAt(targetEntity.getPosition().x, targetEntity.getPosition().y);
 		}
+		
+		//update game timer
+		var total_seconds = gameDuration / 1000;
+		var remain = total_seconds % 3600;
+		var hours = Math.floor(total_seconds/ 3600);
+		var minutes = Math.floor(remain / 60);
+		var seconds = Math.floor(remain % 60);
+		
+		var hoursStr = hours.toString();
+		if (hoursStr.length < 2)
+			hoursStr = '0' + hoursStr;
+		var minStr = minutes.toString();
+		if (minStr.length < 2)
+			minStr = '0' + minStr;
+		var secStr = seconds.toString();
+		if (secStr.length < 2)
+			secStr = '0' + secStr;
+			
+		durationText.setText(hoursStr + ' : ' + minStr + ' : ' + secStr);
 	}
 	
 	//initialize graphics
 	function initGraphics(){
-
+		//switch to in-game scene
+		caatDirector.setScene(1);
+		
 		// create visual entity list
 		visualEntityList = new Utils.List();
 			
@@ -517,19 +724,38 @@ Director.loadMap = function(initFileXML, onInitFinished)
 	
 	function initGUI(){
 		
-		//scene's GUI node
-		guiNode = new CAAT.Foundation.ActorContainer()
-						.setAlpha(0.0)
-						.enableEvents(false);
-		guiNode.setSize(displayWidth, displayHeight);
-		sceneRoot.addChild(guiNode);	
-		sceneRoot.setZOrder(guiNode, 999);//always on top
+		/*---create ID text--------*/
+		var font15= "15px sans-serif";
+		idText =  new CAAT.Foundation.UI.TextActor()
+										.setLocation(10, 36)
+										.setText("Your ID: -1")
+										.setFont(font15)
+										.setAlign("left")
+										.setTextFillStyle('#ff0000')
+										.enableEvents(false)
+										;
+										
+		sceneRoot.addChild(idText);
+		sceneRoot.setZOrder(idText, 999);//always on top
 		
+		/*---create duration text--------*/
+		var font15= "15px sans-serif";
+		durationText =  new CAAT.Foundation.UI.TextActor()
+										.setLocation(displayWidth / 2, 36)
+										.setText("00 : 00 : 00")
+										.setFont(font15)
+										.setAlign("center")
+										.setTextFillStyle('#ff0000')
+										.enableEvents(false)
+										;
+										
+		sceneRoot.addChild(durationText);
+		sceneRoot.setZOrder(durationText, 999);//always on top
 		
 		/*---create "ping value" text--------*/
 		var font15= "15px sans-serif";
 		pingText =  new CAAT.Foundation.UI.TextActor()
-										.setLocation(10, 36)
+										.setLocation(10, 72)
 										.setText("Ping: 0")
 										.setFont(font15)
 										.setAlign("left")
@@ -537,12 +763,13 @@ Director.loadMap = function(initFileXML, onInitFinished)
 										.enableEvents(false)
 										;
 										
-		guiNode.addChild(pingText);
+		sceneRoot.addChild(pingText);
+		sceneRoot.setZOrder(pingText, 999);//always on top
 		
 		/*---create "attack failed" text------*/
 		var font18= "18px sans-serif";
 		attackFailText =  new CAAT.Foundation.UI.TextActor()
-										.setLocation(displayWidth / 2.0, 36)
+										.setLocation(displayWidth / 2.0, displayHeight / 2.0)
 										.setText("Out of range!!!")
 										.setFont(font18)
 										.setAlign("center")
@@ -551,11 +778,12 @@ Director.loadMap = function(initFileXML, onInitFinished)
 										.enableEvents(false)
 										;
 		
-		guiNode.addChild(attackFailText);
+		sceneRoot.addChild(attackFailText);
+		sceneRoot.setZOrder(attackFailText, 999);//always on top
 		
 		/*---------create HP text------------*/
 		hpText =  new CAAT.Foundation.UI.TextActor()
-										.setLocation(10, 72)
+										.setLocation(10, 108)
 										.setText("HP: 0")
 										.setFont(font15)
 										.setAlign("left")
@@ -563,11 +791,12 @@ Director.loadMap = function(initFileXML, onInitFinished)
 										.enableEvents(false)
 										;
 		
-		guiNode.addChild(hpText);
+		sceneRoot.addChild(hpText);
+		sceneRoot.setZOrder(hpText, 999);//always on top
 		
 		/*----------create kill count text------*/
 		killText = new CAAT.Foundation.UI.TextActor()
-										.setLocation(10, 108)
+										.setLocation(10, 144)
 										.setText("Kills: 0")
 										.setFont(font15)
 										.setAlign("left")
@@ -575,11 +804,12 @@ Director.loadMap = function(initFileXML, onInitFinished)
 										.enableEvents(false)
 										;
 		
-		guiNode.addChild(killText);
+		sceneRoot.addChild(killText);
+		sceneRoot.setZOrder(killText, 999);//always on top
 		
 		/*----------create death count text------*/
 		deathText = new CAAT.Foundation.UI.TextActor()
-										.setLocation(10, 144)
+										.setLocation(10, 180)
 										.setText("Deaths: 0")
 										.setFont(font15)
 										.setAlign("left")
@@ -587,7 +817,8 @@ Director.loadMap = function(initFileXML, onInitFinished)
 										.enableEvents(false)
 										;
 		
-		guiNode.addChild(deathText);
+		sceneRoot.addChild(deathText);
+		sceneRoot.setZOrder(deathText, 999);//always on top
 		
 		/*-------create skill icons----------*/
 		skillIcons = new Array();
@@ -614,9 +845,12 @@ Director.loadMap = function(initFileXML, onInitFinished)
 							setFillStyle('#ffffff').
 							setVisible(false);
 				
-			guiNode.addChild(skillIconFrame);
-			guiNode.addChild(skillIcon);
-			guiNode.addChild(skillIconMask);
+			sceneRoot.addChild(skillIconFrame);
+			sceneRoot.setZOrder(skillIconFrame, 999);//always on top
+			sceneRoot.addChild(skillIcon);
+			sceneRoot.setZOrder(skillIcon, 999);//always on top
+			sceneRoot.addChild(skillIconMask);
+			sceneRoot.setZOrder(skillIconMask, 999);//always on top
 			
 			skillIcons.push(skillIcon);
 			skillIconMasks.push(skillIconMask);

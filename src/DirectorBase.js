@@ -328,8 +328,15 @@ function DirectorBase()
 	this._baseDestroyEntity = function(entity){
 		var body = entity.getPhysicsBody();
 		
-		//body.SetActive(false);//disable physics simulation
-		this.deleteBodyList.insertBack(body);//add to being deleted list
+		if (this.physicsWorld.IsLocked())
+		{
+			//body.SetActive(false);//disable physics simulation
+			this.deleteBodyList.insertBack(body);//add to being deleted list
+		}
+		else
+		{
+			this.physicsWorld.DestroyBody(body);
+		}
 	
 		if (entity.hasID())//this entity has an ID
 		{
@@ -343,6 +350,12 @@ function DirectorBase()
 	
 	this._notifyKillCount = function(killer, victim){
 		//default doing nothing.
+	}
+	
+	this._baseStop = function(){
+		for (var id in this.knownEntity){
+			this.knownEntity[id].destroy();
+		}
 	}
 	
 	this._createPhysicsBody = function(bodyDef, fixtureDef)

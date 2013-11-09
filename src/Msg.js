@@ -29,7 +29,10 @@ var MsgType = {
 	ENTITY_RESPAWN_END: 24,
 	KILL_COUNT: 25,
 	DEATH_COUNT: 26,
-	JOIN : 27
+	JOIN : 27,
+	END_GAME: 28,
+	GAME_ALREADY_START: 29,
+	GAME_DURATION: 30
 };
 
 function MoveAlongMsg(entity, dirx, diry){
@@ -67,9 +70,8 @@ function StartGameMsg(initXML)
 	this.initXML = initXML;
 }
 
-function JoinMsg(className) {
+function JoinMsg() {
 	this.type = MsgType.JOIN;
-	this.className = className;
 }
 
 //player ready to receive in-game messages
@@ -198,6 +200,21 @@ function KillDeathCountMsg(isKillCountMsg, count){
 	this.count = count;
 }
 
+function EndMsg(virusesRank, cellsRank) {
+	this.type = MsgType.END;
+	this.virusesRank = virusesRank;
+	this.cellsRank = cellsRank;
+}
+
+function GameDurationMsg(duration){
+	this.type = MsgType.GAME_DURATION;
+	this.duration = duration;
+}
+
+function GameAlreadyStartedMsg(){
+	this.type = MsgType.GAME_ALREADY_START;
+}
+
 // For node.js require
 if (typeof global != 'undefined')
 {
@@ -225,5 +242,8 @@ if (typeof global != 'undefined')
 	global.EntityDestroyMsg = EntityDestroyMsg;
 	global.EntityRespawnEndMsg = EntityRespawnEndMsg;
 	global.KillDeathCountMsg = KillDeathCountMsg;
+	global.EndMsg = EndMsg;
+	global.GameDurationMsg = GameDurationMsg;
+	global.GameAlreadyStartedMsg = GameAlreadyStartedMsg;
 	global.MsgType = MsgType;
 }

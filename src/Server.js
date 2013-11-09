@@ -304,10 +304,15 @@ Server.prototype.startGame = function()
 		that.notifyPowerUpChangedDir(powerUp);
 	}
 	
+	Director.onEndGame = function(){
+		that.endGame();
+	}
+	
 	//update callback
 	Director.onUpdate = function(lastTime, currentTime) {
 		that.update(lastTime, currentTime)
 	}
+	
 	
 	Director.startGameLoop(Constant.FRAME_RATE);
 		
@@ -322,11 +327,41 @@ Server.prototype.endGame = function()
 {
 	this.gameStarted = false;
 	
-	Director.endGameLoop();
+	var virusRank = new Array();
+	var cellRank = new Array();
 	
-	for (var i = 0; i < Constant.SERVER_MAX_CONNECTIONS; ++i)
-		this.players[i].character = null;
-	//TO DO
+	for (var id in this.players){
+		var player = this.players[id];
+		var character = player.character;
+		if (character != null)
+		{
+			var record = {id: player.playerID, killCount: player.killCount, deathCount: player.deathCount};
+			if (character.getSide() == Constant.VIRUS)
+				virusRank.push(record);
+			else
+				cellRank.push(record);
+		}
+			
+		player.character = null;
+	}
+	function rankSort(a,b) {
+		if (a.killCount > b.killCount)
+			return -1;
+		if (a.killCount < b.killCount)
+			return 1;
+		if (a.deathCount < b.deathCount)
+			return -1;
+		if (a.deathCount > b.deathCount)
+			return 1;
+		return 0;
+	}
+	
+	virusRank.sort(rankSort);
+	cellRank.sort(rankSort);
+	
+	this.broadcastAll(new EndMsg(virusRank, cellRank));
+	
+	Director.stop();
 }
 
 //update function being called each frame by Director
@@ -600,6 +635,9 @@ Server.prototype.handleMessage = function(msg)
 			//notify all players' clients
 			this.broadcast(new EntitySpawnMsg2(player.character));
 			
+			//let player know current game time
+			this.unicast(player.connID, new GameDurationMsg(Director.getMapDuration()));
+			
 			//now let the new player know about other entities
 			var entities = Director.getKnownEntities();
 			for (var id in entities){
@@ -711,7 +749,6 @@ Server.prototype.onMessageFromPlayer = function(player, msg){
 			player.fakeDelay = 0;
 		break;
 	case MsgType.JOIN:
-		player.className = msg.className;
 		this.sendMsgViaChannel(this.connections[player.connID].socket, new StartGameMsg(this.gameInitXML));
 		break;
 	default:
@@ -749,10 +786,10 @@ Server.prototype.start = function (httpServer) {
 				// create a new player
 				var player = that.newPlayer(conn);
 				that.sendMsgViaChannel(conn, new PlayerIDMsg(player.playerID));//notify player about his ID
-				//that.sendMsgViaChannel(conn, new PlayerClassMsg(player.className));//notify player about his initialized class name
+				that.sendMsgViaChannel(conn, new PlayerClassMsg(player.className));//notify player about his initialized class name
 				
-				//if (that.gameStarted)//game already started. let him know
-					//that.sendMsgViaChannel(conn, new StartGameMsg(that.gameInitXML));
+				if (that.gameStarted)//game already started. let him know
+					that.sendMsgViaChannel(conn, new GameAlreadyStartedMsg());
 			}
 
 			// When the client closes the connection to the server/closes the window

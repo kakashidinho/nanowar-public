@@ -16,4 +16,5 @@
 	</images>
 	<spritesFile>sprites2.xml</spritesFile>
 	<mapFile>map2.xml</mapFile>
+	<mapDuration>30000</mapDuration>
 </initialization>

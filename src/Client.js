@@ -15,6 +15,7 @@ function Client(canvasElementID)
 	this.skillCtrlKeyDown;//skill control keys
 	this.ping;
 	this.atkCursor = false;
+	this.isGuest;//guest can only join the game
 		
 	//while(document.readyState !== "complete") {console.log("loading...");};
 		
@@ -59,12 +60,22 @@ Client.prototype.startGame = function()
 	//Director.startGameLoop(Constant.FRAME_RATE);
 }
 
-Client.prototype.endGame = function()
+Client.prototype.endGame = function(virusesRank, cellsRank)
 {
 	this.gameStarted = false;
 	
-	Director.endGameLoop();
-	//TO DO
+	Director.stop(virusesRank, cellsRank);
+}
+
+Client.prototype.onClassChosen = function(className){
+	this.playerClassName = className;
+	Director.displayClassName(className);
+	this.sendToServer(new PlayerClassMsg(className));
+}
+
+Client.prototype.enterGame = function(){
+	if (this.isGuest)
+		this.sendToServer(new JoinMsg());
 }
 
 //spawn an entity
@@ -349,6 +360,12 @@ Client.prototype.handleMessage = function(msg){
 		case MsgType.DEATH_COUNT:
 			Director.notifyMyDeathCount(msg.count);
 			break;
+		case MsgType.END:
+			this.endGame(msg.virusesRank, msg.cellsRank);
+			break;
+		case MsgType.GAME_DURATION:
+			Director.updateGameDuration(msg.duration);
+			break;
 	}
 	return false;
 }
@@ -363,6 +380,11 @@ Client.prototype.onMessageFromServer = function(msg){
 			break;
 		case MsgType.PLAYER_CLASS:
 			this.playerClassName = msg.className;
+			Director.displayClassName(this.playerClassName);
+			break;
+		case MsgType.GAME_ALREADY_START:
+			this.isGuest = true;
+			Director.displayStartButton(false);
 			break;
 		case MsgType.START:
 			//init director
@@ -428,6 +450,17 @@ Client.prototype.start = function()
 {
 	var that = this;
 	
+	//init menu
+	var onClassChosenFunc = function(className){
+		that.onClassChosen(className);
+	}
+	
+	var enterGameFunc = function(){
+		that.enterGame();
+	}
+	Director.initMenu(canvas, canvas.width, canvas.height, onClassChosenFunc, enterGameFunc);
+	
+	//init network
 	this.initNetwork();
 	
 	//add event listeners
@@ -447,17 +480,10 @@ Client.prototype.start = function()
 	this.charPredict = null;
 	this.dk_threshold = 2;//initial dead reckoning threshold
 	this.ping = 0;
+	this.isGuest = true;
 	
-	// Init CAAT components
-	Director.init(this, canvas, canvas.height, canvas.width);
 	
 	EntityHashKeySeed.reset();
 }
 
-Client.prototype.blueTeam = function() {
-	this.sendToServer(new JoinMsg("WarriorCell"));
-}
 
-Client.prototype.redTeam = function() {
-	this.sendToServer(new JoinMsg("LeechVirus"));
-}
