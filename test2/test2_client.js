@@ -8,7 +8,7 @@ function start()
 
 setTimeout(function() {
 	start();
-	; }, 500);
+	; }, 1000);
 
 
  

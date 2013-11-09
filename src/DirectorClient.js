@@ -631,7 +631,7 @@ Director.init = function(canvas, displayWidth, displayHeight, initFileXML, onIni
 	{
 		spriteSheetList = new Array();//list of sprite sheet objects
 		spriteModuleList = new Array();//list of sprite modules
-		var Connect = new XMLHttpRequest();
+		var Connect = initXmlRequest;
  
 		// define which file to open and
 		// send the request.
@@ -706,7 +706,7 @@ Director.init = function(canvas, displayWidth, displayHeight, initFileXML, onIni
 	
 	function initMap(mapFile)
 	{
-		var Connect = new XMLHttpRequest();
+		var Connect = initXmlRequest;
  
 		// define which file to open and
 		// send the request.
