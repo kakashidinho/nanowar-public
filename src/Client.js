@@ -61,6 +61,15 @@ Client.prototype.gameReady = function()
 	Director.onMessageHandling = function(msg){
 		return that.handleMessage(msg);
 	}
+
+	Director.onBeginTouchSkillIcon = function (skillid) {
+	    that.onSelectSkill(skillid);
+	}
+
+
+	Director.onEndTouchSkillIcon = function (skillid) {
+	    that.onDropSkill(skillid);
+	}
 	
 	//Director.startGameLoop(Constant.FRAME_RATE);
 }
@@ -193,6 +202,15 @@ Client.prototype.onKeyUp = function(e) {
 	}
 }
 
+
+Client.prototype.onSelectSkill=function(skillid){
+    this.skillCtrlKeyDown[skillid]=true;
+}
+
+Client.prototype.onDropSkill = function (skillid) {
+
+    this.skillCtrlKeyDown[skillid] = false;
+}
 //handle mouse click event
 Client.prototype.onClick = function(x, y, target, isControlDown){
 	if (this.character == null)

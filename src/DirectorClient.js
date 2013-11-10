@@ -6,7 +6,9 @@ this code is used by client
 var Director = {
 	caatDirector : null,
 	displayWidth : null,
-	displayHeight : null,
+	displayHeight: null,
+
+
 	ingameScene : null,
 	startGameLoop : function(frameRate) {
 		CAAT.loop(frameRate);
@@ -72,6 +74,9 @@ Director.initMenu = function(canvas, displayWidth, displayHeight, onClassChosenF
 	startButton.mouseDown = function(mouse){
 		onEnterFunc();
 	};
+	startButton.touchBegin = function (touch) {
+	    onEnterFunc();
+	}
 				
 	menuScene.addChild(startButton);
 	
@@ -193,7 +198,8 @@ Director.loadMap = function(initFileXML, onInitFinished)
 	Director.onMouseMove;//on mouse move callback function
 	Director.onUpdate;//update callback function. should be function(lastUpdateTime, currentTime)
 	Director.preUpdate;//pre-update callback function
-	
+	Direcotr.onBeginTouchSkillIcon;// ontouch event for skill icon
+	Director.onEndTouchSkillIcon;//   ontouchend event for skill icon
 	//init base instance
 	DirectorBase.call(this);
 	
@@ -212,7 +218,8 @@ Director.loadMap = function(initFileXML, onInitFinished)
 	Director.onMouseMove = function(entity, x, y) {}
 	Director.onUpdate = undefined;
 	Director.preUpdate = undefined;
-	
+	Direcotr.onBeginTouchSkillIcon = function (skillId) { };//do nothing here
+	Director.onEndTouchSkillIcon = function (skillId) { };//do nothing
 	//no locking yet
 	locked = false;
 	
@@ -681,6 +688,11 @@ Director.loadMap = function(initFileXML, onInitFinished)
 		worldNode.mouseDown = function(mouse){
 			Director.onClick(mouse.x, mouse.y, null, mouse.isControlDown() );
 		};
+
+		worldNode.touchBegin = function (touch) {
+
+		    Director.onClick(touch.x, touch.y, null, false);
+		}
 		
 		worldNode.mouseMove = function(mouse){
 			Director.onMouseMove(null, mouse.x, mouse.y);
@@ -746,7 +758,13 @@ Director.loadMap = function(initFileXML, onInitFinished)
 	}
 	
 	function initGUI(){
-		
+	    /*-- Init the MultiTouch   -*/
+	 
+	    
+	       
+
+	   
+
 		/*---create ID text--------*/
 		var font15= "15px sans-serif";
 		idText =  new CAAT.Foundation.UI.TextActor()
@@ -859,10 +877,40 @@ Director.loadMap = function(initFileXML, onInitFinished)
 								setSize(ICON_WIDTH, ICON_HEIGHT).
 								setFillStyle('#333333').
 								setAlpha(0.5);
-								
+			//also init skillicons touch event,noted that if i enable multi touch , the mouseDown event will be killed, hence need to implement the touch event fot all items needed mousdown		
 			var skillIcon = new CustomCAATActor().
 								setLocation(skillIconFrame.x, skillIconFrame.y).
 								setSize(ICON_WIDTH, ICON_HEIGHT);
+
+			skillIcon.skillSlotIdx = i;
+			skillIcon.touchBeganID = -1;
+			skillIcon.touchStart = function (touch) {
+			    if (skillIcon.touchBeganID == -1) {
+			        skillIcon.touchBeganID = touch.changedTouches[0].identifier;
+			        Director.onBeginTouchSkillIcon(this.skillSlotIdx);
+			    }
+			}
+
+			skillIcon.touchEnd = function (touch) {
+			    var isRightTouch = false;
+			    for (var i = 0; i < touch.changedTouches.length; ++i) {
+			        if (skillIcon.touchBeganID == touch.changedTouches[i].identifier) {
+			            //this is the one that generated onBeginTouchSkillIcon() before
+			            isRightTouch = true;
+			            break;
+			        }
+			    }
+			    if (isRightTouch) {
+			        skillIcon.touchBeganID = -1;
+			        Director.onEndTouchSkillIcon(this.skillSlotIdx);
+			    }
+			}
+
+
+
+
+
+
 			var skillIconMask = new CAAT.Foundation.Actor().
 							setAlpha(0.3).
 							setFillStyle('#ffffff').
@@ -1309,6 +1357,11 @@ Director.loadMap = function(initFileXML, onInitFinished)
 		Director.onClick(mouse.x, mouse.y, this.entity, mouse.isControlDown());
 		
 	}
+    //for smart phone touch listener
+	VisualEntity.prototype.touchBegin = function (touch) {
+	    Director.onClick(touch.x, touch.y, this.entity, false);
+	}
+   
 	//mouse enter and exit listener, use it to detect whether cursor enter or exit the actor
 	VisualEntity.prototype.mouseEnter = function (mouse) {
 		Director.onMouseEnterExit(this.entity, true ,mouse.x,mouse.y);
