@@ -43327,7 +43327,7 @@ Client.prototype.onClick = function(x, y, target, isControlDown){
 			skillIdx = this.skillSlots[0];
 			
 		if (target.getSide() != Constant.NEUTRAL && target.getSide() != 
-			this.character.getSide())
+			this.character.getSide() && this.character.getSkill(skillIdx).getCooldown() == 0)
 		{
 			//send attacking message to server
 			this.sendToServer(new AttackMsg(this.character, target, skillIdx));
@@ -43337,7 +43337,7 @@ Client.prototype.onClick = function(x, y, target, isControlDown){
 		}
 
 	}
-	else
+	else if (this.character.getSkill(skillIdx).getCooldown() == 0)
 	{
 		//send firing message to server
 		this.sendToServer(new FireToMsg(this.character, x, y, skillIdx));
