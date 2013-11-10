@@ -47,10 +47,13 @@ Server.prototype.broadcastAll = function (msg) {
 	var id;
 	for (id in this.connections) {
 		var conn = this.connections[id];
+		if (conn == undefined)
+			continue;
 		//conn.socket.write(msgToString(msg));
 		//delay the message sending by player's <fakeDelay> amount
 		setTimeout(function(conn, msg) {
-				conn.socket.write(msgToString(msg));
+				if (conn)
+					conn.socket.write(msgToString(msg));
 			},
 			conn.player.fakeDelay,
 			conn, msg);
@@ -69,7 +72,7 @@ Server.prototype.broadcast = function (msg) {
 	var id;
 	for (id in this.connections) {
 		var conn = this.connections[id];
-		if (conn.player.character != null)//player must be ready
+		if (conn && conn.player.character != null)//player must be ready
 		{
 			//conn.socket.write(msgToString(msg));
 			//delay the message sending by player's <fakeDelay> amount
@@ -101,7 +104,8 @@ Server.prototype.multicast = function (subscribers, msg) {
 			//conn.socket.write(msgToString(msg));
 			//delay the message sending by player's <fakeDelay> amount
 			setTimeout(function(conn, msg) {
-					conn.socket.write(msgToString(msg));
+					if (conn)
+						conn.socket.write(msgToString(msg));
 				},
 				player.fakeDelay,
 				conn, msg);
@@ -123,7 +127,7 @@ Server.prototype.broadcastExcept = function (playerID, msg) {
 	var id;
 	for (id in this.connections) {
 		var conn = this.connections[id];
-		if (conn.player.playerID == playerID)//ignore this player
+		if (conn == undefined || conn.player.playerID == playerID)//ignore this player
 			continue;
 		if (conn.player.character != null)//player must be ready
 		{
@@ -148,7 +152,7 @@ Server.prototype.broadcastExcept = function (playerID, msg) {
  */
 Server.prototype.unicast = function (socketID, msg) {
 	var conn = this.connections[socketID];
-	if (conn.player.character != null)//player must be ready
+	if (conn && conn.player.character != null)//player must be ready
 	{
 		//conn.socket.write(msgToString(msg));
 		//delay the message sending by player's <fakeDelay> amount
