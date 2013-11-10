@@ -42506,7 +42506,7 @@ LifeLeechEffect.prototype._implUpdate = function (elapsedTime) {
 	if (Director.dummyClient == false && this.affectedTarget.isAlive())
 	{
 		var dHP = this.affectedTarget.decreaseHP(this.producer.getDamage());
-		this.leecher.increaseHP(dHP);
+		this.leecher.increaseHP(dHP * 0.85);
 	}
 	
 	this.destroy();//this is one time effect, so it should be destroyed immediately
@@ -42878,7 +42878,7 @@ var LifeLeech = function (_owner, skillID) {
 		return;
 		
 	// calls superclass constructor
-	Skill.call(this, skillID, Constant.SKILL_RANGE_MED, 20, _owner, 1000, "LifeLeech");//1s cooldown
+	Skill.call(this, skillID, Constant.SKILL_RANGE_MED, 28, _owner, 1000, "LifeLeech");//1s cooldown
 	
 }
 

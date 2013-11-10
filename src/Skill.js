@@ -168,7 +168,7 @@ var LifeLeech = function (_owner, skillID) {
 		return;
 		
 	// calls superclass constructor
-	Skill.call(this, skillID, Constant.SKILL_RANGE_MED, 20, _owner, 1000, "LifeLeech");//1s cooldown
+	Skill.call(this, skillID, Constant.SKILL_RANGE_MED, 28, _owner, 1000, "LifeLeech");//1s cooldown
 	
 }
 
