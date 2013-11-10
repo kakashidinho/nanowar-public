@@ -26,6 +26,9 @@ Director.initMenu = function(canvas, displayWidth, displayHeight, onClassChosenF
 	var classText;
 	this.displayWidth = displayWidth;
 	this.displayHeight = displayHeight;
+
+    //enable multitouch
+	CAAT.TOUCH_BEHAVIOR = CAAT.TOUCH_AS_MULTITOUCH;
 		
 	// create a CAAT director object for handling graphics
 	this.caatDirector = new CAAT.Foundation.Director().initialize(
@@ -74,7 +77,7 @@ Director.initMenu = function(canvas, displayWidth, displayHeight, onClassChosenF
 	startButton.mouseDown = function(mouse){
 		onEnterFunc();
 	};
-	startButton.touchBegin = function (touch) {
+	startButton.touchEnd= function (touch) {
 	    onEnterFunc();
 	}
 				
@@ -198,7 +201,7 @@ Director.loadMap = function(initFileXML, onInitFinished)
 	Director.onMouseMove;//on mouse move callback function
 	Director.onUpdate;//update callback function. should be function(lastUpdateTime, currentTime)
 	Director.preUpdate;//pre-update callback function
-	Direcotr.onBeginTouchSkillIcon;// ontouch event for skill icon
+	Director.onBeginTouchSkillIcon;// ontouch event for skill icon
 	Director.onEndTouchSkillIcon;//   ontouchend event for skill icon
 	//init base instance
 	DirectorBase.call(this);
@@ -218,7 +221,7 @@ Director.loadMap = function(initFileXML, onInitFinished)
 	Director.onMouseMove = function(entity, x, y) {}
 	Director.onUpdate = undefined;
 	Director.preUpdate = undefined;
-	Direcotr.onBeginTouchSkillIcon = function (skillId) { };//do nothing here
+	Director.onBeginTouchSkillIcon = function (skillId) { };//do nothing here
 	Director.onEndTouchSkillIcon = function (skillId) { };//do nothing
 	//no locking yet
 	locked = false;
@@ -390,6 +393,22 @@ Director.loadMap = function(initFileXML, onInitFinished)
 			gameSceneRoot.setDiscardable(true);
 			gameSceneRoot.destroy();
 			ingameScene.removeChild(gameSceneRoot);
+		}
+
+		rankTableNode.touchEnd = function (touch) {
+
+		    Director._switchToMenu();
+		    /*--clean up scene items---*/
+		    this.setFrameTime(0, 0);
+		    this.setDiscardable(true);
+		    this.destroy();
+		    worldNode.setFrameTime(0, 0);
+		    worldNode.setDiscardable(true);
+		    worldNode.destroy();
+		    gameSceneRoot.setFrameTime(0, 0);
+		    gameSceneRoot.setDiscardable(true);
+		    gameSceneRoot.destroy();
+		    ingameScene.removeChild(gameSceneRoot);
 		}
 		
 		/*----"touch screen to continue" text-------*/
@@ -689,9 +708,9 @@ Director.loadMap = function(initFileXML, onInitFinished)
 			Director.onClick(mouse.x, mouse.y, null, mouse.isControlDown() );
 		};
 
-		worldNode.touchBegin = function (touch) {
+		worldNode.touchStart = function (touch) {
 
-		    Director.onClick(touch.x, touch.y, null, false);
+		    Director.onClick(touch.changedTouches[0].clientX, touch.changedTouches[0].clientY, null, false);
 		}
 		
 		worldNode.mouseMove = function(mouse){
@@ -1358,8 +1377,8 @@ Director.loadMap = function(initFileXML, onInitFinished)
 		
 	}
     //for smart phone touch listener
-	VisualEntity.prototype.touchBegin = function (touch) {
-	    Director.onClick(touch.x, touch.y, this.entity, false);
+	VisualEntity.prototype.touchEnd = function (touch) {
+	    Director.onClick(touch.changedTouches[0].clientX, touch.changedTouches[0].clientY, this.entity, false);
 	}
    
 	//mouse enter and exit listener, use it to detect whether cursor enter or exit the actor

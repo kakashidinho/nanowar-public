@@ -22,9 +22,18 @@ var httpServer = http.createServer(function(request, response) {
 	
 	path.exists(filename, function(exists) {
 		if(!exists) {
-			response.writeHead(404, {"Content-Type": "text/plain"});
-			response.write("404 Not Found\n");
-			response.end();
+			if (path.indexOf('nanowar/info') != -1)
+			{
+				response.writeHead(200, {"Content-Type": "text/plain"});
+				response.write("This is nanowar game session\n");
+				response.end();
+			}
+			else
+			{
+				response.writeHead(404, {"Content-Type": "text/plain"});
+				response.write("404 Not Found\n");
+				response.end();
+			}
 			return;
 		}
 		 
