@@ -58,4 +58,4 @@ httpServer.listen(Constant.SERVER_PORT, server_ip);
 /*------start game server------*/
 var server = new Server();
 server.start(httpServer);
-server.beginStartGame("init2.xml");
+//server.beginStartGame("init2.xml");
