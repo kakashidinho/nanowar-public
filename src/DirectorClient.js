@@ -74,7 +74,7 @@ Director.initMenu = function(canvas, displayWidth, displayHeight, onClassChosenF
 				setVisible(false).
 				setFillStyle('#00ff00');
 				
-	startButton.mouseDown = function(mouse){
+	startButton.mouseUp = function(mouse){
 		onEnterFunc();
 	};
 	startButton.touchEnd= function (touch) {
@@ -708,7 +708,7 @@ Director.loadMap = function(initFileXML, onInitFinished)
 			Director.onClick(mouse.x, mouse.y, null, mouse.isControlDown() );
 		};
 
-		worldNode.touchStart = function (touch) {
+		worldNode.touchEnd = function (touch) {
 
 		    Director.onClick(touch.changedTouches[0].clientX, touch.changedTouches[0].clientY, null, false);
 		}

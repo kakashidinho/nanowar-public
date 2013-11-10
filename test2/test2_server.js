@@ -22,7 +22,7 @@ var httpServer = http.createServer(function(request, response) {
 	
 	path.exists(filename, function(exists) {
 		if(!exists) {
-			if (path.indexOf('nanowar/info') != -1)
+			if (filename.indexOf('nanowar/info') != -1)
 			{
 				response.writeHead(200, {"Content-Type": "text/plain"});
 				response.write("This is nanowar game session\n");
