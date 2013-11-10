@@ -184,7 +184,7 @@ LifeLeechEffect.prototype._implUpdate = function (elapsedTime) {
 	if (Director.dummyClient == false && this.affectedTarget.isAlive())
 	{
 		var dHP = this.affectedTarget.decreaseHP(this.producer.getDamage());
-		this.leecher.increaseHP(dHP);
+		this.leecher.increaseHP(dHP * 0.5);
 	}
 	
 	this.destroy();//this is one time effect, so it should be destroyed immediately
