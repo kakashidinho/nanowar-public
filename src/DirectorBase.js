@@ -97,8 +97,8 @@ function DirectorBase()
 		{
 			if (entityB!= null && entityB.isAlive())
 			{
-				entityA.enterArea(entityB);
 				//console.log('entityA.enterArea(entityB)');
+				entityA.enterArea(entityB);
 			}
 		}
 		else if (bodyB.GetType() == b2Body.b2_kinematicBody && 
@@ -106,8 +106,8 @@ function DirectorBase()
 		{
 			if (entityA!= null && entityA.isAlive())
 			{
-				console.log('entityA.enterArea(entityB)');
-				//entityB.enterArea(entityA);
+				//console.log('entityA.enterArea(entityB)');
+				entityB.enterArea(entityA);
 			}
 		}
 		else if (bodyA.GetType() == b2Body.b2_dynamicBody && 
