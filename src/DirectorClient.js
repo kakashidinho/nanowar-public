@@ -3,46 +3,202 @@ this code is used by client
 */	
 
 /*-------Director instance on client side-------*/	
-var Director = {};
+var Director = {
+	caatDirector : null,
+	displayWidth : null,
+	displayHeight : null,
+	ingameScene : null,
+	startGameLoop : function(frameRate) {
+		CAAT.loop(frameRate);
+	},
+	endGameLoop : function() {
+		CAAT.endLoop();
+	}
+};
 
-Director.init = function(canvas, displayWidth, displayHeight, initFileXML, onInitFinished)
+Director.initMenu = function(canvas, displayWidth, displayHeight, onClassChosenFunc, onEnterFunc) {
+	var menuScene;
+	var menuImages;
+	var startButton;
+	var startButtonText;
+	var classText;
+	this.displayWidth = displayWidth;
+	this.displayHeight = displayHeight;
+		
+	// create a CAAT director object for handling graphics
+	this.caatDirector = new CAAT.Foundation.Director().initialize(
+			displayWidth,    // pixels wide
+			displayHeight,    // pixels across
+			canvas
+	);
+	
+	var caatDirector = this.caatDirector;
+	
+	this.displayClassName = function(className){
+		classText.setText('Your current class is: ' + className);
+	}
+	this.displayStartButton = function(isStartButton){
+		startButton.setVisible(true);
+		startButtonText.setVisible(true);
+		if (isStartButton)
+			startButtonText.setText('Start');
+		else
+			startButtonText.setText('Join');
+	}
+	
+	this.hideStartButton = function(){
+		startButton.setVisible(false);
+		startButtonText.setVisible(false);
+	}
+	
+	this.isInMenu = function(){
+		return caatDirector.getCurrentSceneIndex() == 0;
+	}
+	
+	this._switchToMenu = function(){
+		caatDirector.setScene(0);
+	}
+	
+	menuScene = caatDirector.createScene();
+	ingameScene = caatDirector.createScene();
+	
+	startButton = new CAAT.Foundation.UI.ShapeActor().
+                centerAt(280, 60).
+                setSize(100, 50).
+                setShape(CAAT.Foundation.UI.ShapeActor.SHAPE_RECTANGLE).
+				setVisible(false).
+				setFillStyle('#00ff00');
+				
+	startButton.mouseDown = function(mouse){
+		onEnterFunc();
+	};
+				
+	menuScene.addChild(startButton);
+	
+	/* start button text */	
+	startButtonText =  new CAAT.Foundation.UI.TextActor()
+							.setLocation(startButton.x + startButton.width/2, startButton.y + startButton.height/2)
+							.setText('Start')
+							.setFont("18px sans-serif")
+							.setAlign("center")
+							.setTextFillStyle('#000000')
+							.setVisible(false)
+							.enableEvents(false)
+							;
+	
+	menuScene.addChild(startButtonText);
+	
+	/*class name text*/
+	classText =  new CAAT.Foundation.UI.TextActor()
+							.setLocation(displayWidth / 2, 36)
+							.setText('Your current class is: ')
+							.setFont("15px sans-serif")
+							.setAlign("center")
+							.setTextFillStyle('#000000')
+							.enableEvents(false)
+							;
+	
+	menuScene.addChild(classText);
+					
+	menuImages = [{id : 'menuButtons', url: 'menuButtons.png'}];
+	
+	new CAAT.ImagePreloader().loadImages(
+			menuImages,
+			function (counter, images) {
+				if (counter == images.length)
+				{
+					//finish loading images
+					caatDirector.setImagesCache(images);
+					
+					var buttonsSprite = new CAAT.SpriteImage().initialize(
+						caatDirector.getImage('menuButtons'), 2, 3 );
+					
+					var font= "32px sans-serif";
+					var menuTitle =  new CAAT.Foundation.UI.TextActor()
+													.setLocation(280, 120)
+													.setText("Select Your Side")
+													.setFont(font)
+													.setAlign("center")
+													.setTextFillStyle('#000000')
+													.enableEvents(false);
+													
+					menuScene.addChild(menuTitle);
+					
+					var b1= new CAAT.Actor().setAsButton(
+						buttonsSprite.getRef(), 0, 1, 2, 0, function(button) {
+									onClassChosenFunc('LeechVirus');
+							}
+						)
+						.setLocation(100, 200);
+					
+					var b2= new CAAT.Actor().setAsButton(
+						buttonsSprite.getRef(), 3, 4, 5, 3, function(button) {
+									onClassChosenFunc('WarriorCell');
+							}
+						)
+						.setLocation(350, 200);
+
+					menuScene.addChild(b1);
+					menuScene.addChild(b2);
+					
+					Director.startGameLoop(Constant.FRAME_RATE);
+				}
+			}
+		);
+
+}
+
+Director.loadMap = function(initFileXML, onInitFinished)
 {
 	/*---------Director instance definition-------------*/
 	//private
-	var caatDirector;
+	var caatDirector = this.caatDirector;
+	var displayWidth = this.displayWidth;
+	var displayHeight = this.displayHeight;
 	var spriteSheetList;
 	var spriteModuleList;
 	var visualEntityList;
 	var lastUpdateTime;
-	var currentUpdateTime;//for using during update
-	var initXmlRequest;
+	var currentSceneTime;//for using during update
+	var xmlRequest;
 	var mainCharacter;//the main entity in the game
 	var targetEntity;//the attacking target of main character
+	var gameDuration;
+	var numNonObstacleTiles;
 	
-	var sceneRoot;
-	var guiNode;//scene's gui node, for containing GUI elements
+	var locked;//lock during game update
+	
+	var gameSceneRoot;//scene root
+	
+	/*-------GUI items------*/
+	var attackFailText;//text the display the reason why attack failed
+	var pingText;//ping value text
+	var durationText;
+	var idText;
+	var hpText;
+	var killText;
+	var deathText;
+	var skillIcons;
+	var skillIconMasks;
+	
+	/*------scene items-----*/
 	var worldNode;//scene's world node
-	var outOfRangeText;//out of range text on screen
 	var destMark ;//movement's destination mark
 	var targetMark; //target mark
 	
 	var that = this;
 
-	Director.onClick;//on mouse click callback function. should be function(mouseX, mouseY, clickedEntity)
+	Director.onClick;//on mouse click callback function. should be function(mouseX, mouseY, clickedEntity, isControlButtonDown)
 	Director.onMouseEnterExit;//on mouse enter/exit callback function
+	Director.onMouseMove;//on mouse move callback function
 	Director.onUpdate;//update callback function. should be function(lastUpdateTime, currentTime)
 	Director.preUpdate;//pre-update callback function
 	
 	//init base instance
 	DirectorBase.call(this);
 	
-	/*------------open connection to initializing xml file-------------------*/
-	initXmlRequest = new XMLHttpRequest();
-	// define which file to open and
-	// send the request.
-	initXmlRequest.open("GET", initFileXML, false);
-	initXmlRequest.setRequestHeader("Content-Type", "text/xml");
-	initXmlRequest.send(null);
+	/*------------initialize xml file request-------------------*/
+	xmlRequest = new XMLHttpRequest();
 	
 	/*-------------------------------*/
 	//no target to follow
@@ -51,30 +207,24 @@ Director.init = function(canvas, displayWidth, displayHeight, initFileXML, onIni
 	
 		
 	//initially, no callbacks
-	Director.onClick = function (x, y, target) { };//do nothing
+	Director.onClick = function (x, y, target, isControlButtonDown) { };//do nothing
 	Director.onMouseEnterExit = function (target, enter,x,y) { };//do nothing
+	Director.onMouseMove = function(entity, x, y) {}
 	Director.onUpdate = undefined;
 	Director.preUpdate = undefined;
-		
-	/*---------graphics--------------*/
-	initGraphics();
 	
+	//no locking yet
+	locked = false;
 	
-	/*---------method definitions----------------*/
-	Director.startGameLoop = function(frameRate)
-	{
-		CAAT.loop(frameRate);
-	}
-	
-	Director.endGameLoop = function()
-	{
-		CAAT.endLoop();
-	}
+	gameDuration = 0;
 	
 	//make camera follow an entity
 	Director.setMainCharacter = function(entity)
 	{
 		mainCharacter = entity;
+		
+		if (entity != null)
+			idText.setText("Your ID: " + entity.getID());
 	}
 	
 	//mark the destination, the mark will disappear after the main character stop moving
@@ -86,6 +236,28 @@ Director.init = function(canvas, displayWidth, displayHeight, initFileXML, onIni
 	//mark the target
 	Director.markTarget = function(entity){
 		targetEntity = entity;
+		targetMark.setVisible(true);
+	}
+	
+	//mark the firing destination
+	Director.markFireDest = function(x, y){
+		targetMark.centerAt(x, y);
+		targetMark.setVisible(true);
+	}
+	
+	Director.hideTargetMark = function(){
+		targetEntity = null;
+		targetMark.setVisible(false);
+	}
+	
+	//mark the target
+	Director.markTarget = function(entity){
+		targetEntity = entity;
+		if (entity != null)
+		{
+			targetMark.centerAt(entity.getPosition().x, entity.getPosition().y);
+			targetMark.setVisible(true);
+		}
 	}
 	
 	//get the current marked target
@@ -93,17 +265,248 @@ Director.init = function(canvas, displayWidth, displayHeight, initFileXML, onIni
 		return targetEntity;
 	}
 	
-	Director.displayOutOfRangeTxt = function(displayFlag){
-		if (displayFlag)
+	//update the ping value on screen
+	Director.updatePingValue = function(pingValue){
+		pingText.setText("Ping: " + pingValue.toString());
+	}
+	
+	Director.updateGameDuration = function(duration){
+		gameDuration = duration;
+	}
+	
+	//display attack "out of range" text
+	Director.displayOutOfRangeTxt = function(){
+		displayAtkFailTxt("Out of range!!!");
+	}
+	
+	//display "skill is not ready" text
+	Director.displaySkillNotReadyTxt = function(){
+		displayAtkFailTxt("Skill is not ready!!!");
+	}
+	
+	Director.hideAtkFailTxt = function()
+	{
+		attackFailText.setVisible(false);
+	}
+	
+	//an entity has died
+	Director.notifyEntityDeath = function(entityID){
+		if (entityID in this.knownEntity == false)
+			return;
+		var entity = this.knownEntity[entityID];
+		//stop marking this target
+		if (entity == targetEntity)
+			Director.hideTargetMark();
+			
+		var visualEntity = entity.visualPart;
+		
+		if (visualEntity != null)
+			visualEntity.commitChanges();//reflect current state of the entity first
+			
+		if (visualEntity != null)
 		{
-			outOfRangeText.setVisible(true);
-			outOfRangeText.setFrameTime(currentUpdateTime, 3000);//appear in 3s
-		}
-		else
-		{
-			outOfRangeText.setVisible(false);
+			visualEntity.playAnimation("die");//play dying animation
+			visualEntity.enableEvents(false);//disable mouse click
+			visualEntity.setFrameTime(currentSceneTime, 1000);//dying in 1s
 		}
 	}
+	
+	//an entity has started respawning
+	Director.notifyEntityStartRespawn = function(entityID){
+		if (entityID in this.knownEntity == false)
+			return;
+		var entity = this.knownEntity[entityID];
+			
+		var visualEntity = entity.visualPart;
+			
+		if (visualEntity != null)
+		{
+			visualEntity.playAnimation("normal");//play normal animation
+			visualEntity.setVisible(true);
+			visualEntity.setFrameTime(0, Number.MAX_VALUE);
+			
+			//add alpha behaviour
+			var alphaBehavior = new CAAT.Behavior.AlphaBehavior().
+				setPingPong().
+				setCycle(true).
+				setFrameTime(0, 1000).
+				setValues(0, 1);
+				
+			visualEntity.addBehavior(alphaBehavior);
+		}
+	}
+	
+	//an entity has ended respawning
+	Director.notifyEntityEndRespawn = function(entityID){
+		if (entityID in this.knownEntity == false)
+			return;
+		var entity = this.knownEntity[entityID];
+			
+		var visualEntity = entity.visualPart;
+			
+		if (visualEntity != null)
+		{
+			visualEntity.emptyBehaviorList();
+			visualEntity.setAlpha(1.0);
+			visualEntity.enableEvents(true);
+		}
+	}
+	
+	Director.notifyMyKillCount = function(killCount){
+		killText.setText("Kills: " + killCount);
+	}
+	
+	Director.notifyMyDeathCount = function(deathCount){
+		deathText.setText("Deaths: " + deathCount);
+	}
+	
+	Director.stopGame = function(virusesRank, cellsRank){
+		//scene's rank display node
+		var rankTableNode = new CAAT.Foundation.ActorContainer()
+						.setAlpha(0.7)
+						.setFillStyle('#000000');
+		rankTableNode.setSize(displayWidth, displayHeight);
+		gameSceneRoot.addChild(rankTableNode);	
+		gameSceneRoot.setZOrder(rankTableNode, 1000);//always on top
+		
+		rankTableNode.mouseUp = function(mouse){
+			//switch to menu scene
+			Director._switchToMenu();
+			/*--clean up scene items---*/
+			this.setFrameTime(0, 0);
+			this.setDiscardable(true);
+			this.destroy();
+			worldNode.setFrameTime(0, 0);
+			worldNode.setDiscardable(true);
+			worldNode.destroy();
+			gameSceneRoot.setFrameTime(0, 0);
+			gameSceneRoot.setDiscardable(true);
+			gameSceneRoot.destroy();
+			ingameScene.removeChild(gameSceneRoot);
+		}
+		
+		/*----"touch screen to continue" text-------*/
+		var alphaBehavior = new CAAT.Behavior.AlphaBehavior().
+				setPingPong().
+				setCycle(true).
+				setFrameTime(0, 1000).
+				setValues(0, 1);
+		
+		var continueText =  new CAAT.Foundation.UI.TextActor()
+											.setLocation(displayWidth/2, displayHeight/2)
+											.setText('Touch screen to continue')
+											.setFont("35px sans-serif")
+											.setAlign("center")
+											.setTextFillStyle('#ffffff')
+											.enableEvents(false)
+											;
+											
+		continueText.addBehavior(alphaBehavior);
+		
+		rankTableNode.addChild(continueText);
+		rankTableNode.setZOrder(continueText, 1001);
+		
+		
+		/*---create record texts--------*/
+		var font18= "18px sans-serif";
+		/*-----viruses--------*/
+		var virusSideText =  new CAAT.Foundation.UI.TextActor()
+											.setLocation(10, 36)
+											.setText('Viruses: ')
+											.setFont(font18)
+											.setAlign("left")
+											.setTextFillStyle('#ffffff')
+											.enableEvents(false)
+											;
+											
+		rankTableNode.addChild(virusSideText);
+			
+		var record_y = 56;
+		var font15= "15px sans-serif";
+		/*---rank records-------*/
+		for (var i = 0; i < virusesRank.length; ++i){
+			var record = virusesRank[i];
+			var text = (i + 1) + '.ID: ' + record.id + '		Kills: ' + record.killCount + '		Deaths: ' + record.deathCount;
+			var recordText =  new CAAT.Foundation.UI.TextActor()
+											.setLocation(13, record_y)
+											.setText(text)
+											.setFont(font15)
+											.setAlign("left")
+											.setTextFillStyle('#ffffff')
+											.enableEvents(false)
+											;
+											
+			rankTableNode.addChild(recordText);
+			
+			record_y += 20;
+		}
+		
+		/*---------cells--------------*/
+		record_y += 16;
+		
+		var cellSideText =  new CAAT.Foundation.UI.TextActor()
+											.setLocation(10, record_y)
+											.setText('Cells: ')
+											.setFont(font18)
+											.setAlign("left")
+											.setTextFillStyle('#ffffff')
+											.enableEvents(false)
+											;
+											
+		rankTableNode.addChild(cellSideText);
+		
+		record_y += 20;
+		
+		/*---rank records-------*/
+		for (var i = 0; i < cellsRank.length; ++i){
+			var record = cellsRank[i];
+			var text = (i + 1) + '.ID: ' + record.id + '		Kills: ' + record.killCount + '		Deaths: ' + record.deathCount;
+			var recordText =  new CAAT.Foundation.UI.TextActor()
+											.setLocation(13, record_y)
+											.setText(text)
+											.setFont(font15)
+											.setAlign("left")
+											.setTextFillStyle('#ffffff')
+											.enableEvents(false)
+											;
+											
+			rankTableNode.addChild(recordText);
+			
+			record_y += 20;
+		}
+		
+		
+		//destroy all entities
+		this._baseStop();
+	}
+	
+	//display information about the current skill slots of main character
+	Director.displaySkillInfos = function(skillSlots){
+		if (mainCharacter == null)
+			return;
+		for (var i = 0; i < Constant.MAX_SKILL_SLOTS; ++i){
+			var skill = mainCharacter.getSkill(skillSlots[i]);
+			var spriteModule = spriteModuleList[skill.getSpriteModuleName()];
+			var spriteSheet = spriteSheetList[spriteModule.sheetID];
+			var iconAnim = spriteModule.animations['icon'];
+			var cooldown = skill.getCooldown();
+			
+			skillIcons[i].setBackgroundImage(spriteSheet, false);
+			skillIcons[i].playAnimation(iconAnim);
+			
+			//use mask to display current cooldown
+			if (cooldown == 0)
+				skillIconMasks[i].setVisible(false);
+			else
+			{
+				var height = skillIcons[i].height * cooldown / skill.getMaxCooldown();
+				skillIconMasks[i].setVisible(true);
+				skillIconMasks[i].setLocation(skillIcons[i].x, skillIcons[i].y + skillIcons[i].height - height);
+				skillIconMasks[i].setSize(skillIcons[i].width, height);
+			}
+		}
+	}
+	
 	
 	Director._getCAATDirector = function()
 	{
@@ -123,9 +526,18 @@ Director.init = function(canvas, displayWidth, displayHeight, initFileXML, onIni
 	{
 		this._baseAddEntity(entity);//call base method
 		
-		var visualEntity = new VisualEntity(entity);
+		if (entity.getSpriteModuleName() != null && 
+			entity.getSpriteModuleName() in spriteModuleList)
+		{
+			var visualEntity = new VisualEntity(entity);
 		
-		visualEntity.listNode = visualEntityList.insertBack(visualEntity);
+			visualEntity.listNode = visualEntityList.insertBack(visualEntity);
+			
+			//if this entity is created during game update, then dont update this entity yet
+			visualEntity.locked = locked;
+		}
+		else
+			entity.visualPart = null;//this entity doesn't have any visual aspect. maybe just for physics simulation
 	}
 	
 	Director._destroyEntity = function(entity){
@@ -133,56 +545,90 @@ Director.init = function(canvas, displayWidth, displayHeight, initFileXML, onIni
 		if (entity == mainCharacter)
 			mainCharacter = null;
 		else if (entity == targetEntity)
-			targetEntity = null;
+			Director.hideTargetMark();
 			
 		var visualEntity = entity.visualPart;
-			
-		visualEntity.commitChanges();//reflect current state of the entity first
+		
+		if (visualEntity != null)
+			visualEntity.commitChanges();//reflect current state of the entity first
 			
 		this._baseDestroyEntity(entity);//call base method
 		
 		
-		visualEntityList.removeNode(visualEntity.listNode );//remove this entity from the managed list
+		if (visualEntity != null)
+		{
+			visualEntityList.removeNode(visualEntity.listNode );//remove this entity from the managed list
 		
-		visualEntity.playAnimation("die");//play dying animation
-		visualEntity.enableEvents(false);//disable mouse click
-		visualEntity.setDiscardable(true);
-		visualEntity.setFrameTime(currentUpdateTime, 1000);//dying in 1s
-
+			visualEntity.playAnimation("die");//play dying animation
+			visualEntity.enableEvents(false);//disable mouse click
+			visualEntity.setDiscardable(true);
+			visualEntity.setFrameTime(currentSceneTime, 1000);//dying in 1s
+		}
 	   
 	}
 	
 	//game loop
 	function gameUpdate(scene_time){
-		currentUpdateTime = scene_time;
+		var currentUpdateTime = Utils.getTimestamp();
+		currentSceneTime = scene_time;
 		if (lastUpdateTime == -1)
 			lastUpdateTime = currentUpdateTime;
 		
-		//var elapsedTime = currentUpdateTime - lastUpdateTime;
-		var elapsedTime = 1000/60.0;
+		var elapsedTime = currentUpdateTime - lastUpdateTime;
+		
+		gameDuration -= elapsedTime;
+		if (gameDuration < 0)
+			gameDuration = 0;
+		
+		//var elapsedTime = 1000/60.0;
+		//lastUpdateTime = currentUpdateTime - elapsedTime;
 		
 		//call pre-update callback function
 		if (Director.preUpdate != undefined)
 			Director.preUpdate(lastUpdateTime, currentUpdateTime);
 		
+		locked = true;//lock certain operations
+		
 		that._baseGameLoop(elapsedTime);//call base game update method
+			
+		//update the entities and commit changes to their visual parts
+		visualEntityList.traverse(function(visualEntity) {
+			if (visualEntity.locked)
+			{
+				//this entity has just been created, dont update it yet
+				visualEntity.locked = false;
+			}
+			else
+			{
+				visualEntity.getEntity().update(elapsedTime);
+				visualEntity.commitChanges();
+			}
+		}
+		);
 		
 		//call update callback function
 		if (Director.onUpdate != undefined)
 			Director.onUpdate(lastUpdateTime, currentUpdateTime);
-			
-		//update the entities and commit changes to their visual parts
-		visualEntityList.traverse(function(visualEntity) {
-			visualEntity.getEntity().update(elapsedTime);
-			visualEntity.commitChanges();
-		}
-		);
 		
-		//move camera to follow target
+		locked = false;//unlock certain operations
+		
+		graphicsUpdate();
+		
+		lastUpdateTime = currentUpdateTime;
+	}
+	
+	function graphicsUpdate(){
+		
 		if (mainCharacter != null)
 		{
+			//move camera to follow target
 			var pos = mainCharacter.getPosition();
-			worldNode.setLocation(displayWidth * 0.5 - pos.x, displayHeight * 0.5 - pos.y);
+			worldNode.setLocation(
+				displayWidth * 0.5 - pos.x * Constant.PHYSICS_UNIT_SCALE, 
+				displayHeight * 0.5 - pos.y * Constant.PHYSICS_UNIT_SCALE);
+				
+			//update the hp text
+			hpText.setText("HP: " + Math.floor(mainCharacter.getHP()));
 		}
 		
 		//update the destination mark
@@ -195,41 +641,52 @@ Director.init = function(canvas, displayWidth, displayHeight, initFileXML, onIni
 		//update the target mark
 		if (targetEntity != null && targetEntity.isAlive()){
 			//we currently have a marked target
-			targetMark.setVisible(true);
 			targetMark.centerAt(targetEntity.getPosition().x, targetEntity.getPosition().y);
 		}
-		else//dont have any marked target
-		{
-			//hide the mark
-			targetMark.setVisible(false);
-		}
 		
-		lastUpdateTime = currentUpdateTime;
+		//update game timer
+		var total_seconds = gameDuration / 1000;
+		var remain = total_seconds % 3600;
+		var hours = Math.floor(total_seconds/ 3600);
+		var minutes = Math.floor(remain / 60);
+		var seconds = Math.floor(remain % 60);
+		
+		var hoursStr = hours.toString();
+		if (hoursStr.length < 2)
+			hoursStr = '0' + hoursStr;
+		var minStr = minutes.toString();
+		if (minStr.length < 2)
+			minStr = '0' + minStr;
+		var secStr = seconds.toString();
+		if (secStr.length < 2)
+			secStr = '0' + secStr;
+			
+		durationText.setText(hoursStr + ' : ' + minStr + ' : ' + secStr);
 	}
 	
 	//initialize graphics
 	function initGraphics(){
-		// create a CAAT director object for handling graphics
-		caatDirector = new CAAT.Foundation.Director().initialize(
-				displayWidth,    // pixels wide
-				displayHeight,    // pixels across
-				canvas
-		);
+		//create in-game scene root
+		gameSceneRoot = new CAAT.Foundation.ActorContainer().
+								setSize(displayWidth, displayHeight);
+		ingameScene.addChild(gameSceneRoot);
 		
 		// create visual entity list
 		visualEntityList = new Utils.List();
-		
-		// add a scene object to the director.
-		sceneRoot =     caatDirector.createScene();
-		
+			
 		//world node
 		worldNode = new CAAT.Foundation.ActorContainer().
-				setFillStyle('#fff');
-		worldNode.mouseClick = function(mouse){
-			Director.onClick(mouse.x, mouse.y, null);
+				setFillStyle('#fff').
+				setScaleAnchored(Constant.PHYSICS_UNIT_SCALE, Constant.PHYSICS_UNIT_SCALE, 0, 0);
+		worldNode.mouseDown = function(mouse){
+			Director.onClick(mouse.x, mouse.y, null, mouse.isControlDown() );
 		};
+		
+		worldNode.mouseMove = function(mouse){
+			Director.onMouseMove(null, mouse.x, mouse.y);
+		}
 	 
-		sceneRoot.addChild(worldNode);
+		gameSceneRoot.addChild(worldNode);
 		
 		/*----init movement mark and target mark-------*/
 		initMarks();
@@ -240,22 +697,25 @@ Director.init = function(canvas, displayWidth, displayHeight, initFileXML, onIni
 		/*-------rendering loop------------------*/
 		lastUpdateTime = -1;
 		
-		sceneRoot.onRenderStart = function(scene_time) {
+		ingameScene.onRenderStart = function(scene_time) {
 			gameUpdate(scene_time);
 		}
+	
+		//switch to in-game scene
+		caatDirector.setScene(1);
 	}
 	
 	//init destination and target marks
 	function initMarks(){
+	
+	
 		//animations for the 2 marks
-		var cycleDraw = new CAAT.Behavior.ContainerBehavior().
-		setCycle(true).
-		setFrameTime(0, 1000);
-		var scaleMarker = new CAAT.Behavior.ScaleBehavior().
-		setPingPong().
-		setFrameTime(0, 1000).
-		setValues(1, 2, 1, 2, .50, .50);
-		cycleDraw.addBehavior(scaleMarker);
+		var initScale = 1.0 / Constant.PHYSICS_UNIT_SCALE;
+		var scaleBehavior = new CAAT.Behavior.ScaleBehavior().
+			setPingPong().
+			setCycle(true).
+			setFrameTime(0, 1000).
+			setValues(initScale, 2 * initScale, initScale, 2 * initScale, .50, .50);
 		
 		//movement's destination mark
 		destMark = new CAAT.Foundation.UI.ShapeActor();
@@ -264,9 +724,9 @@ Director.init = function(canvas, displayWidth, displayHeight, initFileXML, onIni
 		destMark.setFillStyle('#00ff00');
 		destMark.setAlpha(0.2);
 		destMark.setStrokeStyle('#000');
-		destMark.setSize(15, 15);
+		destMark.setSize(15 , 15 );
 		destMark.setVisible(false);//initially invisible
-		destMark.addBehavior(cycleDraw);
+		destMark.addBehavior(scaleBehavior);
 		
 		worldNode.addChild(destMark);
 		
@@ -275,41 +735,156 @@ Director.init = function(canvas, displayWidth, displayHeight, initFileXML, onIni
 		targetMark = new CAAT.Foundation.UI.ShapeActor();
 		targetMark.setShape(CAAT.Foundation.UI.ShapeActor.SHAPE_CIRCLE);
 		targetMark.enableEvents(false);
-		targetMark.setFillStyle('#ffff00');
+		targetMark.setFillStyle('#ff0000');
 		targetMark.setAlpha(0.2);
 		targetMark.setStrokeStyle('#000');
-		targetMark.setSize(25, 25);
+		targetMark.setSize(30 , 30 );
 		targetMark.setVisible(false);//initially invisible
-		targetMark.addBehavior(cycleDraw);
+		targetMark.addBehavior(scaleBehavior);
 		
 		worldNode.addChild(targetMark);
 	}
 	
 	function initGUI(){
 		
-		//scene's GUI node
-		guiNode = new CAAT.Foundation.ActorContainer()
-						.setAlpha(0.0)
-						.enableEvents(false);
-		guiNode.setSize(displayWidth, displayHeight);
-		sceneRoot.addChild(guiNode);	
-		sceneRoot.setZOrder(guiNode, 999);//always on top
-		
-		/*---create "out of range" text------*/
-		var font= "18px sans-serif";
-		outOfRangeText =  new CAAT.Foundation.UI.TextActor()
-										.setLocation(displayWidth / 2.0, 36)
-										.setText("Out of range!!!")
-										.setFont(font)
-										.setAlign("center")
+		/*---create ID text--------*/
+		var font15= "15px sans-serif";
+		idText =  new CAAT.Foundation.UI.TextActor()
+										.setLocation(10, 36)
+										.setText("Your ID: -1")
+										.setFont(font15)
+										.setAlign("left")
 										.setTextFillStyle('#ff0000')
-										//.setOutline(true)
-										//.setOutlineColor('white')
-										.setVisible(false)
 										.enableEvents(false)
 										;
 										
-		guiNode.addChild(outOfRangeText);
+		gameSceneRoot.addChild(idText);
+		gameSceneRoot.setZOrder(idText, 999);//always on top
+		
+		/*---create duration text--------*/
+		var font15= "15px sans-serif";
+		durationText =  new CAAT.Foundation.UI.TextActor()
+										.setLocation(displayWidth / 2, 36)
+										.setText("00 : 00 : 00")
+										.setFont(font15)
+										.setAlign("center")
+										.setTextFillStyle('#ff0000')
+										.enableEvents(false)
+										;
+										
+		gameSceneRoot.addChild(durationText);
+		gameSceneRoot.setZOrder(durationText, 999);//always on top
+		
+		/*---create "ping value" text--------*/
+		var font15= "15px sans-serif";
+		pingText =  new CAAT.Foundation.UI.TextActor()
+										.setLocation(10, 72)
+										.setText("Ping: 0")
+										.setFont(font15)
+										.setAlign("left")
+										.setTextFillStyle('#ff0000')
+										.enableEvents(false)
+										;
+										
+		gameSceneRoot.addChild(pingText);
+		gameSceneRoot.setZOrder(pingText, 999);//always on top
+		
+		/*---create "attack failed" text------*/
+		var font18= "18px sans-serif";
+		attackFailText =  new CAAT.Foundation.UI.TextActor()
+										.setLocation(displayWidth / 2.0, displayHeight / 2.0)
+										.setText("Out of range!!!")
+										.setFont(font18)
+										.setAlign("center")
+										.setTextFillStyle('#ff0000')
+										.setVisible(false)
+										.enableEvents(false)
+										;
+		
+		gameSceneRoot.addChild(attackFailText);
+		gameSceneRoot.setZOrder(attackFailText, 999);//always on top
+		
+		/*---------create HP text------------*/
+		hpText =  new CAAT.Foundation.UI.TextActor()
+										.setLocation(10, 108)
+										.setText("HP: 0")
+										.setFont(font15)
+										.setAlign("left")
+										.setTextFillStyle('#ff0000')
+										.enableEvents(false)
+										;
+		
+		gameSceneRoot.addChild(hpText);
+		gameSceneRoot.setZOrder(hpText, 999);//always on top
+		
+		/*----------create kill count text------*/
+		killText = new CAAT.Foundation.UI.TextActor()
+										.setLocation(10, 144)
+										.setText("Kills: 0")
+										.setFont(font15)
+										.setAlign("left")
+										.setTextFillStyle('#ff0000')
+										.enableEvents(false)
+										;
+		
+		gameSceneRoot.addChild(killText);
+		gameSceneRoot.setZOrder(killText, 999);//always on top
+		
+		/*----------create death count text------*/
+		deathText = new CAAT.Foundation.UI.TextActor()
+										.setLocation(10, 180)
+										.setText("Deaths: 0")
+										.setFont(font15)
+										.setAlign("left")
+										.setTextFillStyle('#ff0000')
+										.enableEvents(false)
+										;
+		
+		gameSceneRoot.addChild(deathText);
+		gameSceneRoot.setZOrder(deathText, 999);//always on top
+		
+		/*-------create skill icons----------*/
+		skillIcons = new Array();
+		skillIconMasks = new Array();
+		
+		var minSize = displayWidth < displayHeight? displayWidth: displayHeight;
+		
+		var ICON_WIDTH = minSize / 5;
+		var ICON_HEIGHT = minSize / 5;
+		
+		for (var i = 0; i < Constant.MAX_SKILL_SLOTS; ++i){
+							
+			var skillIconFrame = new CAAT.Foundation.Actor().
+								setLocation(10 + i * (ICON_WIDTH + 15), displayHeight - ICON_HEIGHT - 10).
+								setSize(ICON_WIDTH, ICON_HEIGHT).
+								setFillStyle('#333333').
+								setAlpha(0.5);
+								
+			var skillIcon = new CustomCAATActor().
+								setLocation(skillIconFrame.x, skillIconFrame.y).
+								setSize(ICON_WIDTH, ICON_HEIGHT);
+			var skillIconMask = new CAAT.Foundation.Actor().
+							setAlpha(0.3).
+							setFillStyle('#ffffff').
+							setVisible(false);
+				
+			gameSceneRoot.addChild(skillIconFrame);
+			gameSceneRoot.setZOrder(skillIconFrame, 999);//always on top
+			gameSceneRoot.addChild(skillIcon);
+			gameSceneRoot.setZOrder(skillIcon, 999);//always on top
+			gameSceneRoot.addChild(skillIconMask);
+			gameSceneRoot.setZOrder(skillIconMask, 999);//always on top
+			
+			skillIcons.push(skillIcon);
+			skillIconMasks.push(skillIconMask);
+		}
+	}
+	
+	//display attack failed text
+	function displayAtkFailTxt(reasonText){
+		attackFailText.setVisible(true);
+		attackFailText.setFrameTime(currentSceneTime, 3000);//appear in 3s
+		attackFailText.setText(reasonText);
 	}
 	
 	//get animation's full name
@@ -318,174 +893,193 @@ Director.init = function(canvas, displayWidth, displayHeight, initFileXML, onIni
 		return spriteModuleName + "-" + animation;
 	}
 	
+	function readXMLFile(xmlFile, callback_func){
+		function handler() {
+			if(this.readyState == this.DONE) {
+				if(this.status == 200) {
+				  // success!
+				  callback_func(this.responseXML);
+				  return;
+				}
+			}//if(this.readyState == this.DONE)
+		}//function handler()
+		
+		
+		// define which file to open and
+		// send the request.
+		xmlRequest.onreadystatechange  = handler;
+		xmlRequest.open("GET", xmlFile, true);
+		xmlRequest.setRequestHeader("Content-Type", "text/xml");
+		xmlRequest.send(null);
+	}
+	
 	//init the game using the initXMLFile
 	function readInitFile()
 	{
-		//pre-load all images used in the game
-		var root = initXmlRequest.responseXML.childNodes[0];
-		var imageGroups = root.getElementsByTagName("images");
-		var images = new Array();
-		
-		for (var i = 0; i < imageGroups.length; ++i)
-		{
-			var imageInfos = imageGroups[i].getElementsByTagName("image");
-			for (var j = 0; j < imageInfos.length; ++j)
+		readXMLFile(initFileXML, function(responseXML){
+			//pre-load all images used in the game
+			var root = responseXML.childNodes[0];
+			var imageGroups = root.getElementsByTagName("images");
+			var images = new Array();
+			
+			for (var i = 0; i < imageGroups.length; ++i)
 			{
-				var image = {
-					id: imageInfos[j].getAttribute("id"),
-					url: imageInfos[j].getAttribute("url")
-				};
-				
-				images.push(image);
-			}//for (var j = 0; j < imageInfos.length; ++j)
-		}//for (var i = 0; i < imageGroups.length; ++i)
-		
-		new CAAT.ImagePreloader().loadImages(
-			images,
-			function (counter, images) {
-				if (counter == images.length)
+				var imageInfos = imageGroups[i].getElementsByTagName("image");
+				for (var j = 0; j < imageInfos.length; ++j)
 				{
-					//finish loading images
-					caatDirector.setImagesCache(images);
+					var image = {
+						id: imageInfos[j].getAttribute("id"),
+						url: imageInfos[j].getAttribute("url")
+					};
 					
-					var spritesFileElems = root.getElementsByTagName("spritesFile");
-					var spritesFile = spritesFileElems[0].childNodes[0].nodeValue;//get sprites information file name
-					var mapFileElems = root.getElementsByTagName("mapFile");
-					var mapFile = mapFileElems[0].childNodes[0].nodeValue;//get map file name
-					
-					//init sprites
-					initSpriteModules(spritesFile);
-					
-					//init map
-					initMap(mapFile);	
-								
-					//now the Director is ready to be used
-					onInitFinished();
-				}
-			}
-		);
+					images.push(image);
+				}//for (var j = 0; j < imageInfos.length; ++j)
+			}//for (var i = 0; i < imageGroups.length; ++i)
+			
+			new CAAT.ImagePreloader().loadImages(
+				images,
+				function (counter, images) {
+					if (counter == images.length)
+					{
+						//finish loading images
+						caatDirector.setImagesCache(images);
+						
+						var spritesFileElems = root.getElementsByTagName("spritesFile");
+						var spritesFile = spritesFileElems[0].childNodes[0].nodeValue;//get sprites information file name
+						var mapFileElems = root.getElementsByTagName("mapFile");
+						var mapFile = mapFileElems[0].childNodes[0].nodeValue;//get map file name
+						
+						//next step is init sprites
+						initSpriteModules(spritesFile, function()
+						{
+							//next step is init map
+							initMap(mapFile, function(){	
+								//next step is notifying that now the Director is ready to be used
+								onInitFinished();
+							});
+						});//initSpriteModules
+									
+					}
+				}//function (counter, images) 
+			);//new CAAT.ImagePreloader().loadImages
+		});//readXMLFile(function(responseXML)
 	}
 	
 	//initialize sprite modules from xml
-	function initSpriteModules(xmlFile)
+	function initSpriteModules(xmlFile, nextStep)
 	{
-		spriteSheetList = new Array();//list of sprite sheet objects
-		spriteModuleList = new Array();//list of sprite modules
-		var Connect = new XMLHttpRequest();
- 
-		// define which file to open and
-		// send the request.
-		Connect.open("GET", xmlFile, false);
-		Connect.setRequestHeader("Content-Type", "text/xml");
-		Connect.send(null);
+		readXMLFile(xmlFile, function(responseXML){
+			spriteSheetList = new Array();//list of sprite sheet objects
+			spriteModuleList = new Array();//list of sprite modules
 
-		var root = Connect.responseXML.childNodes[0];
+			var root = responseXML.childNodes[0];
 
-		//get list of sprites sheet
-		var spriteSheets = root.getElementsByTagName("spriteSheet");
-		
-		//for each sprites sheet
-		for (var i = 0; i < spriteSheets.length; i++)
-		{
-			var sheet = spriteSheets[i];
-			var id = sheet.getAttribute("id");
-			var imgID = sheet.getAttribute("imgID");
-			var cellsPerRow = parseInt(sheet.getAttribute("cellsPerRow"));
-			var cellsPerCol = parseInt(sheet.getAttribute("cellsPerCol"));
-			//load image and create CAAT's sprite
-			spriteSheetList[id] = createSpriteSheet(imgID, cellsPerCol, cellsPerRow );
-		}
-		
-		//get list of sprite modules
-		var spriteModules = root.getElementsByTagName("spriteModule");
-		
-		for (var i = 0; i < spriteModules.length; ++i)
-		{
-			var spriteModuleInfo = spriteModules[i];
-			var name = spriteModuleInfo.getAttribute("name");
-			var sheetID = spriteModuleInfo.getAttribute("sheetID");
-			var animationInfos = spriteModuleInfo.getElementsByTagName("animation");
+			//get list of sprites sheet
+			var spriteSheets = root.getElementsByTagName("spriteSheet");
 			
-			var newSpriteModule = 
-			 {
-				sheetID: sheetID,//sprite sheet id
-				animations: new Array()
-			};
+			//for each sprites sheet
+			for (var i = 0; i < spriteSheets.length; i++)
+			{
+				var sheet = spriteSheets[i];
+				var id = sheet.getAttribute("id");
+				var imgID = sheet.getAttribute("imgID");
+				var cellsPerRow = parseInt(sheet.getAttribute("cellsPerRow"));
+				var cellsPerCol = parseInt(sheet.getAttribute("cellsPerCol"));
+				//load image and create CAAT's sprite
+				spriteSheetList[id] = createSpriteSheet(imgID, cellsPerCol, cellsPerRow );
+			}
 			
-			//initialize animations:
-			for (var a = 0; a < animationInfos.length; ++a)
-			{	
-				var aName = animationInfos[a].getAttribute("name");//animation name
-				var sequenceStr = animationInfos[a].getAttribute("sequence").split(",");//cell sequence of the animation
-				var interval = parseInt(animationInfos[a].getAttribute("interval"));//animation interval
-				var loop = animationInfos[a].getAttribute("loop") == "true";
-				var sequence = new Array();
-				//convert to integer array
-				for (var j = 0; j < sequenceStr.length; ++j)
-					sequence.push(parseInt(sequenceStr[j]));
+			//get list of sprite modules
+			var spriteModules = root.getElementsByTagName("spriteModule");
 			
-				var afullName = getFullAnimName(name, aName);
-				if (!loop)
-				{
-					spriteSheetList[newSpriteModule.sheetID].addAnimation(afullName, sequence, interval, function(spriteImage, time) {
-						//stop at last sub-image
-						spriteImage.setAnimationImageIndex([spriteImage.animationImageIndex[spriteImage.animationImageIndex.length - 1]]);
-						spriteImage.callback = null;
-					});
-				}//if (!loop)
-				else
-					spriteSheetList[newSpriteModule.sheetID].addAnimation(afullName, sequence, interval);
+			for (var i = 0; i < spriteModules.length; ++i)
+			{
+				var spriteModuleInfo = spriteModules[i];
+				var name = spriteModuleInfo.getAttribute("name");
+				var sheetID = spriteModuleInfo.getAttribute("sheetID");
+				var animationInfos = spriteModuleInfo.getElementsByTagName("animation");
 				
-				newSpriteModule.animations[aName] = afullName;//store the animation full name
-			}//for (var a = 0; a < sprites[i].animations.length; ++a)
+				var newSpriteModule = 
+				 {
+					sheetID: sheetID,//sprite sheet id
+					animations: new Array()
+				};
+				
+				//initialize animations:
+				for (var a = 0; a < animationInfos.length; ++a)
+				{	
+					var aName = animationInfos[a].getAttribute("name");//animation name
+					var sequenceStr = animationInfos[a].getAttribute("sequence").split(",");//cell sequence of the animation
+					var interval = parseInt(animationInfos[a].getAttribute("interval"));//animation interval
+					var loop = animationInfos[a].getAttribute("loop") == "true";
+					var sequence = new Array();
+					//convert to integer array
+					for (var j = 0; j < sequenceStr.length; ++j)
+						sequence.push(parseInt(sequenceStr[j]));
+				
+					var afullName = getFullAnimName(name, aName);
+					if (!loop)
+					{
+						spriteSheetList[newSpriteModule.sheetID].addAnimation(afullName, sequence, interval, function(spriteImage, time) {
+							//stop at last sub-image
+							spriteImage.setAnimationImageIndex([spriteImage.animationImageIndex[spriteImage.animationImageIndex.length - 1]]);
+							spriteImage.callback = null;
+						});
+					}//if (!loop)
+					else
+						spriteSheetList[newSpriteModule.sheetID].addAnimation(afullName, sequence, interval);
+					
+					newSpriteModule.animations[aName] = afullName;//store the animation full name
+				}//for (var a = 0; a < sprites[i].animations.length; ++a)
+				
+				//insert to sprite module list
+				spriteModuleList[name] = newSpriteModule;
+			}//for (var i = 0; i < sprites.length; ++i)
 			
-			//insert to sprite module list
-			spriteModuleList[name] = newSpriteModule;
-		}//for (var i = 0; i < sprites.length; ++i)
+			//done, now do the next step
+			nextStep();
+		});//readXMLFile(xmlFile, function(responseXML)
 	}
 	
-	function initMap(mapFile)
+	function initMap(mapFile, nextStep)
 	{
-		var Connect = new XMLHttpRequest();
- 
-		// define which file to open and
-		// send the request.
-		Connect.open("GET", mapFile, false);
-		Connect.setRequestHeader("Content-Type", "text/xml");
-		Connect.send(null);
-
-		var map = Connect.responseXML.childNodes[0];
-		
-		var width = parseInt(map.getAttribute("width"));
-		var height = parseInt(map.getAttribute("height"));
-		var backgroundImgID = map.getAttribute("background");
-		var tilesMapStr = map.getElementsByTagName("tilesMap")[0].childNodes[0].nodeValue;
-		var tilesInfo = map.getElementsByTagName("tilesInfo")[0];
-		that.tilesPerRow = parseInt(map.getAttribute("tilesPerRow"));
-		that.tilesPerCol = parseInt(map.getAttribute("tilesPerCol"));
-		
-		/*----------boundary-------*/
-		//set boundary
-		worldNode.setBounds(0,0,width,height);
-		worldNode.setSize(width,height);
-		//physics boundary
-		that._initPhysicsBounds(width,height);
-		
-		/*----background-----------*/
-		if (backgroundImgID != null)
-		{
-			var spriteSheet = createSpriteSheet(backgroundImgID, 1, 1);
-			worldNode.setBackgroundImage(spriteSheet, false);
+		readXMLFile(mapFile, function(responseXML){
+			var map = responseXML.childNodes[0];
 			
-			worldNode.paint = function(director, time) {
-				if (this.backgroundImage) {
-					this.backgroundImage.paintScaled(director, time, 0, 0);//require the sprite image to draw using actor's size
+			var width = parseInt(map.getAttribute("width"));
+			var height = parseInt(map.getAttribute("height"));
+			var backgroundImgID = map.getAttribute("background");
+			var tilesMapStr = map.getElementsByTagName("tilesMap")[0].childNodes[0].nodeValue;
+			var tilesInfo = map.getElementsByTagName("tilesInfo")[0];
+			that.tilesPerRow = parseInt(map.getAttribute("tilesPerRow"));
+			that.tilesPerCol = parseInt(map.getAttribute("tilesPerCol"));
+			
+			/*----------boundary-------*/
+			//set boundary
+			worldNode.setBounds(0,0,width,height);
+			worldNode.setSize(width,height);
+			//physics boundary
+			that._initPhysicsBounds(width,height);
+			
+			/*----background-----------*/
+			if (backgroundImgID != null)
+			{
+				var spriteSheet = createSpriteSheet(backgroundImgID, 1, 1);
+				worldNode.setBackgroundImage(spriteSheet, false);
+				
+				worldNode.paint = function(director, time) {
+					if (this.backgroundImage) {
+						this.backgroundImage.paintScaled(director, time, 0, 0);//require the sprite image to draw using actor's size
+					}
 				}
 			}
-		}
-		
-		/*---init the tiles on the map------*/
-		initTiles(tilesMapStr, tilesInfo);
+			
+			/*---init the tiles on the map------*/
+			initTiles(tilesMapStr, tilesInfo);
+			
+			//done, now do the next step
+			nextStep();
+		});//readXMLFile(xmlFile, function(responseXML)
 	}
 	
 	function initTiles(tileMapStr, tilesInfo) {
@@ -511,6 +1105,7 @@ Director.init = function(canvas, displayWidth, displayHeight, initFileXML, onIni
 		}//for (var i = 0; i < tileTypeInfos.length; ++i)
 		
 		//now init the tiles in the map
+		numNonObstacleTiles = 0;//number of non obstacle tiles
 		that.tiles = new Array();
 		that.tileWidth = worldNode.width / that.tilesPerRow;
 		that.tileHeight = worldNode.height / that.tilesPerCol;
@@ -550,13 +1145,16 @@ Director.init = function(canvas, displayWidth, displayHeight, initFileXML, onIni
 		var width = that.tileWidth;
 		var height = that.tileHeight;
 		
-		var visualTile = new Renderable(tileSpriteSheet);
+		var visualTile = new SceneObject(tileSpriteSheet);
 		visualTile.setBounds(x, y, width, height);
 		visualTile.setSpriteIndex(tileType.sheetImgIdx);
 		visualTile.enableEvents(false);
 		
 		if (!tileType.isObstacle)
-			worldNode.setZOrder(visualTile, -1);
+		{
+			worldNode.setZOrder(visualTile, 0);
+			numNonObstacleTiles ++;
+		}
 	}
 	
 	function createSpriteSheet(imgID, subImgsPerRow, subImgsPerCol) {
@@ -567,34 +1165,48 @@ Director.init = function(canvas, displayWidth, displayHeight, initFileXML, onIni
 	
 	
 	
-	
-	
-	
-	/*----------------Renderable (extends CAAT.Foundation.Actor)----------*/
-	function Renderable(spriteSheet)
+	/*----------------CustomCAATActor (extends CAAT.Foundation.Actor)-----------------------------------------*/
+	function CustomCAATActor()
 	{
-		if (spriteSheet == undefined)
-			return;
 		//call super class constructor
 		CAAT.Foundation.Actor.call(this);
+			
+		return this;
+	}
+	//inheritance from CAAT.Foundation.Actor
+	CustomCAATActor.prototype = new CAAT.Foundation.Actor();
+	CustomCAATActor.prototype.constructor = CustomCAATActor;
+	
+	CustomCAATActor.prototype.paint = function(director, time) {
+		if (this.backgroundImage) {
+			this.backgroundImage.paintScaled(director, time, 0, 0);//require the sprite image to draw using actor's size
+		}
+	}
+	
+	
+	/*----------------SceneObject (extends CustomCAATActor)----------*/
+	function SceneObject(spriteSheet)
+	{
+		if (typeof spriteSheet == 'undefined')
+			return;
+		//call super class constructor
+		CustomCAATActor.call(this);
 		
 		//add to the scene
 		worldNode.addChild(this);
 		
 		//indicate that this actor will use the image <spriteSheet> to draw its background
-		this.setBackgroundImage(spriteSheet, false);
+		if (spriteSheet != null)
+			this.setBackgroundImage(spriteSheet, false);
+			
+		return this;
 	}
-	//inheritance from CAAT.Foundation.Actor
-	Renderable.prototype = new CAAT.Foundation.Actor();
-	Renderable.prototype.constructor = Renderable;
-	
-	Renderable.prototype.paint = function(director, time) {
-		if (this.backgroundImage) {
-			this.backgroundImage.paintScaled(director, time, 0, 0);//require the sprite image to draw using actor's size
-		}
-	}
+	//inheritance from CustomActor
+	SceneObject.prototype = new CustomCAATActor();
+	SceneObject.prototype.constructor = SceneObject;
 
-	/*----------------VisualEntity (extends Renderable) - visual part of an entity----------*/
+
+	/*----------------VisualEntity (extends SceneObject) - visual part of an entity----------*/
 	function VisualEntity(_entity)
 	{
 	    this.entity;//related entity
@@ -616,10 +1228,13 @@ Director.init = function(canvas, displayWidth, displayHeight, initFileXML, onIni
 
 
 	    //call super class constructor
-	    Renderable.call(this, spriteSheet);
+	    SceneObject.call(this, spriteSheet);
 	    this.setSize(this.entity.getWidth(), this.entity.getHeight());
 	    this.playAnimation("normal");//play the animation named "normal"
 	    //caatActor.setScale(entity.getWidth() / caatActor.width, entity.getHeight() / caatActor.height);
+		
+		if (this.entity.isGround())//should make it ground level, but still above map's non-obstacle tiles
+			worldNode.setZOrder(this, numNonObstacleTiles);
 		
 	    //add mouse click event listener
 	    if (this.entity.getHP() <= 0)
@@ -639,6 +1254,8 @@ Director.init = function(canvas, displayWidth, displayHeight, initFileXML, onIni
 			
 			worldNode.addChild(this.healthBar);
 			
+			var scale = 1.0/ Constant.PHYSICS_UNIT_SCALE;
+			
 			var font= "13px sans-serif";
 			//create health notification texts
 			this.hpChangePosTxt = new CAAT.Foundation.UI.TextActor()
@@ -648,6 +1265,7 @@ Director.init = function(canvas, displayWidth, displayHeight, initFileXML, onIni
 										//.setOutline(true)
 										//.setOutlineColor('white')
 										.setVisible(false)
+										.setScale(scale, scale)
 										.enableEvents(false)
 										;
 			worldNode.addChild(this.hpChangePosTxt);							
@@ -659,6 +1277,7 @@ Director.init = function(canvas, displayWidth, displayHeight, initFileXML, onIni
 										//.setOutline(true)
 										//.setOutlineColor('white')
 										.setVisible(false)
+										.setScale(scale, scale)
 										.enableEvents(false)
 										;
 			worldNode.addChild(this.hpChangeNegTxt);
@@ -677,29 +1296,31 @@ Director.init = function(canvas, displayWidth, displayHeight, initFileXML, onIni
 		
 		this.entity.visualPart = this;//now the entity will know what is its visual part
 		
+		this.commitChanges();
+		
 	}//VisualEntity = function(entity)
 	
-	//inheritance from Renderable
-	VisualEntity.prototype = new Renderable();
+	//inheritance from SceneObject
+	VisualEntity.prototype = new SceneObject();
 	VisualEntity.prototype.constructor = VisualEntity;
 	
 	//mouse events listeners
-	VisualEntity.prototype.mouseClick = function (mouse) {
-		Director.onClick(mouse.x, mouse.y, this.entity);
+	VisualEntity.prototype.mouseDown = function (mouse) {
+		Director.onClick(mouse.x, mouse.y, this.entity, mouse.isControlDown());
 		
 	}
 	//mouse enter and exit listener, use it to detect whether cursor enter or exit the actor
 	VisualEntity.prototype.mouseEnter = function (mouse) {
-		Director.onMouseEnterExit(this.entity, true ,this.x,this.y);
+		Director.onMouseEnterExit(this.entity, true ,mouse.x,mouse.y);
 	}
 
 
 	VisualEntity.prototype.mouseExit = function (mouse) {
-		Director.onMouseEnterExit(this.entity, false, this.x, this.y);	   
+		Director.onMouseEnterExit(this.entity, false, mouse.x, mouse.y);	   
 	}
 
 	VisualEntity.prototype.mouseMove = function (mouse) {
-		//TO DO
+		Director.onMouseMove(this.entity, mouse.x, mouse.y);
 	}
 	
 	//let the visual part change to reflect its physical counterpart
@@ -722,12 +1343,12 @@ Director.init = function(canvas, displayWidth, displayHeight, initFileXML, onIni
 			var randx = Math.random();
 			var randy = Math.random();
 			var x = randx * this.x + (1 - randx) * (this.x + this.width);
-			var y = randy * (this.y - Constant.HEALTH_BAR_HEIGHT - 26) + (1 - randy) * (this.y - Constant.HEALTH_BAR_HEIGHT - 13);
+			var y = randy * (this.y - Constant.HEALTH_BAR_HEIGHT) + (1 - randy) * (this.y - 2* Constant.HEALTH_BAR_HEIGHT);
 			
 			this.hpChangePosTxt.setText('+' + Math.floor(this.dHPPos).toString());
-			this.hpChangePosTxt.setLocation(x, y);
+			this.hpChangePosTxt.centerAt(x, y);
 			this.hpChangePosTxt.setVisible(true);
-			this.hpChangePosTxt.setFrameTime(currentUpdateTime, 500);//appear in 0.5s
+			this.hpChangePosTxt.setFrameTime(currentSceneTime, 500);//appear in 0.5s
 			
 			
 			this.dHPPos = 0;
@@ -738,12 +1359,12 @@ Director.init = function(canvas, displayWidth, displayHeight, initFileXML, onIni
 			var randx = Math.random();
 			var randy = Math.random();
 			var x = randx * this.x + (1 - randx) * (this.x + this.width);
-			var y = randy * (this.y - Constant.HEALTH_BAR_HEIGHT - 26) + (1 - randy) * (this.y - Constant.HEALTH_BAR_HEIGHT - 13);
+			var y = randy * (this.y - Constant.HEALTH_BAR_HEIGHT) + (1 - randy) * (this.y - 2* Constant.HEALTH_BAR_HEIGHT);
 			
 			this.hpChangeNegTxt.setText(Math.floor(this.dHPNeg).toString());
-			this.hpChangeNegTxt.setLocation(x, y);
+			this.hpChangeNegTxt.centerAt(x, y);
 			this.hpChangeNegTxt.setVisible(true);
-			this.hpChangeNegTxt.setFrameTime(currentUpdateTime, 500);//appear in 0.5s
+			this.hpChangeNegTxt.setFrameTime(currentSceneTime, 500);//appear in 0.5s
 			this.dHPNeg = 0;
 		}//if (this.dHPNeg < 0
 	}
@@ -796,6 +1417,9 @@ Director.init = function(canvas, displayWidth, displayHeight, initFileXML, onIni
 	
 	
 	/*----------all functions and member properties are ready ------*/
+		
+	/*---------graphics--------------*/
+	initGraphics();
 	/*----------start loading the game---------*/
 	readInitFile();
 }

@@ -66,12 +66,22 @@ function DirectorBase()
 		var entityB = bodyB.GetUserData();
 		if (bodyA.GetType() == b2Body.b2_dynamicBody)//A is moving object
 		{
-			if( bodyB.GetType() == b2Body.b2_dynamicBody)
+			if(entityA.isConverging() || bodyB.GetType() == b2Body.b2_dynamicBody)
+			{
+				//if two entities are both moving objects
+				if (bodyB.GetType() == b2Body.b2_dynamicBody && entityA.isAlive() && entityB.isAlive())
+					entityA.onCollideMovingEntity(entityB);
+				contact.SetEnabled(false);//for now. allow pass through
+			}
+		}//if (bodyA.GetType() == b2Body.b2_dynamicBody)
+		else if (bodyB.GetType() == b2Body.b2_dynamicBody)//A is moving object
+		{
+			if(entityB.isConverging())//is under convergence
 			{
 				//if two entities are both moving objects
 				contact.SetEnabled(false);//for now. allow pass through
 			}
-		}//if (bodyA.GetType() == b2Body.b2_dynamicBody)
+		}//if (bodyB.GetType() == b2Body.b2_dynamicBody)
 	}
 	contactListener.BeginContact = function(contact, manifoid)
 	{
@@ -81,34 +91,57 @@ function DirectorBase()
 		var bodyB = fixtureB.GetBody();
 		var entityA = bodyA.GetUserData();
 		var entityB = bodyB.GetUserData();
-		if (bodyA.GetType() == b2Body.b2_dynamicBody && entityA.isMoving())//A is moving object
+		
+		if (bodyA.GetType() == b2Body.b2_kinematicBody && 
+			entityA.isAlive())//A is an effect
+		{
+			if (entityB!= null && entityB.isAlive())
+			{
+				entityA.enterArea(entityB);
+				//console.log('entityA.enterArea(entityB)');
+			}
+		}
+		else if (bodyB.GetType() == b2Body.b2_kinematicBody && 
+			entityB.isAlive())//B is an effect
+		{
+			if (entityA!= null && entityA.isAlive())
+			{
+				console.log('entityA.enterArea(entityB)');
+				//entityB.enterArea(entityA);
+			}
+		}
+		else if (bodyA.GetType() == b2Body.b2_dynamicBody && 
+			entityA.isAlive() &&
+			entityA.isMoving())//A is moving object
 		{
 			var isProjectile = fixtureA.IsSensor();
-			if ( bodyB.GetType() == b2Body.b2_staticBody)//B is obstacle
+			if ( fixtureB.IsSensor() == false && bodyB.GetType() == b2Body.b2_staticBody)//B is obstacle
 			{
 				if (isProjectile)//projectile
 					entityA.destroy();
-				else
+				else if (!entityA.isConverging() && !entityA.allowBounceBack())
 					entityA.startMoveBackward();//should stop reaching destination now
 			}
-			else if (isProjectile && entityB == entityA.getTarget())
+			else if (isProjectile && entityB!= null && entityB.isAlive() && entityB == entityA.getTarget())
 			{
-				entityA.onHitTarget();//projectile has hit is target
+				entityA.onHitTarget();//projectile has hit its target
 			}
 		}//if (bodyA.GetType() == b2Body.b2_dynamicBody)
-		if (bodyB.GetType() == b2Body.b2_dynamicBody && entityB.isMoving())//B is moving object
+		else if (bodyB.GetType() == b2Body.b2_dynamicBody && 
+			entityB.isAlive() &&
+			entityB.isMoving())//B is moving object
 		{
 			var isProjectile = fixtureB.IsSensor();
-			if ( bodyA.GetType() == b2Body.b2_staticBody)//A is obstacle
+			if (  fixtureA.IsSensor() == false && bodyA.GetType() == b2Body.b2_staticBody)//A is obstacle
 			{
 				if (isProjectile)//projectile
 					entityB.destroy();
-				else
+				else if (!entityB.isConverging() && !entityB.allowBounceBack())
 					entityB.startMoveBackward();//should stop reaching destination now
 			}
-			else if (isProjectile && entityA == entityB.getTarget())
+			else if (isProjectile && entityA!= null && entityA.isAlive() && entityA == entityB.getTarget())
 			{
-				entityB.onHitTarget();//projectile has hit is target
+				entityB.onHitTarget();//projectile has hit its target
 			}
 		}//if (bodyB.GetType() == b2Body.b2_dynamicBody)
 	}
@@ -118,13 +151,33 @@ function DirectorBase()
 		var bodyB = contact.GetFixtureB().GetBody();
 		var entityA = bodyA.GetUserData();
 		var entityB = bodyB.GetUserData();
-		if (bodyA.GetType() == b2Body.b2_dynamicBody && bodyB.GetType() == b2Body.b2_staticBody)//A is moving object
+		if (bodyA.GetType() == b2Body.b2_kinematicBody && 
+			entityA.isAlive())//A is an effect
 		{
-			entityA.stop();//stop
+			if (entityB!= null)
+				entityA.exitArea(entityB);
+		}
+		else if (bodyB.GetType() == b2Body.b2_kinematicBody && 
+			entityB.isAlive())//B is an effect
+		{
+			if (entityA!= null)
+				entityB.exitArea(entityA);
+		}
+		else if (bodyA.GetType() == b2Body.b2_dynamicBody && bodyB.GetType() == b2Body.b2_staticBody)//A is moving object
+		{
+			if (entityA.allowBounceBack())
+				entityA.notifyVChangedOutside();
+			else
+				entityA.stop();//stop
 		}//if (bodyA.GetType() == b2Body.b2_dynamicBody)
-		if (bodyB.GetType() == b2Body.b2_dynamicBody && bodyA.GetType() == b2Body.b2_staticBody)//B is moving object
+		else if (bodyB.GetType() == b2Body.b2_dynamicBody && bodyA.GetType() == b2Body.b2_staticBody)//B is moving object
 		{
-			entityB.stop();//stop
+			if (entityB.allowBounceBack())
+			{
+				entityB.notifyVChangedOutside();
+			}
+			else
+				entityB.stop();//stop
 		}//if (bodyB.GetType() == b2Body.b2_dynamicBody)
 	}
 	
@@ -134,7 +187,7 @@ function DirectorBase()
 	this.walkRayCastCallback = new b2RayCastCallback();
 	this.walkRayCastCallback.hitObstacle = false;
 	this.walkRayCastCallback.ReportFixture = function(fixture, point, normal, fraction){
-		if (fixture.GetBody().GetType() == b2Body.b2_staticBody && fraction <= 1.0 && fraction >= 0.0)//hit an obstacle
+		if (fixture.IsSensor() == false && fixture.GetBody().GetType() == b2Body.b2_staticBody && fraction <= 1.0 && fraction >= 0.0)//hit an obstacle
 		{
 			this.hitObstacle = true;
 		}
@@ -145,6 +198,14 @@ function DirectorBase()
 	this.getKnownEntities = function(){
 		return this.knownEntity;
 	}
+	
+	//get known entity
+	this.getKnownEntity = function(id){
+		if (id in this.knownEntity)
+			return this.knownEntity[id];
+		return null;
+	}
+	
 	//post message to queue
 	this.postMessage = function(msg)
 	{
@@ -196,13 +257,19 @@ function DirectorBase()
 			case MsgType.ENTITY_MOVEMENT_UPDATE:
 				{
 					if (msg.entityID in that.knownEntity)
-						that.knownEntity[msg.entityID].correctMovement(msg.x, msg.y, msg.dirx, msg.diry);
+						that.knownEntity[msg.entityID].correctMovement(msg.x, msg.y, msg.dirx, msg.diry, true);
 				}
 				break;
 			case MsgType.ATTACK:
 				{
 					if (msg.entityID in that.knownEntity && msg.targetID in that.knownEntity)
-						that.knownEntity[msg.entityID].attack(that.knownEntity[msg.targetID]);
+						that.knownEntity[msg.entityID].attack(msg.skillIdx, that.knownEntity[msg.targetID]);
+				}
+				break;
+			case MsgType.FIRE_TO:
+				{
+					if (msg.entityID in that.knownEntity)
+						that.knownEntity[msg.entityID].fireToDest(msg.skillIdx, new b2Vec2(msg.destx, msg.desty));
 				}
 				break;
 			case MsgType.ENTITY_HP_CHANGE:
@@ -217,10 +284,42 @@ function DirectorBase()
 					}
 				}	
 				break;
-			case MsgType.ENTITY_DEATH:
+			case MsgType.ENTITY_DESTROY:
 				if (msg.entityID in that.knownEntity)
 				{
 					that.knownEntity[msg.entityID].destroy();
+				}
+				break;
+			case MsgType.ENTITY_DEATH:
+				if (msg.entityID in that.knownEntity && that.knownEntity[msg.entityID].isAlive())
+				{
+					that.knownEntity[msg.entityID].setHP(0);
+					that.knownEntity[msg.entityID].setAlive(false);
+				}
+				break;
+			case MsgType.ADD_EFFECT:
+				{
+					addEffect(msg)
+				}
+				break;
+			
+			case MsgType.ENTITY_RESPAWN:
+				{
+					if (msg.entityID in that.knownEntity)
+					{
+						var entity = that.knownEntity[msg.entityID];
+						entity.setPosition(new b2Vec2(msg.x, msg.y));
+						entity.setHP(msg.hp);
+					}
+				}
+				break;
+			case MsgType.ENTITY_RESPAWN_END:
+				{
+					if (msg.entityID in that.knownEntity)
+					{
+						var entity = that.knownEntity[msg.entityID];
+						entity.setAlive(true);
+					}
 				}
 				break;
 			default:
@@ -243,7 +342,6 @@ function DirectorBase()
 	this._baseDestroyEntity = function(entity){
 		var body = entity.getPhysicsBody();
 		
-		body.SetActive(false);//disable physics simulation
 		this.deleteBodyList.insertBack(body);//add to being deleted list
 	
 		if (entity.hasID())//this entity has an ID
@@ -254,6 +352,23 @@ function DirectorBase()
 			//remove it from the known entity list
 			delete this.knownEntity[entity.getID()];
 		}
+	}
+	
+	this._notifyKillCount = function(killer, victim){
+		//default doing nothing.
+	}
+	
+	this._baseStop = function(){
+		//clean up
+		for (var id in this.knownEntity){
+			this.knownEntity[id].destroy();
+		}
+		
+		//delete all pending bodies
+		this.deleteBodyList.traverse(function(body)
+		{
+			that.physicsWorld.DestroyBody(body);
+		});
 	}
 	
 	this._createPhysicsBody = function(bodyDef, fixtureDef)
@@ -594,6 +709,37 @@ function DirectorBase()
 		var distanceVec = new b2Vec2(point2.x - point1.x, point2.y - point1.y);
 		
 		return distanceVec.x * distanceVec.x + distanceVec.y * distanceVec.y;
+	}
+	
+	function addEffect(msg){
+		if (msg.producerOwnerID in that.knownEntity && msg.affectedTargetID in that.knownEntity){
+			var effectProducerOwner = msg.producerOwnerID == -1? null: that.knownEntity[msg.producerOwnerID];
+			var target = that.knownEntity[msg.affectedTargetID];
+			var skillID = msg.producerID;
+			var skill = null;
+			if (effectProducerOwner != null && skillID != -1)
+				skill = effectProducerOwner.getSkill(skillID);
+			
+			var effect = null;
+			
+			switch (msg.className){
+				case 'AcidEffect':
+					effect = new AcidEffect(skill, target);
+					break;
+				case 'AcidEffectLv2':
+					effect = new AcidEffectLv2(skill, target);
+					break;
+				case 'LifeLeechEffect':
+					effect = new LifeLeechEffect(skill, target);
+					break;
+				case 'WebEffect':
+					effect = new WebEffect(skill, target);
+					break;
+			}
+			
+			if (effect != null)
+				target.addEffect(effect);
+		}//if (msg.producerOwnerID in that.knownEntity && msg.affectedTarget in that.knownEntity)
 	}
 	
 }

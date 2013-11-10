@@ -12,6 +12,12 @@
 		cellsPerRow="5" 
 		cellsPerCol="3">
 	</spriteSheet>
+	<spriteSheet 
+		id="spider-web" 
+		imgID="spider-web"
+		cellsPerRow="2" 
+		cellsPerCol="1">
+	</spriteSheet>
 	<spriteModule 
 		name = "WarriorCell"
 		sheetID = "sprites1"
@@ -59,6 +65,68 @@
 		<animation 
 			name="die"
 			sequence="8,9,10"
+			interval="200"
+			loop="false"
+			/>
+	</spriteModule>
+	<spriteModule 
+		name = "Web"
+		sheetID = "spider-web"
+		>
+		<animation 
+			name="normal"
+			sequence="0"
+			interval="200"
+			loop="true"
+			/>
+		<animation 
+			name="die"
+			sequence="1"
+			interval="200"
+			loop="false"
+			/>
+	</spriteModule>
+	<spriteModule 
+		name = "WebGun"
+		sheetID = "spider-web"
+		>
+		<animation 
+			name="icon"
+			sequence="0"
+			interval="200"
+			loop="true"
+			/>
+	</spriteModule>
+	<spriteModule 
+		name = "WebEffect"
+		sheetID = "spider-web"
+		>
+		<animation 
+			name="normal"
+			sequence="0"
+			interval="200"
+			loop="true"
+			/>
+		<animation 
+			name="die"
+			sequence="1"
+			interval="200"
+			loop="false"
+			/>
+	</spriteModule>
+	<spriteModule 
+		name = "WebAreaEffect"
+		sheetID = "spider-web"
+		>
+		<animation 
+			name="normal"
+			sequence="0"
+			interval="200"
+			loop="true"
+			/>
+		<animation 
+			name="die"
+			sequence="1"
 			interval="200"
 			loop="false"
 			/>

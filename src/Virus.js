@@ -9,7 +9,7 @@ var LeechVirus = function(id, x, y)
 	//call super class's initializing method
 	PlayableEntity.call( this,
 				id, //unique id
-				100, //hit point
+				300, //hit point
 				Constant.VIRUS, //this object is on virus's side 
 				Constant.VIRUS_SIZE, Constant.VIRUS_SIZE, //the size of the object
 				x, y,//position
@@ -18,9 +18,10 @@ var LeechVirus = function(id, x, y)
 				);
 				
 	//add LifeLeech skill
-	this.skills.push(new LifeLeech(this));
+	this.skills.push(new LifeLeech(this, 0));
 	
-	this.activeSkill = 0;
+	//add WebGun skill
+	this.skills.push(new WebGun(this, 1));
 	
 	this.className = "LeechVirus";
 }

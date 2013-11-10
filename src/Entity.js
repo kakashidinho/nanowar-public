@@ -10,11 +10,22 @@ var   b2Vec2 = Box2D.Common.Math.b2Vec2
 	,	b2PolygonShape = Box2D.Collision.Shapes.b2PolygonShape
 	,	b2CircleShape = Box2D.Collision.Shapes.b2CircleShape
 
+var EntityHashKeySeed = {
+	seedNumber: 0,
+	nextKey : function(){
+		return this.seedNumber ++;
+	},
+	reset : function(){
+		this.seedNumber = 0;
+	}
+}	
+	
 /*-----------------nano entity class--------------*/
-var NanoEntity = function(_id, _maxhp, _side, _width, _height, _x, _y, _spriteModule) {
+var NanoEntity = function(_id, _maxhp, _side, _width, _height, _x, _y, _spriteModule, ground) {
 	if (_id == undefined)//this may be called by prototype inheritance
 		return;
-	this.id;//unique id
+	this.id;//id
+	this.hashKey;//guarantee to be unique if 2 entities are created at different time
 	this.body;//b2Body
 	this.width;//body's width
 	this.height;//body's height
@@ -24,7 +35,9 @@ var NanoEntity = function(_id, _maxhp, _side, _width, _height, _x, _y, _spriteMo
 	this.spriteModuleName;
 	this.side;
 	this.effects;
+	this.newEffects;//list of newly added effects
 	this.alive;
+	this.ground;//is this entity at the ground. it means it is below the other entities. useful for rendering
 	this.className;//the class name
 	
 	/*---------------------------constructor-------------------------------------*/
@@ -37,7 +50,10 @@ var NanoEntity = function(_id, _maxhp, _side, _width, _height, _x, _y, _spriteMo
 	this.spriteModuleName = _spriteModule;	
 	this.alive = true;
 	
+	this.ground = ground == undefined? false: ground;
+	
 	this.effects = new Utils.List();
+	this.newEffects = new Utils.List();
 	
 	/*----------create physics body-----------*/
 	var bodyDef = new b2BodyDef;
@@ -51,7 +67,7 @@ var NanoEntity = function(_id, _maxhp, _side, _width, _height, _x, _y, _spriteMo
 	/*------the shape of body-----------*/
 	var fixDef = new b2FixtureDef;
 	fixDef.density = 1.0;
-	fixDef.friction = 1.0;
+	fixDef.friction = 0.0;
 	fixDef.restitution = 1.0;
 	fixDef.isSensor = false;
 	var shape = new b2PolygonShape ;//box shape
@@ -64,11 +80,15 @@ var NanoEntity = function(_id, _maxhp, _side, _width, _height, _x, _y, _spriteMo
 	this.body = Director._createPhysicsBody(bodyDef, fixDef);//create body object
 	this.body.SetUserData(this);
 	
+	this.hashKey = EntityHashKeySeed.nextKey();
+	
 	//add to director's managed list
 	Director._addEntity(this);
 }
 
 /*----method definitions-----*/
+
+//may returns null
 NanoEntity.prototype.getSpriteModuleName = function() {
 	return this.spriteModuleName;
 }
@@ -82,6 +102,11 @@ NanoEntity.prototype.getClassName = function()
 	return this.className;
 }
 
+NanoEntity.prototype.isGround = function()
+{
+	return this.ground;
+}
+
 //has ID?
 NanoEntity.prototype.hasID = function()
 {
@@ -92,6 +117,10 @@ NanoEntity.prototype.hasID = function()
 NanoEntity.prototype.getID = function()
 {
 	return this.id;
+}
+
+NanoEntity.prototype.getHashKey = function(){
+	return this.hashKey;
 }
 
 NanoEntity.prototype.setHP = function(hp) {
@@ -129,6 +158,11 @@ NanoEntity.prototype.getHeight = function() {
 }
 
 //return b2Vec2
+NanoEntity.prototype.getVelocity = function(){
+	return new b2Vec2(0,0);
+}
+
+//return b2Vec2
 NanoEntity.prototype.getPosition = function() {
 	return this.body.GetPosition();
 }
@@ -151,6 +185,18 @@ NanoEntity.prototype.distanceVecToEntity = function(entity)
 	return this.distanceVecTo(entity.getPosition());	
 }
 
+//get distance  between <anotherPoint> and current position
+NanoEntity.prototype.distanceTo = function(anotherPoint)
+{
+	return this.distanceVecTo(anotherPoint).Length();	
+}
+
+//get distance between <entity>'s position and current position
+NanoEntity.prototype.distanceToEntity = function(entity)
+{
+	return this.distanceVecTo(entity.getPosition()).Length();	
+}
+
 NanoEntity.prototype.isAlive = function()
 {
 	return this.alive;
@@ -159,6 +205,13 @@ NanoEntity.prototype.isAlive = function()
 NanoEntity.prototype.setAlive = function(_alive)
 {
 	this.alive = _alive;
+	
+	if (!this.alive)
+	{
+		//remove all effects
+		this.effects.removeAll();
+		this.newEffects.removeAll();
+	}
 }
 
 NanoEntity.prototype.destroy = function()
@@ -166,19 +219,16 @@ NanoEntity.prototype.destroy = function()
 	this.setAlive(false);
 	
 	Director._destroyEntity(this);//notify director
-	
-	//destroy all effects
-	this.effects.traverse(function(effect)
-	{
-		effect.destroy();
-	}
-	);
-	this.effects.removeAll();
+}
+
+NanoEntity.prototype.getNewEffectList = function()
+{
+	return this.newEffects;
 }
 
 NanoEntity.prototype.addEffect = function(effect)
 {
-	this.effects.insertBack(effect);
+	this.newEffects.insertBack(effect);
 	//stick effect to its affected target
 	effect.setPosition(this.getPosition());
 }
@@ -210,31 +260,45 @@ NanoEntity.prototype.decreaseHP = function(dhp){
 		this.HP = newHP;
 		
 		Director._onHPChanged(this, realdDHP, true);//notify director
+			
+		if (this.HP == 0 && !Director.dummyClient)
+		{
+			this.setAlive(false);
+			Director._notifyEntityDeath(this);
+		}
 		
 		return realdDHP;
 	}
 	return 0;
 }
 
+//notify entity that the effect has started
+NanoEntity.prototype.notifyEffectStarted = function(effect){
+	var node = this.newEffects.findNode(effect);
+	if (node == null)
+		return;
+	//pop new effect from the newEffects list and push to list of current effects
+	var neweffect = node.item;
+	this.newEffects.removeNode(node);
+	this.effects.insertBack(neweffect);
+}
+
 NanoEntity.prototype.updateEffects = function(elapsedTime){
 	var node = this.effects. getFirstNode();
-	while (node != null)
+	while (node != null && this.isAlive())
 	{
 		//stick the effect to its affected target
 		node.item.setPosition(this.getPosition());
 		
-		if (node.item.affect(this, elapsedTime))
+		if (node.item.isAlive() == false)
 		{
 			//the duration of effect has ended
 			var del = node;
 			node = node.next;
 			this.effects.removeNode(del);//remove the effect
-			
-			del.item.destroy();//destroy the effect
 		}
 		else
-		{
-			
+		{	
 			node = node.next;
 		}
 	}
@@ -243,9 +307,6 @@ NanoEntity.prototype.updateEffects = function(elapsedTime){
 //update the entity after <elapsedTime>
 NanoEntity.prototype.update = function(elapsedTime){
 	this.updateEffects(elapsedTime);
-	
-	if (this.maxHP > 0 && this.HP <= 0)
-		this.destroy();
 }
 
 
@@ -260,6 +321,14 @@ var MovingEntity = function(_id, _maxhp, _side, _width, _height, _x, _y, _oripee
 	this.movingPath;//the path this entity has to follow
 	this.velChangeListener;// velocity change listener
 	
+	this.deferConvergence;//defer the convergence until next update?
+	this.convergeVelocity;//convergence's velocity
+	this.convergeDuration;//convergence duration
+	this.afterConversePosition;//position after convergence ends
+	this.afterConverseDirection;//direction after convergence ends
+	
+	this.bounceEnabled;//allow bouncing back when collide with obstacle?
+	
 	/*--------constructor---------*/
 	//call super class's constructor method
 	NanoEntity.call(this, _id, _maxhp, _side, _width, _height, _x, _y, _sprite);
@@ -269,6 +338,14 @@ var MovingEntity = function(_id, _maxhp, _side, _width, _height, _x, _y, _oripee
 
 	this.originalSpeed = this.currentSpeed = _oripeed;
 	this.movingPath = new Utils.List();
+	
+	
+	this.bounceEnabled = false;
+	this.deferConvergence = false;
+	this.convergeDuration = -1;
+	this.convergeVelocity = new b2Vec2();
+	this.afterConversePosition = new b2Vec2();
+	this.afterConverseDirection = new b2Vec2();
 	
 	this.setVelChangeListener(null);
 }
@@ -303,8 +380,9 @@ MovingEntity.prototype.startMoveTo = function (x, y) {
 	this.startMoveToNextPointInPath();
 }
 
-//start moving along the direction (x, y)
-MovingEntity.prototype.startMoveDir = function(x, y) {
+//start moving along the direction (x, y) 
+MovingEntity.prototype.startMoveDir = function(x, y)
+{
 	var velocity = new b2Vec2(x, y);
 	
 	if (velocity.x != 0 && velocity.y != 0)
@@ -322,24 +400,52 @@ MovingEntity.prototype.startMoveDir = function(x, y) {
 
 MovingEntity.prototype.updateMovement = function(elapsedTime)
 {
-	var currentPoint = this.movingPath.getFirstElem();
-	if (currentPoint == null)
-		return;
-	
-	var position = this.getPosition();
-	var distance = new b2Vec2(currentPoint.x - position.x, currentPoint.y - position.y);
-	var velocity = this.body.GetLinearVelocity();
-	
-	if ((distance.x == 0 && distance.y == 0) || (velocity.x * distance.x + velocity.y * distance.y < 0))//already at or pass the destination
+	if (!this.deferConvergence && this.convergeDuration != -1)
 	{
-		//snap the position to the current destination
-		this.body.SetPosition(currentPoint);
-		//remove the current destination in the path
-		this.movingPath.popFront();
-		//start moving to next destination in the path
-		this.startMoveToNextPointInPath();
+		//we are doing the convergence
+		this.convergeDuration -= elapsedTime;
+		if (this.convergeDuration <= 0)//convergence has ended
+		{
+			this.convergeDuration = -1;
+			
+			/*debugging
+			var pos = this.getPosition();
+			var vel = this.getVelocity();
+			console.log("convergence ended position is: " + pos.x + "," + pos.y);
+			console.log("convergence ended velocity is: " + vel.x + "," + vel.y);
+			*/
+			//now follow the correct path
+			this.setPosition(this.afterConversePosition);
+			this.startMoveDir(this.afterConverseDirection.x, this.afterConverseDirection.y);
+		}
 	}
+	else
+	{
+		//this flag for telling the entity to start convergence only after this update
+		if (this.deferConvergence)
+		{
+			this.deferConvergence = false;
+			this._startConverge();
+		}
 	
+		var currentPoint = this.movingPath.getFirstElem();
+		if (currentPoint == null)
+			return;
+		
+		var position = this.getPosition();
+		var distance = new b2Vec2(currentPoint.x - position.x, currentPoint.y - position.y);
+		var velocity = this.body.GetLinearVelocity();
+		
+		if ((distance.x == 0 && distance.y == 0) || (velocity.x * distance.x + velocity.y * distance.y < 0))//already at or pass the destination
+		{
+			//snap the position to the current destination
+			this.body.SetPosition(currentPoint);
+			//remove the current destination in the path
+			this.movingPath.popFront();
+			//start moving to next destination in the path
+			this.startMoveToNextPointInPath();
+		}
+	}
 }
 
 //stop moving
@@ -389,6 +495,15 @@ MovingEntity.prototype.isMoving = function()
 	return velocity.x != 0 || velocity.y != 0;
 }
 
+MovingEntity.prototype.isConverging = function(){
+	return this.convergeDuration != -1;
+}
+
+MovingEntity.prototype.allowBounceBack = function()
+{
+	return this.bounceEnabled;
+}
+
 //return b2Vec2
 MovingEntity.prototype.getVelocity = function(){
 	return this.body.GetLinearVelocity();
@@ -398,6 +513,57 @@ MovingEntity.prototype.getVelocity = function(){
 MovingEntity.prototype.getSpeed = function()
 {
 	return this.currentSpeed;
+}
+
+//get original speed
+MovingEntity.prototype.getOriSpeed = function()
+{
+	return this.originalSpeed;
+}
+
+//set current speed
+MovingEntity.prototype.setSpeed = function(speed)
+{
+	this.currentSpeed = speed;
+}
+
+//set original speed
+MovingEntity.prototype.setOriSpeed = function(speed)
+{
+	this.originalSpeed = speed;
+}
+
+//set current speed by percent of original speed.
+//percent is 1.0 means 100%
+MovingEntity.prototype.setSpeedByPercent = function(percent)
+{
+	this.currentSpeed = this.originalSpeed * percent;
+}
+
+//change the speed by an amount <dSpeed>
+MovingEntity.prototype.changeSpeed = function(dSpeed){
+	var newSpeed = this.currentSpeed + dSpeed;
+	if (newSpeed < 0)
+		newSpeed = 0;
+	
+	var dSpeed = newSpeed - this.currentSpeed;
+	this.currentSpeed = newSpeed;
+	
+	//change the speed of physical body
+	var velocity = this.getVelocity();
+	
+	velocity.Normalize();
+	velocity.Multiply(this.currentSpeed);
+	
+	this.body.SetLinearVelocity(velocity);
+	
+	if (this.currentSpeed == 0)
+		this.removeDestination();
+	
+	this.velChangeListener.onVelocityChanged(this);//notify listener
+	
+	return dSpeed;
+	
 }
 
 MovingEntity.prototype.startMoveToNextPointInPath = function()
@@ -420,11 +586,69 @@ MovingEntity.prototype.startMoveToNextPointInPath = function()
 }
 
 //change the position and velocity of the entity to reflect the correct state indicated in parameters
-MovingEntity.prototype.correctMovement = function(posx, posy, dirx, diry){
-	this.setPosition(new b2Vec2(posx, posy));
-	this.startMoveDir(dirx, diry);
+MovingEntity.prototype.correctMovement = function(posx, posy, dirx, diry, deferConvergence){
+	//convergence
+	var COVERGENCE_MAX_DURATION = 300;//0.3s
+	
+	this.convergeDuration = COVERGENCE_MAX_DURATION;
+	
+	this.afterConversePosition.Set(posx, posy);
+	this.afterConverseDirection.Set(dirx, diry);
+	
+	if (!deferConvergence)//do not want deferring? 
+	{
+		//start convergence immediately
+		this._startConverge();
+	}
+	
+	//this flag for telling the entity to start convergence only after next update
+	this.deferConvergence = deferConvergence;
+	
 }
 
+//start convergence
+MovingEntity.prototype._startConverge = function(){
+	
+	//find convergence's end point
+	var vel = new b2Vec2(this.afterConverseDirection.x, this.afterConverseDirection.y);
+	if (this.afterConverseDirection.x != 0 || this.afterConverseDirection.y != 0)
+	{
+		vel.Normalize();
+		vel.Multiply(this.currentSpeed);
+	}
+	
+	this.afterConversePosition.x += this.convergeDuration * vel.x / 1000.0;
+	this.afterConversePosition.y += this.convergeDuration * vel.y / 1000.0;
+	
+	//find the velocity to move to the convergence's end point in <convergeDuration> time
+	var pos = this.getPosition();
+	this.convergeVelocity.Set(this.afterConversePosition.x - pos.x, this.afterConversePosition.y - pos.y);
+	this.convergeVelocity.Multiply(1000.0 / this.convergeDuration);
+	
+	/*debugging
+	console.log("convergence's end point is " + this.afterConversePosition.x + "," + this.afterConversePosition.y);
+	console.log("convergence's velocity is " + this.convergeVelocity.x + "," + this.convergeVelocity.y);
+	*/
+
+	//now start moving to that convergence's end point
+	this.body.SetLinearVelocity(this.convergeVelocity);
+	
+	this.removeDestination();//remove any destination
+	
+	this.velChangeListener.onVelocityChanged(this);//notify listener
+}
+
+//collided with another moving entity
+MovingEntity.prototype.onCollideMovingEntity = function(entity){
+	//do nothing. sub class should implement this
+}
+
+//notify entity that its velocity has been changed outside
+MovingEntity.prototype.notifyVChangedOutside = function(){
+	this.removeDestination();
+	
+	this.velChangeListener.onVelocityChanged(this);//notify listener
+}
 
 //update the entity after <elapsedTime>
 MovingEntity.prototype.update = function(elapsedTime){
@@ -441,57 +665,82 @@ var PlayableEntity = function( _id, _maxhp, _side, _width, _height, _x, _y, _ori
 	if (_id == undefined)//this may be called by prototype inheritance
 		return;
 	this.skills;//skills set
-	this.activeSkill;//current active skill
 	
 	/*------constructor---------*/
 	//call super class's constructor method
 	MovingEntity.call(this, _id, _maxhp, _side, _width, _height, _x, _y, _oriSpeed, _sprite);
 	
 	this.skills = new Array();
-	this.activeSkill = -1;
 }
 
 //inheritance from MovingEntity
 PlayableEntity.prototype = new MovingEntity();
 PlayableEntity.prototype.constructor = PlayableEntity;
 
-//current active skill
-PlayableEntity.prototype.getCurrentSkill = function()
+PlayableEntity.prototype.getNumSkills = function()
 {
-	return this.activeSkill;
+	return this.skills.length;
 }
 
-//cycle to next skill
-PlayableEntity.prototype.nextSkill = function()
+PlayableEntity.prototype.getSkill = function(skillIdx)
 {
-	this.activeSkill = (this.activeSkill + 1) % this.skills.length;
+	return this.skills[skillIdx];
 }
 
-PlayableEntity.prototype.getCurrentSkill = function()
-{
-	return this.skills[this.activeSkill];
-}
-
-PlayableEntity.prototype.canAttack = function(target){
-	var dist = this.distanceVecToEntity(target)
+//check if the target in the skill's attacking range or not
+PlayableEntity.prototype.canFireTo = function(skillIdx, destx, desty){
+	var pos = this.getPosition();
+	var dist = new b2Vec2(pos.x - destx, pos.y - desty)
 				   .Length();
-	var skill = this.getCurrentSkill();
+	var skill = this.getSkill(skillIdx);
 	var range = skill.getRange();
 	
-	return (dist <= range && target.getSide() != Constant.NEUTRAL && this.getSide() != target.getSide());
+	return (dist <= range);
 }
 
-PlayableEntity.prototype.attack = function(target){
-	var skill = this.getCurrentSkill();
+//check if the target in the skill's attacking range or not
+PlayableEntity.prototype.canAttack = function(skillIdx, target){
+	return (this.canFireTo(skillIdx, target.getPosition().x , target.getPosition().y) && 
+			target.getSide() != Constant.NEUTRAL && 
+			this.getSide() != target.getSide());
+}
+
+//fire to an arbitrary position
+PlayableEntity.prototype.fireToDest = function(skillIdx, dest){
+	var skill = this.getSkill(skillIdx);
 	
 	if (Director.dummyClient || //dummy client will do whatever it is told to do
-		this.canAttack(target))
+		this.canFireTo(skillIdx, dest.x, dest.y))
+	{
+		skill.fireToDest(dest);
+		return PlayableEntity.SUCCEED;
+	}
+	else
+		return PlayableEntity.ATTACK_OUT_OF_RANGE;
+}
+
+PlayableEntity.prototype.attack = function(skillIdx, target){
+	var skill = this.getSkill(skillIdx);
+	
+	if (Director.dummyClient || //dummy client will do whatever it is told to do
+		this.canAttack(skillIdx, target))
 	{
 		skill.fire(target);
 		return PlayableEntity.SUCCEED;
 	}
 	else
 		return PlayableEntity.ATTACK_OUT_OF_RANGE;
+}
+
+
+//update the entity after <elapsedTime>
+PlayableEntity.prototype.update = function(elapsedTime){
+	//super class update
+	MovingEntity.prototype.update.call(this, elapsedTime);
+	
+	//update skills' cool down
+	for (var i = 0; i < this.skills.length; ++i)
+		this.skills[i].update(elapsedTime);
 }
 
 PlayableEntity.ATTACK_OUT_OF_RANGE = -1;
@@ -503,5 +752,6 @@ if (typeof global != 'undefined')
 	global.NanoEntity = NanoEntity;
 	global.MovingEntity = MovingEntity;
 	global.PlayableEntity = PlayableEntity;
+	global.EntityHashKeySeed = EntityHashKeySeed;
 }
 
