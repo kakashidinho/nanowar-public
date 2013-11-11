@@ -22,8 +22,8 @@ function Client(canvasElementID)
 		
 	this.canvas = document.getElementById(canvasElementID);
 	
-	canvas.width  = document.body.clientWidth || window.innerWidth;
-	canvas.height  = document.body.clientHeight || window.innerHeight;
+	canvas.width  = document.documentElement.clientWidth || window.innerWidth;
+	canvas.height  = document.documentElement.clientHeight || window.innerHeight;
 }
 
 Client.prototype.setInitFile = function(xmlFile){
