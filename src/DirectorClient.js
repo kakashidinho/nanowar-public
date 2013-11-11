@@ -153,6 +153,10 @@ Director.initMenu = function(canvas, displayWidth, displayHeight, onClassChosenF
 						)
 						.centerOn(menuContainer.width/2 - 150, 350);
 						
+					b1.touchEnd = function() {
+						b1.actionPerformed();
+					}
+						
 					var b1_count =  new CAAT.Foundation.UI.TextActor()
 													.centerOn(b1.x + b1.width/2, b1.y + b1.height + 20)
 													.setText("0")
@@ -166,6 +170,10 @@ Director.initMenu = function(canvas, displayWidth, displayHeight, onClassChosenF
 							}
 						)
 						.centerOn(menuContainer.width/2 + 150, 350);
+						
+					b2.touchEnd = function() {
+						b2.actionPerformed();
+					}
 						
 					var b2_count =  new CAAT.Foundation.UI.TextActor()
 													.centerOn(b2.x + b2.width/2, b2.y + b2.height + 20)
