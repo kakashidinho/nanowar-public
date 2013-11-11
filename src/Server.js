@@ -786,7 +786,7 @@ Server.prototype.onMessageFromPlayer = function(player, msg){
 			}
 		}
 		player.className = msg.className;
-		this.updatePlayersinfo();
+		this.updatePlayersInfo();
 		break;
 	case MsgType.CHANGE_FAKE_DELAY:
 		player.fakeDelay += msg.dDelay;
@@ -804,7 +804,7 @@ Server.prototype.onMessageFromPlayer = function(player, msg){
 	}
 }
 
-Server.prototype.updatePlayersinfo = function() {
+Server.prototype.updatePlayersInfo = function() {
 	var virusCount = 0;
 	var cellCount = 0;
 	for (var i in this.players) {
@@ -851,7 +851,7 @@ Server.prototype.start = function (httpServer) {
 				that.sendMsgViaChannel(conn, new PlayerIDMsg(player.playerID));//notify player about his ID
 				that.sendMsgViaChannel(conn, new PlayerClassMsg(player.className));//notify player about his initialized class name
 				
-				that.updatePlayersinfo();
+				that.updatePlayersInfo();
 				
 				if (player.isHost)
 					that.sendMsgViaChannel(conn, new YouHostMsg());//tell player that he is the host
