@@ -786,6 +786,7 @@ Server.prototype.onMessageFromPlayer = function(player, msg){
 			}
 		}
 		player.className = msg.className;
+		this.updatePlayersinfo();
 		break;
 	case MsgType.CHANGE_FAKE_DELAY:
 		player.fakeDelay += msg.dDelay;
@@ -801,6 +802,21 @@ Server.prototype.onMessageFromPlayer = function(player, msg){
 	default:
 		Director.postMessage(msg);//forward it to the director
 	}
+}
+
+Server.prototype.updatePlayersinfo = function() {
+	var virusCount = 0;
+	var cellCount = 0;
+	for (var i in this.players) {
+		//if (this.players[i] !== player) {
+			if (this.players[i].className == "WarriorCell") {
+				cellCount ++;
+			} else if (this.players[i].className == "LeechVirus") {
+				virusCount ++;
+			}
+		//}
+	}
+	this.broadcastAll(new PlayersInfoMsg(virusCount, cellCount)); //notify player about other players classes
 }
 
 Server.prototype.start = function (httpServer) {
@@ -832,20 +848,11 @@ Server.prototype.start = function (httpServer) {
 			} else {
 				// create a new player
 				var player = that.newPlayer(conn);
-				var virusCount = 0;
-				var cellCount = 0;
 				that.sendMsgViaChannel(conn, new PlayerIDMsg(player.playerID));//notify player about his ID
 				that.sendMsgViaChannel(conn, new PlayerClassMsg(player.className));//notify player about his initialized class name
-				for (var i in that.players) {
-					if (that.players[i] !== player) {
-						if (that.players[i].className == "WarriorCell") {
-							cellCount ++;
-						} else if (that.players[i].className == "LeechVirus") {
-							virusCount ++;
-						}
-					}
-				}
-				that.sendMsgViaChannel(conn, new PlayersInfoMsg(virusCount, cellCount)); //notify player about other players classes
+				
+				that.updatePlayersinfo();
+				
 				if (player.isHost)
 					that.sendMsgViaChannel(conn, new YouHostMsg());//tell player that he is the host
 				
@@ -857,6 +864,7 @@ Server.prototype.start = function (httpServer) {
 			conn.on('close', function () {
 				
 				that.deletePlayer(conn.id);
+				that.updatePlayersInfo();
 			});
 
 			// When the client send something to the server.
