@@ -63,7 +63,9 @@ Director.initMenu = function(canvas, displayWidth, displayHeight, onClassChosenF
 	}
 	
 	this._switchToMenu = function(){
-		caatDirector.setScene(0);
+		caatDirector.easeInOut( 0, CAAT.Foundation.Scene.EASE_SCALE, CAAT.Foundation.Actor.ANCHOR_CENTER, 
+			1, CAAT.Foundation.Scene.EASE_SCALE, CAAT.Foundation.Actor.ANCHOR_CENTER, 
+			1000, true, null, null)
 	}
 	
 	menuScene = caatDirector.createScene();
@@ -740,7 +742,9 @@ Director.loadMap = function(initFileXML, onInitFinished)
 		}
 	
 		//switch to in-game scene
-		caatDirector.setScene(1);
+		caatDirector.easeInOut( 1, CAAT.Foundation.Scene.EASE_SCALE, CAAT.Foundation.Actor.ANCHOR_CENTER, 
+			0, CAAT.Foundation.Scene.EASE_SCALE, CAAT.Foundation.Actor.ANCHOR_CENTER, 
+			1000, true, null, null);
 	}
 	
 	//init destination and target marks
