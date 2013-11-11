@@ -39844,6 +39844,7 @@ var Director = {
 
 Director.initMenu = function(canvas, displayWidth, displayHeight, onClassChosenFunc, onEnterFunc) {
 	var menuScene;
+	var menuContainer;
 	var menuImages;
 	var startButton;
 	var startButtonText;
@@ -39866,13 +39867,15 @@ Director.initMenu = function(canvas, displayWidth, displayHeight, onClassChosenF
 	this.displayClassName = function(className){
 		classText.setText('Your current class is: ' + className);
 	}
+	
 	this.displayStartButton = function(isStartButton){
 		startButton.setVisible(true);
 		startButtonText.setVisible(true);
-		if (isStartButton)
+		if (isStartButton) {
 			startButtonText.setText('Start');
-		else
+		} else {
 			startButtonText.setText('Join');
+		}
 	}
 	
 	this.hideStartButton = function(){
@@ -39885,44 +39888,55 @@ Director.initMenu = function(canvas, displayWidth, displayHeight, onClassChosenF
 	}
 	
 	this._switchToMenu = function(){
-		caatDirector.setScene(0);
+		caatDirector.easeInOut( 0, CAAT.Foundation.Scene.EASE_SCALE, CAAT.Foundation.Actor.ANCHOR_CENTER, 
+			1, CAAT.Foundation.Scene.EASE_SCALE, CAAT.Foundation.Actor.ANCHOR_CENTER, 
+			1000, true, null, null)
+	}
+	
+	this.updatePlayersInfo = function(msg) {
+		menuContainer.virus_count.setText(msg.virusCount.toString());
+		menuContainer.cell_count.setText(msg.cellCount.toString());
 	}
 	
 	menuScene = caatDirector.createScene();
 	ingameScene = caatDirector.createScene();
 	
+	menuContainer = new CAAT.ActorContainer()
+		.setBounds(caatDirector.width/2 - 350, caatDirector.height/2 - 300, 700, 600)
+		.setFillStyle('white');
+	
 	startButton = new CAAT.Foundation.UI.ShapeActor().
-                centerAt(280, 60).
-                setSize(100, 50).
                 setShape(CAAT.Foundation.UI.ShapeActor.SHAPE_RECTANGLE).
+				setSize(100, 50).
 				setVisible(false).
-				setFillStyle('#00ff00');
+				setFillStyle('#00ff00').
+				centerOn(menuContainer.width/2, 120);
 				
 	startButton.mouseUp = function(mouse){
 		onEnterFunc();
+
 	};
+	
 	startButton.touchEnd= function (touch) {
 	    onEnterFunc();
 	}
 				
-	menuScene.addChild(startButton);
+	menuContainer.addChild(startButton);
 	
 	/* start button text */	
 	startButtonText =  new CAAT.Foundation.UI.TextActor()
-							.setLocation(startButton.x + startButton.width/2, startButton.y + startButton.height/2)
 							.setText('Start')
 							.setFont("18px sans-serif")
-							.setAlign("center")
 							.setTextFillStyle('#000000')
 							.setVisible(false)
 							.enableEvents(false)
-							;
-	
-	menuScene.addChild(startButtonText);
+							.centerOn(startButton.x + startButton.width/2, startButton.y + startButton.height/2);
+
+	menuContainer.addChild(startButtonText);
 	
 	/*class name text*/
 	classText =  new CAAT.Foundation.UI.TextActor()
-							.setLocation(displayWidth / 2, 36)
+							.centerOn(menuContainer.width/2, 36)
 							.setText('Your current class is: ')
 							.setFont("15px sans-serif")
 							.setAlign("center")
@@ -39930,7 +39944,7 @@ Director.initMenu = function(canvas, displayWidth, displayHeight, onClassChosenF
 							.enableEvents(false)
 							;
 	
-	menuScene.addChild(classText);
+	menuContainer.addChild(classText);
 					
 	menuImages = [{id : 'menuButtons', url: 'menuButtons.png'}];
 	
@@ -39947,31 +39961,51 @@ Director.initMenu = function(canvas, displayWidth, displayHeight, onClassChosenF
 					
 					var font= "32px sans-serif";
 					var menuTitle =  new CAAT.Foundation.UI.TextActor()
-													.setLocation(280, 120)
+													.centerOn(menuContainer.width/2, 200)
 													.setText("Select Your Side")
 													.setFont(font)
 													.setAlign("center")
 													.setTextFillStyle('#000000')
 													.enableEvents(false);
 													
-					menuScene.addChild(menuTitle);
+					menuContainer.addChild(menuTitle);
 					
 					var b1= new CAAT.Actor().setAsButton(
 						buttonsSprite.getRef(), 0, 1, 2, 0, function(button) {
 									onClassChosenFunc('LeechVirus');
 							}
 						)
-						.setLocation(100, 200);
+						.centerOn(menuContainer.width/2 - 150, 350);
+						
+					var b1_count =  new CAAT.Foundation.UI.TextActor()
+													.centerOn(b1.x + b1.width/2, b1.y + b1.height + 20)
+													.setText("0")
+													.setFont(font)
+													.setTextFillStyle('#000000')
+													.enableEvents(false);
 					
 					var b2= new CAAT.Actor().setAsButton(
 						buttonsSprite.getRef(), 3, 4, 5, 3, function(button) {
 									onClassChosenFunc('WarriorCell');
 							}
 						)
-						.setLocation(350, 200);
+						.centerOn(menuContainer.width/2 + 150, 350);
+						
+					var b2_count =  new CAAT.Foundation.UI.TextActor()
+													.centerOn(b2.x + b2.width/2, b2.y + b2.height + 20)
+													.setText("0")
+													.setFont(font)
+													.setTextFillStyle('#000000')
+													.enableEvents(false);
 
-					menuScene.addChild(b1);
-					menuScene.addChild(b2);
+					menuContainer.addChild(b1);
+					menuContainer.addChild(b2);
+					menuContainer.addChild(b1_count);
+					menuContainer.addChild(b2_count);
+					menuContainer.virus_count = b1_count;
+					menuContainer.cell_count = b2_count;
+					
+					menuScene.addChild(menuContainer);
 					
 					Director.startGameLoop(Constant.FRAME_RATE);
 				}
@@ -40557,7 +40591,9 @@ Director.loadMap = function(initFileXML, onInitFinished)
 		}
 	
 		//switch to in-game scene
-		caatDirector.setScene(1);
+		caatDirector.easeInOut( 1, CAAT.Foundation.Scene.EASE_SCALE, CAAT.Foundation.Actor.ANCHOR_CENTER, 
+			0, CAAT.Foundation.Scene.EASE_SCALE, CAAT.Foundation.Actor.ANCHOR_CENTER, 
+			1000, true, null, null);
 	}
 	
 	//init destination and target marks
@@ -43107,8 +43143,8 @@ function Client(canvasElementID)
 		
 	this.canvas = document.getElementById(canvasElementID);
 	
-	canvas.width  = document.documentElement.clientWidth;
-	canvas.height  = document.documentElement.clientHeight;
+	canvas.width  = document.documentElement.clientWidth || window.innerWidth;
+	canvas.height  = document.documentElement.clientHeight || window.innerHeight;
 }
 
 Client.prototype.setInitFile = function(xmlFile){
@@ -43532,6 +43568,11 @@ Client.prototype.onMessageFromServer = function(msg){
 		case MsgType.YOU_ARE_HOST://I am host
 			Director.displayStartButton(true);
 			this.isGuest = false;
+			break;
+		case MsgType.PLAYERS_INFO:
+			if (Director.isInMenu()) {
+				Director.updatePlayersInfo(msg);
+			}
 			break;
 		default:
 		if (this.gameStarted)//forward to director
