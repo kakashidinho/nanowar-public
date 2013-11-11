@@ -42,13 +42,15 @@ Director.initMenu = function(canvas, displayWidth, displayHeight, onClassChosenF
 	this.displayClassName = function(className){
 		classText.setText('Your current class is: ' + className);
 	}
+	
 	this.displayStartButton = function(isStartButton){
 		startButton.setVisible(true);
 		startButtonText.setVisible(true);
-		if (isStartButton)
+		if (isStartButton) {
 			startButtonText.setText('Start');
-		else
+		} else {
 			startButtonText.setText('Join');
+		}
 	}
 	
 	this.hideStartButton = function(){
@@ -67,38 +69,41 @@ Director.initMenu = function(canvas, displayWidth, displayHeight, onClassChosenF
 	menuScene = caatDirector.createScene();
 	ingameScene = caatDirector.createScene();
 	
+	var menuContainer = new CAAT.ActorContainer()
+		.setBounds(caatDirector.width/2 - 350, caatDirector.height/2 - 300, 700, 600)
+		.setFillStyle('white');
+	
 	startButton = new CAAT.Foundation.UI.ShapeActor().
-                centerAt(280, 60).
-                setSize(100, 50).
                 setShape(CAAT.Foundation.UI.ShapeActor.SHAPE_RECTANGLE).
+				setSize(100, 50).
 				setVisible(false).
-				setFillStyle('#00ff00');
+				setFillStyle('#00ff00').
+				centerOn(menuContainer.width/2, 120);
 				
 	startButton.mouseUp = function(mouse){
 		onEnterFunc();
 	};
+	
 	startButton.touchEnd= function (touch) {
 	    onEnterFunc();
 	}
 				
-	menuScene.addChild(startButton);
+	menuContainer.addChild(startButton);
 	
 	/* start button text */	
 	startButtonText =  new CAAT.Foundation.UI.TextActor()
-							.setLocation(startButton.x + startButton.width/2, startButton.y + startButton.height/2)
 							.setText('Start')
 							.setFont("18px sans-serif")
-							.setAlign("center")
 							.setTextFillStyle('#000000')
 							.setVisible(false)
 							.enableEvents(false)
-							;
-	
-	menuScene.addChild(startButtonText);
+							.centerOn(startButton.x + startButton.width/2, startButton.y + startButton.height/2);
+
+	menuContainer.addChild(startButtonText);
 	
 	/*class name text*/
 	classText =  new CAAT.Foundation.UI.TextActor()
-							.setLocation(displayWidth / 2, 36)
+							.centerOn(menuContainer.width/2, 36)
 							.setText('Your current class is: ')
 							.setFont("15px sans-serif")
 							.setAlign("center")
@@ -106,7 +111,7 @@ Director.initMenu = function(canvas, displayWidth, displayHeight, onClassChosenF
 							.enableEvents(false)
 							;
 	
-	menuScene.addChild(classText);
+	menuContainer.addChild(classText);
 					
 	menuImages = [{id : 'menuButtons', url: 'menuButtons.png'}];
 	
@@ -123,31 +128,33 @@ Director.initMenu = function(canvas, displayWidth, displayHeight, onClassChosenF
 					
 					var font= "32px sans-serif";
 					var menuTitle =  new CAAT.Foundation.UI.TextActor()
-													.setLocation(280, 120)
+													.centerOn(menuContainer.width/2, 200)
 													.setText("Select Your Side")
 													.setFont(font)
 													.setAlign("center")
 													.setTextFillStyle('#000000')
 													.enableEvents(false);
 													
-					menuScene.addChild(menuTitle);
+					menuContainer.addChild(menuTitle);
 					
 					var b1= new CAAT.Actor().setAsButton(
 						buttonsSprite.getRef(), 0, 1, 2, 0, function(button) {
 									onClassChosenFunc('LeechVirus');
 							}
 						)
-						.setLocation(100, 200);
+						.centerOn(menuContainer.width/2 - 150, 350);
 					
 					var b2= new CAAT.Actor().setAsButton(
 						buttonsSprite.getRef(), 3, 4, 5, 3, function(button) {
 									onClassChosenFunc('WarriorCell');
 							}
 						)
-						.setLocation(350, 200);
+						.centerOn(menuContainer.width/2 + 150, 350);
 
-					menuScene.addChild(b1);
-					menuScene.addChild(b2);
+					menuContainer.addChild(b1);
+					menuContainer.addChild(b2);
+					
+					menuScene.addChild(menuContainer);
 					
 					Director.startGameLoop(Constant.FRAME_RATE);
 				}
