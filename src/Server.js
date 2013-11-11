@@ -832,8 +832,20 @@ Server.prototype.start = function (httpServer) {
 			} else {
 				// create a new player
 				var player = that.newPlayer(conn);
+				var virusCount = 0;
+				var cellCount = 0;
 				that.sendMsgViaChannel(conn, new PlayerIDMsg(player.playerID));//notify player about his ID
 				that.sendMsgViaChannel(conn, new PlayerClassMsg(player.className));//notify player about his initialized class name
+				for (var i in that.players) {
+					if (that.players[i] !== player) {
+						if (that.players[i].className == "WarriorCell") {
+							cellCount ++;
+						} else if (that.players[i].className == "LeechVirus") {
+							virusCount ++;
+						}
+					}
+				}
+				that.sendMsgViaChannel(conn, new PlayersInfoMsg(virusCount, cellCount)); //notify player about other players classes
 				if (player.isHost)
 					that.sendMsgViaChannel(conn, new YouHostMsg());//tell player that he is the host
 				

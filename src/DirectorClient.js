@@ -20,6 +20,7 @@ var Director = {
 
 Director.initMenu = function(canvas, displayWidth, displayHeight, onClassChosenFunc, onEnterFunc) {
 	var menuScene;
+	var menuContainer;
 	var menuImages;
 	var startButton;
 	var startButtonText;
@@ -68,10 +69,15 @@ Director.initMenu = function(canvas, displayWidth, displayHeight, onClassChosenF
 			1000, true, null, null)
 	}
 	
+	this.updatePlayersInfo = function(msg) {
+		menuContainer.virus_count.setText(msg.virusCount.toString());
+		menuContainer.cell_count.setText(msg.cellCount.toString());
+	}
+	
 	menuScene = caatDirector.createScene();
 	ingameScene = caatDirector.createScene();
 	
-	var menuContainer = new CAAT.ActorContainer()
+	menuContainer = new CAAT.ActorContainer()
 		.setBounds(caatDirector.width/2 - 350, caatDirector.height/2 - 300, 700, 600)
 		.setFillStyle('white');
 	
@@ -84,6 +90,7 @@ Director.initMenu = function(canvas, displayWidth, displayHeight, onClassChosenF
 				
 	startButton.mouseUp = function(mouse){
 		onEnterFunc();
+
 	};
 	
 	startButton.touchEnd= function (touch) {
@@ -145,6 +152,13 @@ Director.initMenu = function(canvas, displayWidth, displayHeight, onClassChosenF
 							}
 						)
 						.centerOn(menuContainer.width/2 - 150, 350);
+						
+					var b1_count =  new CAAT.Foundation.UI.TextActor()
+													.centerOn(b1.x + b1.width/2, b1.y + b1.height + 20)
+													.setText("0")
+													.setFont(font)
+													.setTextFillStyle('#000000')
+													.enableEvents(false);
 					
 					var b2= new CAAT.Actor().setAsButton(
 						buttonsSprite.getRef(), 3, 4, 5, 3, function(button) {
@@ -152,9 +166,20 @@ Director.initMenu = function(canvas, displayWidth, displayHeight, onClassChosenF
 							}
 						)
 						.centerOn(menuContainer.width/2 + 150, 350);
+						
+					var b2_count =  new CAAT.Foundation.UI.TextActor()
+													.centerOn(b2.x + b2.width/2, b2.y + b2.height + 20)
+													.setText("0")
+													.setFont(font)
+													.setTextFillStyle('#000000')
+													.enableEvents(false);
 
 					menuContainer.addChild(b1);
 					menuContainer.addChild(b2);
+					menuContainer.addChild(b1_count);
+					menuContainer.addChild(b2_count);
+					menuContainer.virus_count = b1_count;
+					menuContainer.cell_count = b2_count;
 					
 					menuScene.addChild(menuContainer);
 					

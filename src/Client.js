@@ -448,6 +448,11 @@ Client.prototype.onMessageFromServer = function(msg){
 			Director.displayStartButton(true);
 			this.isGuest = false;
 			break;
+		case MsgType.PLAYERS_INFO:
+			if (Director.isInMenu()) {
+				Director.updatePlayersInfo(msg);
+			}
+			break;
 		default:
 		if (this.gameStarted)//forward to director
 			Director.postMessage(msg);
