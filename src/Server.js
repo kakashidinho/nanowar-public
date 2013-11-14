@@ -13,6 +13,7 @@ var DK_DISTANCES = [{min:0, max:50}, {min:50, max:100}, {min:100, max:150}];// l
 var DK_THREASHOLDS = [2, 4, 10];//3 versions of dead reckoning thresholds
 var RESPAWN_WAIT_TIME = 3000;//3s waiting for respawn
 var RESPAWN_DURATION = 5000;//5s of immortal for respawn player
+var PING_INTERVAL=2000;
 
 
 //utility function, covert an message object to string
@@ -458,6 +459,7 @@ Server.prototype.updateClientsAbout = function(player, elapsedTime){
 					var distance = player.character.distanceToEntity(subscriber.character);
 					if (DK_DISTANCES[i].min <= distance && distance < DK_DISTANCES[i].max)
 					{
+						//console.log("dead reckoning exceeded");
 						that.unicast(subscriber.connID, movementCorrectMsg);
 					}
 				}); 
@@ -684,10 +686,10 @@ Server.prototype.handleMessage = function(msg)
 		{
 			var player = this.players[msg.playerID];
 			
-			//create ping update interval to send the ping message every 1s
+			//create ping update interval to send the ping message every <PING_INTERVAL>
 			player.pingUpdateInterval = setInterval(function(player) {
 				that.unicast(player.connID, new PingMsg(Utils.getTimestamp()));
-			}, 1000, player);
+			}, PING_INTERVAL, player);
 			
 			//create character
 			this.spawnPlayerCharacter(player);
