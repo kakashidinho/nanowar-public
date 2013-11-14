@@ -38844,7 +38844,8 @@ var MsgType = {
 	GAME_ALREADY_START: 29,
 	GAME_DURATION: 30,
 	YOU_ARE_HOST: 31,
-	PLAYERS_INFO: 32
+	CONNECTED_PLAYERS_INFO: 32,
+	IN_GAME_PLAYERS_INFO: 33
 };
 
 function MoveAlongMsg(entity, dirx, diry){
@@ -39031,8 +39032,14 @@ function YouHostMsg(){
 	this.type = MsgType.YOU_ARE_HOST;
 }
 
-function PlayersInfoMsg(virusCount, cellCount){
-	this.type = MsgType.PLAYERS_INFO;
+function ConnectedPlayersInfoMsg(virusCount, cellCount){
+	this.type = MsgType.CONNECTED_PLAYERS_INFO;
+	this.virusCount = virusCount;
+	this.cellCount = cellCount;
+}
+
+function IngamePlayersInfoMsg(virusCount, cellCount){
+	this.type = MsgType.IN_GAME_PLAYERS_INFO;
 	this.virusCount = virusCount;
 	this.cellCount = cellCount;
 }
@@ -39068,7 +39075,8 @@ if (typeof global != 'undefined')
 	global.GameDurationMsg = GameDurationMsg;
 	global.GameAlreadyStartedMsg = GameAlreadyStartedMsg;
 	global.YouHostMsg = YouHostMsg;
-	global.PlayersInfoMsg = PlayersInfoMsg;
+	global.ConnectedPlayersInfoMsg = ConnectedPlayersInfoMsg;
+	global.IngamePlayersInfoMsg = IngamePlayersInfoMsg;
 	global.MsgType = MsgType;
 }"use strict";
 
@@ -40053,6 +40061,8 @@ Director.loadMap = function(initFileXML, onInitFinished)
 	var hpText;
 	var killText;
 	var deathText;
+	var virusCountText;
+	var cellCountText;
 	var skillIcons;
 	var skillIconMasks;
 	
@@ -40145,6 +40155,11 @@ Director.loadMap = function(initFileXML, onInitFinished)
 	//update the ping value on screen
 	Director.updatePingValue = function(pingValue){
 		pingText.setText("Ping: " + pingValue.toString());
+	}
+	
+	Director.updateIngameVirusCellCnt = function(virusCount, cellCount){
+		virusCountText.setText("Viruses: " + virusCount);
+		cellCountText.setText("Cells: " + cellCount);
 	}
 	
 	Director.updateGameDuration = function(duration){
@@ -40748,6 +40763,32 @@ Director.loadMap = function(initFileXML, onInitFinished)
 		
 		gameSceneRoot.addChild(deathText);
 		gameSceneRoot.setZOrder(deathText, 999);//always on top
+		
+		/*----------create virus count text------*/
+		virusCountText = new CAAT.Foundation.UI.TextActor()
+										.setLocation(10, 216)
+										.setText("Viruses: 0")
+										.setFont(font15)
+										.setAlign("left")
+										.setTextFillStyle('#ff0000')
+										.enableEvents(false)
+										;
+		
+		gameSceneRoot.addChild(virusCountText);
+		gameSceneRoot.setZOrder(virusCountText, 999);//always on top
+		
+		/*----------create cell count text------*/
+		cellCountText = new CAAT.Foundation.UI.TextActor()
+										.setLocation(10, 252)
+										.setText("Cells: 0")
+										.setFont(font15)
+										.setAlign("left")
+										.setTextFillStyle('#ff0000')
+										.enableEvents(false)
+										;
+		
+		gameSceneRoot.addChild(cellCountText);
+		gameSceneRoot.setZOrder(cellCountText, 999);//always on top
 		
 		/*-------create skill icons----------*/
 		skillIcons = new Array();
@@ -43543,6 +43584,9 @@ Client.prototype.handleMessage = function(msg){
 		case MsgType.GAME_DURATION:
 			Director.updateGameDuration(msg.duration);
 			break;
+		case MsgType.IN_GAME_PLAYERS_INFO:
+			Director.updateIngameVirusCellCnt(msg.virusCount, msg.cellCount);
+			break;
 	}
 	return false;
 }
@@ -43594,10 +43638,8 @@ Client.prototype.onMessageFromServer = function(msg){
 			Director.displayStartButton(true);
 			this.isGuest = false;
 			break;
-		case MsgType.PLAYERS_INFO:
-			if (Director.isInMenu()) {
-				Director.updatePlayersInfo(msg);
-			}
+		case MsgType.CONNECTED_PLAYERS_INFO:
+			Director.updatePlayersInfo(msg);
 			break;
 		case MsgType.END://game ended, hide "join" button
 			if (!this.gameStarted && this.isGuest){

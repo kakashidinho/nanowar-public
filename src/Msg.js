@@ -34,7 +34,8 @@ var MsgType = {
 	GAME_ALREADY_START: 29,
 	GAME_DURATION: 30,
 	YOU_ARE_HOST: 31,
-	PLAYERS_INFO: 32
+	CONNECTED_PLAYERS_INFO: 32,
+	IN_GAME_PLAYERS_INFO: 33
 };
 
 function MoveAlongMsg(entity, dirx, diry){
@@ -221,8 +222,14 @@ function YouHostMsg(){
 	this.type = MsgType.YOU_ARE_HOST;
 }
 
-function PlayersInfoMsg(virusCount, cellCount){
-	this.type = MsgType.PLAYERS_INFO;
+function ConnectedPlayersInfoMsg(virusCount, cellCount){
+	this.type = MsgType.CONNECTED_PLAYERS_INFO;
+	this.virusCount = virusCount;
+	this.cellCount = cellCount;
+}
+
+function IngamePlayersInfoMsg(virusCount, cellCount){
+	this.type = MsgType.IN_GAME_PLAYERS_INFO;
 	this.virusCount = virusCount;
 	this.cellCount = cellCount;
 }
@@ -258,6 +265,7 @@ if (typeof global != 'undefined')
 	global.GameDurationMsg = GameDurationMsg;
 	global.GameAlreadyStartedMsg = GameAlreadyStartedMsg;
 	global.YouHostMsg = YouHostMsg;
-	global.PlayersInfoMsg = PlayersInfoMsg;
+	global.ConnectedPlayersInfoMsg = ConnectedPlayersInfoMsg;
+	global.IngamePlayersInfoMsg = IngamePlayersInfoMsg;
 	global.MsgType = MsgType;
 }

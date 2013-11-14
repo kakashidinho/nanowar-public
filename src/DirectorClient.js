@@ -230,6 +230,8 @@ Director.loadMap = function(initFileXML, onInitFinished)
 	var hpText;
 	var killText;
 	var deathText;
+	var virusCountText;
+	var cellCountText;
 	var skillIcons;
 	var skillIconMasks;
 	
@@ -322,6 +324,11 @@ Director.loadMap = function(initFileXML, onInitFinished)
 	//update the ping value on screen
 	Director.updatePingValue = function(pingValue){
 		pingText.setText("Ping: " + pingValue.toString());
+	}
+	
+	Director.updateIngameVirusCellCnt = function(virusCount, cellCount){
+		virusCountText.setText("Viruses: " + virusCount);
+		cellCountText.setText("Cells: " + cellCount);
 	}
 	
 	Director.updateGameDuration = function(duration){
@@ -925,6 +932,32 @@ Director.loadMap = function(initFileXML, onInitFinished)
 		
 		gameSceneRoot.addChild(deathText);
 		gameSceneRoot.setZOrder(deathText, 999);//always on top
+		
+		/*----------create virus count text------*/
+		virusCountText = new CAAT.Foundation.UI.TextActor()
+										.setLocation(10, 216)
+										.setText("Viruses: 0")
+										.setFont(font15)
+										.setAlign("left")
+										.setTextFillStyle('#ff0000')
+										.enableEvents(false)
+										;
+		
+		gameSceneRoot.addChild(virusCountText);
+		gameSceneRoot.setZOrder(virusCountText, 999);//always on top
+		
+		/*----------create cell count text------*/
+		cellCountText = new CAAT.Foundation.UI.TextActor()
+										.setLocation(10, 252)
+										.setText("Cells: 0")
+										.setFont(font15)
+										.setAlign("left")
+										.setTextFillStyle('#ff0000')
+										.enableEvents(false)
+										;
+		
+		gameSceneRoot.addChild(cellCountText);
+		gameSceneRoot.setZOrder(cellCountText, 999);//always on top
 		
 		/*-------create skill icons----------*/
 		skillIcons = new Array();

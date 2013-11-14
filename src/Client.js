@@ -398,6 +398,9 @@ Client.prototype.handleMessage = function(msg){
 		case MsgType.GAME_DURATION:
 			Director.updateGameDuration(msg.duration);
 			break;
+		case MsgType.IN_GAME_PLAYERS_INFO:
+			Director.updateIngameVirusCellCnt(msg.virusCount, msg.cellCount);
+			break;
 	}
 	return false;
 }
@@ -449,10 +452,8 @@ Client.prototype.onMessageFromServer = function(msg){
 			Director.displayStartButton(true);
 			this.isGuest = false;
 			break;
-		case MsgType.PLAYERS_INFO:
-			if (Director.isInMenu()) {
-				Director.updatePlayersInfo(msg);
-			}
+		case MsgType.CONNECTED_PLAYERS_INFO:
+			Director.updatePlayersInfo(msg);
 			break;
 		case MsgType.END://game ended, hide "join" button
 			if (!this.gameStarted && this.isGuest){

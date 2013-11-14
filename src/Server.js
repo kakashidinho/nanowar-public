@@ -34,7 +34,8 @@ function Server() {
 	this.playerCharMap;	   // player mapping via his character. useful when the player has disconnected but his character is still around in the system
 	this.gameStarted; //game started or not?
 	this.gameInitXML;//the configuration file for the game session
-	this.ingameCount;//number of player in game
+	this.ingameVirusCount;//number of players in-game and are viruses
+	this.ingameCellCount;//number of players in-game and are cells;
 	this.director;
 }
 
@@ -368,7 +369,8 @@ Server.prototype.startGame = function()
 	that.broadcastAll(new StartGameMsg(this.gameInitXML));
 	
 	this.gameStarted = true;
-	this.ingameCount = 0;//no-one enter the game yet
+	this.ingameVirusCount = 0;//no-one enter the game yet
+	this.ingameCellCount = 0;
 }
 
 //end the game
@@ -705,7 +707,12 @@ Server.prototype.handleMessage = function(msg)
 					this.unicast(player.connID, new EntitySpawnMsg2(entity));
 			}
 			
-			this.ingameCount ++;
+			//let every one know the new number of viruses and cells
+			if (player.character.getSide() == Constant.VIRUS)
+				this.ingameVirusCount ++;
+			else
+				this.ingameCellCount ++;
+			this.broadcast(new IngamePlayersInfoMsg(this.ingameVirusCount, this.ingameCellCount));
 		}
 		break;
 	case MsgType.PLAYER_DISCONNECT://player disconnects in the middle of the game
@@ -713,14 +720,24 @@ Server.prototype.handleMessage = function(msg)
 			var entities = this.director.getKnownEntities();
 			if (msg.playerID in entities)
 			{
-				entities[msg.playerID].destroy();//destroy this entity	
-				this.ingameCount --;
-				if (this.ingameCount <= 0)
+				var entity = entities[msg.playerID];
+				
+				if (entity.getSide() == Constant.VIRUS)
+					this.ingameVirusCount --;
+				else
+					this.ingameCellCount --;
+				
+				entity.destroy();//destroy this entity	
+				
+				if (this.ingameVirusCount <= 0 && this.ingameCellCount <= 0)
 				{
-					this.ingameCount = 0;
+					this.ingameVirusCount = this.ingameCellCount = 0;
 					this.endGame();//no one play, so we should end the game
 					console.log("game ended since everyone left the game");
 				}
+				
+				//let every one know the new number of viruses and cells
+				this.broadcast(new IngamePlayersInfoMsg(this.ingameVirusCount, this.ingameCellCount));
 			}
 		}
 		break;
@@ -812,7 +829,7 @@ Server.prototype.onMessageFromPlayer = function(player, msg){
 			}
 		}
 		player.className = msg.className;
-		this.updatePlayersInfo();
+		this.updateConnectedPlayersInfo();
 		break;
 	case MsgType.CHANGE_FAKE_DELAY:
 		player.fakeDelay += msg.dDelay;
@@ -831,7 +848,7 @@ Server.prototype.onMessageFromPlayer = function(player, msg){
 	}
 }
 
-Server.prototype.updatePlayersInfo = function() {
+Server.prototype.updateConnectedPlayersInfo = function() {
 	var virusCount = 0;
 	var cellCount = 0;
 	for (var i in this.players) {
@@ -843,7 +860,7 @@ Server.prototype.updatePlayersInfo = function() {
 			}
 		//}
 	}
-	this.broadcastAll(new PlayersInfoMsg(virusCount, cellCount)); //notify player about other players classes
+	this.broadcastAll(new ConnectedPlayersInfoMsg(virusCount, cellCount)); //notify player about other players classes
 }
 
 Server.prototype.start = function (httpServer) {
@@ -879,7 +896,7 @@ Server.prototype.start = function (httpServer) {
 				that.sendMsgViaChannel(conn, new PlayerIDMsg(player.playerID));//notify player about his ID
 				that.sendMsgViaChannel(conn, new PlayerClassMsg(player.className));//notify player about his initialized class name
 				
-				that.updatePlayersInfo();
+				that.updateConnectedPlayersInfo();
 				
 				if (player.isHost)
 					that.sendMsgViaChannel(conn, new YouHostMsg());//tell player that he is the host
@@ -892,7 +909,7 @@ Server.prototype.start = function (httpServer) {
 			conn.on('close', function () {
 				
 				that.deletePlayer(conn.id);
-				that.updatePlayersInfo();
+				that.updateConnectedPlayersInfo();
 			});
 
 			// When the client send something to the server.
