@@ -49,14 +49,17 @@ Server.prototype.broadcastAll = function (msg) {
 		var conn = this.connections[id];
 		if (conn == undefined)
 			continue;
-		//conn.socket.write(msgToString(msg));
-		//delay the message sending by player's <fakeDelay> amount
-		setTimeout(function(conn, msg) {
-				if (conn)
-					conn.socket.write(msgToString(msg));
-			},
-			conn.player.fakeDelay,
-			conn, msg);
+		if (conn.player.fakeDelay == 0)
+			conn.socket.write(msgToString(msg));
+		else{
+			//delay the message sending by player's <fakeDelay> amount
+			setTimeout(function(conn, msg) {
+					if (conn)
+						conn.socket.write(msgToString(msg));
+				},
+				conn.player.fakeDelay,
+				conn, msg);
+		}
 	}
 }
 
@@ -74,13 +77,16 @@ Server.prototype.broadcast = function (msg) {
 		var conn = this.connections[id];
 		if (conn && conn.player.character != null)//player must be ready
 		{
-			//conn.socket.write(msgToString(msg));
-			//delay the message sending by player's <fakeDelay> amount
-			setTimeout(function(conn, msg) {
-					conn.socket.write(msgToString(msg));
-				},
-				conn.player.fakeDelay,
-				conn, msg);
+			if (conn.player.fakeDelay == 0)
+				conn.socket.write(msgToString(msg));
+			else{
+				//delay the message sending by player's <fakeDelay> amount
+				setTimeout(function(conn, msg) {
+						conn.socket.write(msgToString(msg));
+					},
+					conn.player.fakeDelay,
+					conn, msg);
+			}
 		}
 	}
 }
@@ -101,14 +107,17 @@ Server.prototype.multicast = function (subscribers, msg) {
 		var conn = this.connections[player.connID];
 		if (player.character != null)//player must be ready
 		{
-			//conn.socket.write(msgToString(msg));
-			//delay the message sending by player's <fakeDelay> amount
-			setTimeout(function(conn, msg) {
-					if (conn)
-						conn.socket.write(msgToString(msg));
-				},
-				player.fakeDelay,
-				conn, msg);
+			if (conn.player.fakeDelay == 0)
+				conn.socket.write(msgToString(msg));
+			else{
+				//delay the message sending by player's <fakeDelay> amount
+				setTimeout(function(conn, msg) {
+						if (conn)
+							conn.socket.write(msgToString(msg));
+					},
+					player.fakeDelay,
+					conn, msg);
+			}
 		}
 		
 		node = node.next;//next subscriber
@@ -131,13 +140,16 @@ Server.prototype.broadcastExcept = function (playerID, msg) {
 			continue;
 		if (conn.player.character != null)//player must be ready
 		{
-			//conn.socket.write(msgToString(msg));
-			//delay the message sending by player's <fakeDelay> amount
-			setTimeout(function(conn, msg) {
-					conn.socket.write(msgToString(msg));
-				},
-				conn.player.fakeDelay,
-				conn, msg);
+			if (conn.player.fakeDelay == 0)
+				conn.socket.write(msgToString(msg));
+			else{
+				//delay the message sending by player's <fakeDelay> amount
+				setTimeout(function(conn, msg) {
+						conn.socket.write(msgToString(msg));
+					},
+					conn.player.fakeDelay,
+					conn, msg);
+			}
 		}
 	}
 }
@@ -154,13 +166,16 @@ Server.prototype.unicast = function (socketID, msg) {
 	var conn = this.connections[socketID];
 	if (conn && conn.player.character != null)//player must be ready
 	{
-		//conn.socket.write(msgToString(msg));
-		//delay the message sending by player's <fakeDelay> amount
-		setTimeout(function(conn, msg) {
-				conn.socket.write(msgToString(msg));
-			},
-			conn.player.fakeDelay,
-			conn, msg);
+		if (conn.player.fakeDelay == 0)
+			conn.socket.write(msgToString(msg));
+		else{
+			//delay the message sending by player's <fakeDelay> amount
+			setTimeout(function(conn, msg) {
+					conn.socket.write(msgToString(msg));
+				},
+				conn.player.fakeDelay,
+				conn, msg);
+		}
 	}
 }
 
@@ -871,11 +886,15 @@ Server.prototype.start = function (httpServer) {
 			conn.on('data', function (data) {
 				var message = JSON.parse(data)
 				var player = that.connections[conn.id].player;
-				//delay the message processing
-				setTimeout(function(){
+				if (player.fakeDelay == 0)
 					that.onMessageFromPlayer(player, message);
-					},
-					player.fakeDelay);
+				else{
+					//delay the message processing
+					setTimeout(function(){
+						that.onMessageFromPlayer(player, message);
+						},
+						player.fakeDelay);
+				}
 					
 			}); // conn.on("data"
 		}); // socket.on("connection"
