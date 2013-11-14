@@ -28,12 +28,13 @@ function msgToString(msg){
 /*------------class Server------------*/
 function Server() {
     this.count;        // Keeps track how many people are connected to server 
-    this.availPIDList; // list of available PID to assign to next connected player (i.e. which player slot is open) 
+	this.availPIDList; // list of available PID to assign to next connected player (i.e. which player slot is open) 
     this.connections;      // Associative array for connections, indexed via socket ID
     this.players;      // Associative array for players, indexed via player ID
 	this.playerCharMap;	   // player mapping via his character. useful when the player has disconnected but his character is still around in the system
 	this.gameStarted; //game started or not?
 	this.gameInitXML;//the configuration file for the game session
+	this.ingameCount;//number of player in game
 	this.director;
 }
 
@@ -367,6 +368,7 @@ Server.prototype.startGame = function()
 	that.broadcastAll(new StartGameMsg(this.gameInitXML));
 	
 	this.gameStarted = true;
+	this.ingameCount = 0;//no-one enter the game yet
 }
 
 //end the game
@@ -702,13 +704,24 @@ Server.prototype.handleMessage = function(msg)
 				if (id != player.playerID)
 					this.unicast(player.connID, new EntitySpawnMsg2(entity));
 			}
+			
+			this.ingameCount ++;
 		}
 		break;
 	case MsgType.PLAYER_DISCONNECT://player disconnects in the middle of the game
 		{
 			var entities = this.director.getKnownEntities();
 			if (msg.playerID in entities)
-				entities[msg.playerID].destroy();//destroy this entity
+			{
+				entities[msg.playerID].destroy();//destroy this entity	
+				this.ingameCount --;
+				if (this.ingameCount <= 0)
+				{
+					this.ingameCount = 0;
+					this.endGame();//no one play, so we should end the game
+					console.log("game ended since everyone left the game");
+				}
+			}
 		}
 		break;
 	
@@ -810,7 +823,8 @@ Server.prototype.onMessageFromPlayer = function(player, msg){
 		this.beginStartGame(msg.initXML);
 		break;
 	case MsgType.JOIN:
-		this.sendMsgViaChannel(this.connections[player.connID].socket, new StartGameMsg(this.gameInitXML));
+		if (this.gameStarted)
+			this.sendMsgViaChannel(this.connections[player.connID].socket, new StartGameMsg(this.gameInitXML));
 		break;
 	default:
 		this.director.postMessage(msg);//forward it to the director

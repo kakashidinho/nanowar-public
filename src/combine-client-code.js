@@ -38798,9 +38798,7 @@ if (typeof global != 'undefined')
 	SKILL_RANGE_MED: 9,//units in physics
 	SKILL_RANGE_LONG: 18,//units in physics
 	HEALTH_BAR_HEIGHT: 0.4,//units in physics
-	SERVER_MAX_CONNECTIONS: 50,
-	SERVER_MAX_ROOMS: 5,
-	SERVER_MAX_PLAYERS_PER_ROOM: 10,
+	SERVER_MAX_CONNECTIONS: 10,
 	SERVER_NAME: "localhost",
 	//SERVER_NAME: "lehoangquyen-i.comp.nus.edu.sg",
 	SERVER_PORT: 8000,
@@ -39876,13 +39874,11 @@ Director.initMenu = function(canvas, displayWidth, displayHeight, onClassChosenF
 		} else {
 			startButtonText.setText('Join');
 		}
-		startButtonText.centerOn(startButton.x + startButton.width/2, startButton.y + startButton.height/2);
 	}
 	
 	this.hideStartButton = function(){
 		startButton.setVisible(false);
 		startButtonText.setText('Waiting for available game');
-		startButtonText.centerOn(startButton.x + startButton.width/2, startButton.y + startButton.height/2);
 	}
 	
 	this.isInMenu = function(){
@@ -39896,8 +39892,8 @@ Director.initMenu = function(canvas, displayWidth, displayHeight, onClassChosenF
 	}
 	
 	this.updatePlayersInfo = function(msg) {
-		menuContainer.virus_count.setText(msg.virusCount.toString());
-		menuContainer.cell_count.setText(msg.cellCount.toString());
+		menuContainer.virus_count.setText("Players: " + msg.virusCount.toString());
+		menuContainer.cell_count.setText("Players: " + msg.cellCount.toString());
 	}
 	
 	menuScene = caatDirector.createScene();
@@ -39930,9 +39926,10 @@ Director.initMenu = function(canvas, displayWidth, displayHeight, onClassChosenF
 							.setText('Waiting for available game')
 							.setFont("18px sans-serif")
 							.setTextFillStyle('#000000')
+							.setAlign("center")
 							//.setVisible(false)
 							.enableEvents(false)
-							.centerOn(startButton.x + startButton.width/2, startButton.y + startButton.height/2);
+							.setLocation(startButton.x + startButton.width/2, startButton.y + startButton.height/2 - 10);
 
 	menuContainer.addChild(startButtonText);
 	
@@ -39985,9 +39982,10 @@ Director.initMenu = function(canvas, displayWidth, displayHeight, onClassChosenF
 						
 					var b1_count =  new CAAT.Foundation.UI.TextActor()
 													.centerOn(b1.x + b1.width/2, b1.y + b1.height + 20)
-													.setText("0")
+													.setText("Players: 0")
 													.setFont(font)
 													.setTextFillStyle('#000000')
+													.setAlign("center")
 													.enableEvents(false);
 					
 					var b2= new CAAT.Actor().setAsButton(
@@ -40003,9 +40001,10 @@ Director.initMenu = function(canvas, displayWidth, displayHeight, onClassChosenF
 						
 					var b2_count =  new CAAT.Foundation.UI.TextActor()
 													.centerOn(b2.x + b2.width/2, b2.y + b2.height + 20)
-													.setText("0")
+													.setText("Players: 0")
 													.setFont(font)
 													.setTextFillStyle('#000000')
+													.setAlign("center")
 													.enableEvents(false);
 
 					menuContainer.addChild(b1);
@@ -43600,6 +43599,11 @@ Client.prototype.onMessageFromServer = function(msg){
 				Director.updatePlayersInfo(msg);
 			}
 			break;
+		case MsgType.END://game ended, hide "join" button
+			if (!this.gameStarted && this.isGuest){
+				Director.hideStartButton();
+				break;
+			}
 		default:
 		if (this.gameStarted)//forward to director
 			Director.postMessage(msg);

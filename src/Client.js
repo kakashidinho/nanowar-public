@@ -454,6 +454,11 @@ Client.prototype.onMessageFromServer = function(msg){
 				Director.updatePlayersInfo(msg);
 			}
 			break;
+		case MsgType.END://game ended, hide "join" button
+			if (!this.gameStarted && this.isGuest){
+				Director.hideStartButton();
+				break;
+			}
 		default:
 		if (this.gameStarted)//forward to director
 			Director.postMessage(msg);
