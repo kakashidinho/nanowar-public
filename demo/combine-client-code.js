@@ -40262,59 +40262,54 @@ Director.loadMap = function(initFileXML, onInitFinished)
 		gameSceneRoot.addChild(rankTableNode);	
 		gameSceneRoot.setZOrder(rankTableNode, 1000);//always on top
 		
-		rankTableNode.mouseUp = function(mouse){
-			//switch to menu scene
-			Director._switchToMenu();
-			/*--clean up scene items---*/
-			this.setFrameTime(0, 0);
-			this.setDiscardable(true);
-			this.destroy();
-			worldNode.setFrameTime(0, 0);
-			worldNode.setDiscardable(true);
-			worldNode.destroy();
-			gameSceneRoot.setFrameTime(0, 0);
-			gameSceneRoot.setDiscardable(true);
-			gameSceneRoot.destroy();
-			ingameScene.removeChild(gameSceneRoot);
-		}
+		//delay the display of "touch to continue" text
+		setTimeout(function(rankTableNode){
+			function quitToMenu(){
+				//switch to menu scene
+				Director._switchToMenu();
+				/*--clean up scene items---*/
+				rankTableNode.setFrameTime(0, 0);
+				rankTableNode.setDiscardable(true);
+				rankTableNode.destroy();
+				worldNode.setFrameTime(0, 0);
+				worldNode.setDiscardable(true);
+				worldNode.destroy();
+				gameSceneRoot.setFrameTime(0, 0);
+				gameSceneRoot.setDiscardable(true);
+				gameSceneRoot.destroy();
+				ingameScene.removeChild(gameSceneRoot);
+			}
+			
+			rankTableNode.mouseUp = function(mouse){
+				quitToMenu();
+			}
 
-		rankTableNode.touchEnd = function (touch) {
+			rankTableNode.touchEnd = function (touch) {
 
-		    Director._switchToMenu();
-		    /*--clean up scene items---*/
-		    this.setFrameTime(0, 0);
-		    this.setDiscardable(true);
-		    this.destroy();
-		    worldNode.setFrameTime(0, 0);
-		    worldNode.setDiscardable(true);
-		    worldNode.destroy();
-		    gameSceneRoot.setFrameTime(0, 0);
-		    gameSceneRoot.setDiscardable(true);
-		    gameSceneRoot.destroy();
-		    ingameScene.removeChild(gameSceneRoot);
-		}
-		
-		/*----"touch screen to continue" text-------*/
-		var alphaBehavior = new CAAT.Behavior.AlphaBehavior().
-				setPingPong().
-				setCycle(true).
-				setFrameTime(0, 1000).
-				setValues(0, 1);
-		
-		var continueText =  new CAAT.Foundation.UI.TextActor()
-											.setLocation(displayWidth/2, displayHeight/2)
-											.setText('Touch screen to continue')
-											.setFont("35px sans-serif")
-											.setAlign("center")
-											.setTextFillStyle('#ffffff')
-											.enableEvents(false)
-											;
-											
-		continueText.addBehavior(alphaBehavior);
-		
-		rankTableNode.addChild(continueText);
-		rankTableNode.setZOrder(continueText, 1001);
-		
+				quitToMenu();
+			}
+			
+			/*----"touch screen to continue" text-------*/
+			var alphaBehavior = new CAAT.Behavior.AlphaBehavior().
+					setPingPong().
+					setCycle(true).
+					setFrameTime(0, 1000).
+					setValues(0, 1);
+			
+			var continueText =  new CAAT.Foundation.UI.TextActor()
+												.setLocation(displayWidth/2, displayHeight/2)
+												.setText('Touch screen to continue')
+												.setFont("35px sans-serif")
+												.setAlign("center")
+												.setTextFillStyle('#ffffff')
+												.enableEvents(false)
+												;
+												
+			continueText.addBehavior(alphaBehavior);
+			
+			rankTableNode.addChild(continueText);
+			rankTableNode.setZOrder(continueText, 1001);
+		}, 3000, rankTableNode);
 		
 		/*---create record texts--------*/
 		var font18= "18px sans-serif";
