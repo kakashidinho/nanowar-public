@@ -449,6 +449,9 @@ Server.prototype.updateClientsAbout = function(player, elapsedTime){
 			//error exceeded
 			if (error > DK_THREASHOLDS[i])
 			{
+				//console.log("============>predict version " + i);
+				//console.log("predictPos = " + predictPos.x + ", " + predictPos.y);
+				//console.log("correctPos = " + player.character.getPosition().x + ", " + player.character.getPosition().y);
 				var movementCorrectMsg = new EntityMoveMentMsg(player.character);
 			
 				//notify players who have distance fall into DK_DISTANCES[i]
@@ -607,21 +610,13 @@ Server.prototype.randomPlacePlayerChar = function(player){
 		for (var i = 0; i < NUM_DK_VERSIONS; ++i){
 			
 			//we already have an old instance
-			if (player.charPredict[i] != null)
-			{
-				player.charPredict[i].setPosition(player.character.getPosition());
-				player.charPredict[i].setOriSpeed(player.character.getOriSpeed());
-			}
-			else
-			{	
-				//create the new dummy entity for dead reckoning
-				player.charPredict[i] = new MovingEntity( -1, 0, 
+			//create the new dummy entity for dead reckoning
+			player.charPredict[i] = new MovingEntity( -1, 0, 
 					Constant.NEUTRAL, 
 					player.character.getWidth(), player.character.getHeight(), 
 					player.character.getPosition().x, player.character.getPosition().y, 
 					player.character.getOriSpeed(), 
 					null);
-			}
 		}//for (var i = 0; i < NUM_DK_VERSIONS; ++i)
 	}//if SERVER_USE_DK
 }

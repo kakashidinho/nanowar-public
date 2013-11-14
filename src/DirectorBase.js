@@ -364,11 +364,10 @@ function DirectorBase()
 			this.knownEntity[id].destroy();
 		}
 		
-		//delete all pending bodies
-		this.deleteBodyList.traverse(function(body)
-		{
-			that.physicsWorld.DestroyBody(body);
-		});
+		//delete all  bodies
+		for (var body = this.physicsWorld.GetBodyList(); body != null; body = body.GetNext())
+			this.physicsWorld.DestroyBody(body);
+		this.deleteBodyList.removeAll();
 	}
 	
 	this._createPhysicsBody = function(bodyDef, fixtureDef)
