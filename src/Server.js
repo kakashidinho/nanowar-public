@@ -454,9 +454,19 @@ Server.prototype.updateClientsAbout = function(player, elapsedTime){
 			//error exceeded
 			if (error > DK_THREASHOLDS[i])
 			{
-				//console.log("============>predict version " + i);
-				//console.log("predictPos = " + predictPos.x + ", " + predictPos.y);
-				//console.log("correctPos = " + player.character.getPosition().x + ", " + player.character.getPosition().y);
+				/*debug
+				if (i == 0)
+				{
+					var predictVel = player.charPredict[i].getVelocity();
+					var correctVel = player.character.getVelocity();
+					console.log("dead reckoning exceeded");
+					console.log("============>predict version " + i);
+					console.log("==>predictPos = " + predictPos.x + ", " + predictPos.y);
+					console.log("====>predictVel = " + predictVel.x + ", " + predictVel.y);
+					console.log("=======>correctPos = " + player.character.getPosition().x + ", " + player.character.getPosition().y);
+					console.log("=========>correctVel = " + correctVel.x + ", " + correctVel.y);
+				}
+				/**/
 				var movementCorrectMsg = new EntityMoveMentMsg(player.character);
 			
 				//notify players who have distance fall into DK_DISTANCES[i]
@@ -467,7 +477,6 @@ Server.prototype.updateClientsAbout = function(player, elapsedTime){
 					var distance = player.character.distanceToEntity(subscriber.character);
 					if (DK_DISTANCES[i].min <= distance && distance < DK_DISTANCES[i].max)
 					{
-						//console.log("dead reckoning exceeded");
 						that.unicast(subscriber.connID, movementCorrectMsg);
 					}
 				}); 

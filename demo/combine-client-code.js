@@ -39336,6 +39336,7 @@ function DirectorBase()
 				break;
 			case MsgType.ENTITY_MOVEMENT_UPDATE:
 				{
+					console.log("movement update message");	
 					if (msg.entityID in that.knownEntity)
 						that.knownEntity[msg.entityID].correctMovement(msg.x, msg.y, msg.dirx, msg.diry, true);
 				}
@@ -41829,6 +41830,7 @@ MovingEntity.prototype.updateMovement = function(elapsedTime)
 			var vel = this.getVelocity();
 			console.log("convergence ended position is: " + pos.x + "," + pos.y);
 			console.log("convergence ended velocity is: " + vel.x + "," + vel.y);
+			console.log("expected convergence ended velocity is: " + this.afterConverseDirection.x + "," + this.afterConverseDirection.y);
 			/**/
 			//now follow the correct path
 			this.setPosition(this.afterConversePosition);

@@ -256,6 +256,7 @@ function DirectorBase()
 				break;
 			case MsgType.ENTITY_MOVEMENT_UPDATE:
 				{
+					//console.log("movement update message");	
 					if (msg.entityID in that.knownEntity)
 						that.knownEntity[msg.entityID].correctMovement(msg.x, msg.y, msg.dirx, msg.diry, true);
 				}

@@ -420,6 +420,7 @@ MovingEntity.prototype.updateMovement = function(elapsedTime)
 			var vel = this.getVelocity();
 			console.log("convergence ended position is: " + pos.x + "," + pos.y);
 			console.log("convergence ended velocity is: " + vel.x + "," + vel.y);
+			console.log("expected convergence ended velocity is: " + this.afterConverseDirection.x + "," + this.afterConverseDirection.y);
 			/**/
 			//now follow the correct path
 			this.setPosition(this.afterConversePosition);
