@@ -108,16 +108,16 @@ Client.prototype.spawnEntity = function(msg){
 	switch(msg.className)
 	{
 	case "WarriorCell":
-		spawn_entity = new WarriorCell(msg.entityID, msg.x, msg.y);
+		spawn_entity = new WarriorCell(Director, msg.entityID, msg.x, msg.y);
 		break;
 	case "LeechVirus":
-		spawn_entity = new LeechVirus(msg.entityID, msg.x, msg.y);
+		spawn_entity = new LeechVirus(Director, msg.entityID, msg.x, msg.y);
 		break;
 	case "HealingDrug":
-		spawn_entity = new HealingDrug(msg.entityID, msg.x, msg.y, msg.dirx, msg.diry);
+		spawn_entity = new HealingDrug(Director, msg.entityID, msg.x, msg.y, msg.dirx, msg.diry);
 		break;
 	case "MeatCell":
-		spawn_entity = new MeatCell(msg.entityID, msg.x, msg.y, msg.dirx, msg.diry);
+		spawn_entity = new MeatCell(Director, msg.entityID, msg.x, msg.y, msg.dirx, msg.diry);
 		break;
 	}
 	
@@ -134,7 +134,8 @@ Client.prototype.spawnEntity = function(msg){
 		if (CLIENT_USE_DK)
 		{
 			//create the dummy entity for dead reckoning
-			this.charPredict = new MovingEntity( -1, 0, 
+			this.charPredict = new MovingEntity( Director, 
+				-1, 0, 
 				Constant.NEUTRAL, 
 				this.character.getWidth(), this.character.getHeight(), 
 				this.character.getPosition().x, this.character.getPosition().y, 
@@ -370,7 +371,7 @@ Client.prototype.handleMessage = function(msg){
 					{
 						var entities = Director.getKnownEntities();
 						var target = entities[msg.affectedTargetID];
-						var effect = new HealingEffect(target, 0);//2nd parameter is zero, since this is just for displaying
+						var effect = new HealingEffect(Director, target, 0);//2nd parameter is zero, since this is just for displaying
 						target.addEffect(effect);
 						return true;//dont need director to do any more work
 					}

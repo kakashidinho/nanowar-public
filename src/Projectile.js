@@ -12,8 +12,8 @@ var   b2Vec2 = Box2D.Common.Math.b2Vec2
 	,	b2CircleShape = Box2D.Collision.Shapes.b2CircleShape
 
 /*-----------FakeTarget class (extends NanoEntity)----------*/
-var FakeTarget = function(x, y){
-	NanoEntity.call(this, -1, 0, Constant.NEUTRAL, 1, 1, x, y, null);
+var FakeTarget = function(_director, x, y){
+	NanoEntity.call(this, _director, -1, 0, Constant.NEUTRAL, 1, 1, x, y, null);
 	
 	//change the body's fixture type to sensor
 	this.body.GetFixtureList().SetSensor(true);
@@ -25,7 +25,7 @@ FakeTarget.prototype.constructor = FakeTarget;
 	
 /*-----------Projectile class (extends MovingEntity)--------------*/
 
-var Projectile = function (_target, width, height, x, y, oriSpeed, spriteModule) {
+var Projectile = function (_director, _target, width, height, x, y, oriSpeed, spriteModule) {
 	if (typeof _target == 'undefined')
 		return;//this may be called by prototype inheritance
 	
@@ -35,7 +35,7 @@ var Projectile = function (_target, width, height, x, y, oriSpeed, spriteModule)
 
     /*------constructor---------*/
     //call super class's constructor method
-    MovingEntity.call(this, -1, 0, Constant.NEUTRAL, width, height, x, y, oriSpeed, spriteModule);
+    MovingEntity.call(this, _director, -1, 0, Constant.NEUTRAL, width, height, x, y, oriSpeed, spriteModule);
     this.Target = _target;
 
 	//change the body's fixture type to sensor
@@ -100,15 +100,15 @@ Projectile.prototype.update = function(elapsedTime){
 
 /*-----------Acid class (extends Projectile)--------------*/
 
-var Acid = function (_producer, _target, x, y) {
-	if (_producer == undefined)
+var Acid = function (_director, _producer, _target, x, y) {
+	if (_director == undefined)
 		return;
     this.producer;
 	this.hit ;//does it hit target yet?
     /*------constructor---------*/
     //call super class's constructor method
 
-    Projectile.call(this,_target,1,1,x,y,Constant.SPEED_VERY_FAST,"Acid");
+    Projectile.call(this, _director, _target,1,1,x,y,Constant.SPEED_VERY_FAST,"Acid");
 	
 	this.producer = _producer;
 	this.hit = false;
@@ -123,9 +123,9 @@ Acid.prototype.constructor = Acid;
 Acid.prototype.update = function(elapsedTime){
 	if (this.hit)//hit
 	{
-		if (!Director.dummyClient)//dummy client does nothing
+		if (!this.director.dummyClient)//dummy client does nothing
 		{
-			var effect = new AcidEffect(this.producer, this.Target);
+			var effect = new AcidEffect(this.director, this.producer, this.Target);
 			this.Target.addEffect(effect);
 		}
 		this.destroy();
@@ -147,17 +147,17 @@ Acid.prototype.onHitTarget = function () {
 
 /*-----------AcidBomb class (extends Projectile)--------------*/
 
-var AcidBomb = function (_producer, destPos, x, y) {
-	if (_producer == undefined)
+var AcidBomb = function (_director, _producer, destPos, x, y) {
+	if (_director == undefined)
 		return;
     this.producer;
 	this.hit ;//does it hit target yet?
     /*------constructor---------*/
 	//first create the fake target for the projectile
-	var fakeTarget = new FakeTarget(destPos.x, destPos.y);
+	var fakeTarget = new FakeTarget(_director, destPos.x, destPos.y);
 	
     //call super class's constructor method
-    Projectile.call(this,fakeTarget,2,2,x,y,Constant.SPEED_FAST,"Acid");
+    Projectile.call(this,_director, fakeTarget,2,2,x,y,Constant.SPEED_FAST,"Acid");
 	
 	this.producer = _producer;
 	this.hit = false;
@@ -172,7 +172,7 @@ AcidBomb.prototype.constructor = AcidBomb;
 AcidBomb.prototype.update = function(elapsedTime){
 	if (this.hit)//hit
 	{
-		var effect = new AcidAreaEffect(this.producer, this.producer.getAreaEffectDuration(), this.Target.getPosition().x, this.Target.getPosition().y);
+		var effect = new AcidAreaEffect(this.director, this.producer, this.producer.getAreaEffectDuration(), this.Target.getPosition().x, this.Target.getPosition().y);
 		this.destroy();
 		this.Target.destroy();//destroy fake target
 	}
@@ -191,17 +191,17 @@ AcidBomb.prototype.onHitTarget = function () {
 
 /*-----------Web class (extends Projectile)--------------*/
 
-var Web = function (_producer, destPos, x, y) {
-	if (_producer == undefined)
+var Web = function (_director, _producer, destPos, x, y) {
+	if (_director == undefined)
 		return;
     this.producer;
 	this.hit ;//does it hit target yet?
     /*------constructor---------*/
 	//first create the fake target for the projectile
-	var fakeTarget = new FakeTarget(destPos.x, destPos.y);
+	var fakeTarget = new FakeTarget(_director, destPos.x, destPos.y);
 	
     //call super class's constructor method
-    Projectile.call(this,fakeTarget,1.5,1.5,x,y,Constant.SPEED_VERY_FAST,"Web");
+    Projectile.call(this,_director, fakeTarget,1.5,1.5,x,y,Constant.SPEED_VERY_FAST,"Web");
 	
 	this.producer = _producer;
 	this.hit = false;
@@ -216,7 +216,7 @@ Web.prototype.constructor = Web;
 Web.prototype.update = function(elapsedTime){
 	if (this.hit)//hit
 	{
-		var effect = new WebAreaEffect(this.producer, this.Target.getPosition().x, this.Target.getPosition().y);
+		var effect = new WebAreaEffect(this.director, this.producer, this.Target.getPosition().x, this.Target.getPosition().y);
 		this.destroy();
 		this.Target.destroy();//destroy fake target
 	}

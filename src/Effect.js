@@ -15,7 +15,7 @@ var   b2Vec2 = Box2D.Common.Math.b2Vec2
 
 /*-----------Effect class (extends NanoEntity)--------------*/
 
-var Effect = function (_producer, _affectedTarget, _duration, width, height, x, y, spriteModule, ground) {
+var Effect = function (_director, _producer, _affectedTarget, _duration, width, height, x, y, spriteModule, ground) {
 	if (typeof _affectedTarget == 'undefined')
 		return;//this may be called by prototype inheritance
 	
@@ -26,7 +26,7 @@ var Effect = function (_producer, _affectedTarget, _duration, width, height, x, 
 	
     /*--------constructor---------*/
     //call super class's constructor method
-    NanoEntity.call(this, -1, 0, Constant.NEUTRAL, width, height, x, y, spriteModule, ground == undefined? false: ground);
+    NanoEntity.call(this, _director, -1, 0, Constant.NEUTRAL, width, height, x, y, spriteModule, ground == undefined? false: ground);
 	this.producer = _producer;
     this.duration = _duration;
 	this.affectedTarget = _affectedTarget;
@@ -97,8 +97,8 @@ Effect.prototype.update = function(elapsedTime){
 	
 		if (targetAliveBefore != this.affectedTarget.isAlive() && this.producer != null)//I killed him!!
 		{
-			if (!Director.dummyClient)
-				Director._notifyKillCount(this.producer.getOwner(), this.affectedTarget);
+			if (!this.director.dummyClient)
+				this.director._notifyKillCount(this.producer.getOwner(), this.affectedTarget);
 		}
 	}
 	else
@@ -110,8 +110,8 @@ Effect.prototype.update = function(elapsedTime){
 
 /*-----------AcidEffect class (extends Effect)--------------*/
 
-var AcidEffect = function (_producer, affectedTarget) {
-	if (_producer == undefined)
+var AcidEffect = function (_director, _producer, affectedTarget) {
+	if (_director == undefined)
 		return;//this may be called by prototype inheritance
 		
     this.damPerMs;//damage per millisecond
@@ -119,7 +119,7 @@ var AcidEffect = function (_producer, affectedTarget) {
     /*--------constructor---------*/
     //call super class's constructor method
 
-    Effect.call(this, _producer, affectedTarget, _producer.getEffectDuration(), Constant.EFFECT_SIZE, Constant.EFFECT_SIZE, 0, 0, "AcidEffect");
+    Effect.call(this, _director, _producer, affectedTarget, _producer.getEffectDuration(), Constant.EFFECT_SIZE, Constant.EFFECT_SIZE, 0, 0, "AcidEffect");
 	var damageDuration = this.producer.getEffectDuration();
 	var totalDamage=this.producer.getDamage();
     this.damPerMs=totalDamage/damageDuration;
@@ -147,7 +147,7 @@ AcidEffect.prototype._implUpdate = function (elapsedTime) {
 	//can define the affect later, maybe add more function in the nanoentity
 	//since affect will be called in a frequency(framerate), we divide the total damage into piece according to the elapse time
    
-	if (Director.dummyClient == false)
+	if (this.director.dummyClient == false)
 	{
 		//dummy client will not do this damage effect. Instead, it will be done by server
 		var damage=this.damPerMs*effectElapsedTime;
@@ -161,8 +161,8 @@ AcidEffect.prototype._implUpdate = function (elapsedTime) {
 
 /*-----------LifeLeechEffect class (extends Effect)--------------*/
 
-var LifeLeechEffect = function (_producer, affectedTarget) {
-	if (_producer == undefined)
+var LifeLeechEffect = function (_director, _producer, affectedTarget) {
+	if (_director == undefined)
 		return;//this may be called by prototype inheritance
 		
     this.leecher;
@@ -170,7 +170,7 @@ var LifeLeechEffect = function (_producer, affectedTarget) {
     /*--------constructor---------*/
     //call super class's constructor method
 
-    Effect.call(this, _producer, affectedTarget, 1, Constant.CELL_SIZE, Constant.CELL_SIZE, 0, 0, "LifeLeechEffect");
+    Effect.call(this, _director, _producer, affectedTarget, 1, Constant.CELL_SIZE, Constant.CELL_SIZE, 0, 0, "LifeLeechEffect");
 	this.leecher = _producer.getOwner();
 	
 	this.className = 'LifeLeechEffect';
@@ -181,7 +181,7 @@ LifeLeechEffect.prototype = new Effect();
 LifeLeechEffect.prototype.constructor = LifeLeechEffect;
 
 LifeLeechEffect.prototype._implUpdate = function (elapsedTime) {
-	if (Director.dummyClient == false && this.affectedTarget.isAlive())
+	if (this.director.dummyClient == false && this.affectedTarget.isAlive())
 	{
 		var dHP = this.affectedTarget.decreaseHP(this.producer.getDamage());
 		this.leecher.increaseHP(dHP * 0.85);
@@ -192,12 +192,12 @@ LifeLeechEffect.prototype._implUpdate = function (elapsedTime) {
 
 
 /*------------------AcidAreaEffect (extends Effect)--------------*/
-var AcidAreaEffect = function (_producer, _duration, x, y) {
+var AcidAreaEffect = function (_director, _producer, _duration, x, y) {
 	this.affectedTargets;//list of targets inside this effect's region
 
     /*--------constructor---------*/
     //call super class's constructor method
-    Effect.call(this, _producer, null, _duration, 4 * Constant.CELL_SIZE, 4 * Constant.CELL_SIZE, x, y, "AcidAreaEffect", true);
+    Effect.call(this, _director, _producer, null, _duration, 4 * Constant.CELL_SIZE, 4 * Constant.CELL_SIZE, x, y, "AcidAreaEffect", true);
 	
 	this.affectedTargets = new Utils.List();
 }
@@ -210,7 +210,7 @@ AcidAreaEffect.prototype.constructor = AcidAreaEffect;
 AcidAreaEffect.prototype.enterArea = function(entity){
 	if (entity.getSide() == Constant.NEUTRAL || entity.getSide() == this.producer.getOwner().getSide())
 		return;//not enemy
-	if (Director.dummyClient)
+	if (this.director.dummyClient)
 		return;//dummy client does nothing
 	this.affectedTargets.insertBack(entity);//add to pending affected targets list
 }
@@ -227,7 +227,7 @@ AcidAreaEffect.prototype._implUpdate = function (elapsedTime){
 		var entity = this.affectedTargets.getFirstElem();
 		this.affectedTargets.popFront();
 		//inject acid to him
-		var effect = new AcidEffectLv2(this.producer, entity);
+		var effect = new AcidEffectLv2(this.director, this.producer, entity);
 		entity.addEffect(effect);
 	}
 	
@@ -239,7 +239,7 @@ AcidAreaEffect.prototype._implUpdate = function (elapsedTime){
 
 /*-----------AcidEffectLv2 class (extends AcidEffect)--------------*/
 //this effect also slow down its target
-var AcidEffectLv2 = function (_producer, affectedTarget) {
+var AcidEffectLv2 = function (_director, _producer, affectedTarget) {
 	if (_producer == undefined)
 		return;//this may be called by prototype inheritance
 		
@@ -248,7 +248,7 @@ var AcidEffectLv2 = function (_producer, affectedTarget) {
      /*--------constructor---------*/
     //call super class's constructor method
 
-    AcidEffect.call(this, _producer, affectedTarget);
+    AcidEffect.call(this, _director, _producer, affectedTarget);
 	
 	//reduce the speed of affected target
 	this.speedReducedAmount = affectedTarget.changeSpeed(- Constant.SPEED_NORMAL / 2);
@@ -273,12 +273,12 @@ AcidEffectLv2.prototype._implUpdate = function (elapsedTime) {
 }
 
 /*------------------WebAreaEffect (extends Effect)--------------*/
-var WebAreaEffect = function (_producer, x, y) {
+var WebAreaEffect = function (_director, _producer, x, y) {
 	this.affectedTargets;//list of targets inside this effect's region
 
     /*--------constructor---------*/
     //call super class's constructor method
-    Effect.call(this, _producer, null, 200, 5 * Constant.CELL_SIZE, 5 * Constant.CELL_SIZE, x, y, "WebAreaEffect", true);
+    Effect.call(this, _director, _producer, null, 200, 5 * Constant.CELL_SIZE, 5 * Constant.CELL_SIZE, x, y, "WebAreaEffect", true);
 	
 	this.affectedTargets = new Utils.List();
 }
@@ -291,7 +291,7 @@ WebAreaEffect.prototype.constructor = WebAreaEffect;
 WebAreaEffect.prototype.enterArea = function(entity){
 	if (entity.getSide() == Constant.NEUTRAL || entity.getSide() == this.producer.getOwner().getSide())
 		return;//not enemy
-	if (Director.dummyClient)
+	if (this.director.dummyClient)
 		return;//dummy client does nothing
 	this.affectedTargets.insertBack(entity);//add to pending affected targets list
 }
@@ -308,7 +308,7 @@ WebAreaEffect.prototype._implUpdate = function (elapsedTime){
 		var entity = this.affectedTargets.getFirstElem();
 		this.affectedTargets.popFront();
 		//slow him down
-		var effect = new WebEffect(this.producer, entity);
+		var effect = new WebEffect(this.director, this.producer, entity);
 		entity.addEffect(effect);
 	}
 	
@@ -319,12 +319,12 @@ WebAreaEffect.prototype._implUpdate = function (elapsedTime){
 }
 
 /*------------------WebEffect (extends Effect)--------------*/
-var WebEffect = function (_producer, affectedTarget) {
+var WebEffect = function (_director, _producer, affectedTarget) {
 	this.speedReducedAmount;
 	/*--------constructor---------*/
     //call super class's constructor method
 	//8s effect
-    Effect.call(this, _producer, affectedTarget, _producer.getEffectDuration(), Constant.CELL_SIZE, Constant.CELL_SIZE, 0, 0, "WebEffect");
+    Effect.call(this, _director, _producer, affectedTarget, _producer.getEffectDuration(), Constant.CELL_SIZE, Constant.CELL_SIZE, 0, 0, "WebEffect");
 	
 	//reduce the speed of affected target by <speedReduceAmount>
 	this.speedReducedAmount = affectedTarget.changeSpeed(- _producer.getDamage());
@@ -350,12 +350,12 @@ WebEffect.prototype._implUpdate = function (elapsedTime){
 }
 
 /*---------HealingEffect extends Effect---------*/
-var HealingEffect = function (affectedTarget, healingAmount) {
+var HealingEffect = function (_director, affectedTarget, healingAmount) {
 	this.hpIncrease;//the amount of hp increase for affectedTarget
 	/*--------constructor---------*/
     //call super class's constructor method
 	//1ms effect
-    Effect.call(this, null, affectedTarget, 1, Constant.CELL_SIZE / 2, Constant.CELL_SIZE / 2, 0, 0, "HealingEffect");
+    Effect.call(this, _director, null, affectedTarget, 1, Constant.CELL_SIZE / 2, Constant.CELL_SIZE / 2, 0, 0, "HealingEffect");
 	
 	this.hpIncrease = healingAmount;
 	
@@ -369,7 +369,7 @@ HealingEffect.prototype.constructor = HealingEffect;
 
 HealingEffect.prototype._implUpdate = function (elapsedTime){
 	
-	if (!Director.dummyClient)
+	if (!this.director.dummyClient)
 		this.affectedTarget.increaseHP(this.hpIncrease);
 		
 	this.destroy();//one time effect

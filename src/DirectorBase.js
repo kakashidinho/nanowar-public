@@ -723,16 +723,16 @@ function DirectorBase()
 			
 			switch (msg.className){
 				case 'AcidEffect':
-					effect = new AcidEffect(skill, target);
+					effect = new AcidEffect(that, skill, target);
 					break;
 				case 'AcidEffectLv2':
-					effect = new AcidEffectLv2(skill, target);
+					effect = new AcidEffectLv2(that, skill, target);
 					break;
 				case 'LifeLeechEffect':
-					effect = new LifeLeechEffect(skill, target);
+					effect = new LifeLeechEffect(that, skill, target);
 					break;
 				case 'WebEffect':
-					effect = new WebEffect(skill, target);
+					effect = new WebEffect(that, skill, target);
 					break;
 			}
 			

@@ -6,10 +6,11 @@
  * owned by a PlayableEntity instance
  * Subclasses should implement _fireForReal(target:NanoEntity)
  */
-var Skill = function(skillID, _range, _damage, _owner, _maxCooldown, spriteModule) {
-	if (skillID == undefined)
+var Skill = function(_director, skillID, _range, _damage, _owner, _maxCooldown, spriteModule) {
+	if (_director == undefined)
 		return;//this may be called by prototype inheritance
 	// Public fields
+	this.director;
 	this.range; // Effective range of the skill
 	this.damage; // Total damage of the skill
 	this.owner; // A reference to the PlayableEntity that owns this skill
@@ -20,6 +21,7 @@ var Skill = function(skillID, _range, _damage, _owner, _maxCooldown, spriteModul
 	this.reducedCooldownByLag;//reduced cooldown because of network delay
 	this.skillID;
 	
+	this.director = _director;
 	this.range = _range;
 	this.damage = _damage;	
 	this.owner = _owner;
@@ -32,6 +34,10 @@ var Skill = function(skillID, _range, _damage, _owner, _maxCooldown, spriteModul
 }
 
 // getters
+Skill.prototype.getDirector = function(){
+	return this.director;
+}
+
 Skill.prototype.getOwner = function()
 {
 	return this.owner;
@@ -128,14 +134,14 @@ Skill.prototype._fireToDestForReal = function(destination) {
  * AcidWeapon Class
  * A skill used by WarriorCell
  */
-var AcidWeapon = function ( _owner, skillID) {
-	if (_owner == undefined)
+var AcidWeapon = function ( _director, _owner, skillID) {
+	if (_director == undefined)
 		return;
 	// public fields
 	this.effectDuration; // Duration of the damaging effect
 	
 	// calls superclass constructor
-	Skill.call(this, skillID, Constant.SKILL_RANGE_LONG, 30, _owner, 700, "AcidWeapon");//0.7s cooldown
+	Skill.call(this, _director, skillID, Constant.SKILL_RANGE_LONG, 30, _owner, 700, "AcidWeapon");//0.7s cooldown
 	
 	this.effectDuration = 3000;//3s
 }
@@ -156,19 +162,19 @@ AcidWeapon.prototype.getEffectDuration = function() {
 AcidWeapon.prototype._fireForReal = function(target) {
 	var ownerPos = this.owner.getPosition();
 	//shoot the acid projectile starting from the skill owner's position
-	var acid = new Acid(this, target, ownerPos.x, ownerPos.y);
+	var acid = new Acid(this.director, this, target, ownerPos.x, ownerPos.y);
 }
 
 /**
  * LifeLeech Class
  * A skill used by LeechVirus
  */
-var LifeLeech = function (_owner, skillID) {
+var LifeLeech = function (_director, _owner, skillID) {
 	if (_owner == undefined)
 		return;
 		
 	// calls superclass constructor
-	Skill.call(this, skillID, Constant.SKILL_RANGE_MED, 28, _owner, 1000, "LifeLeech");//1s cooldown
+	Skill.call(this, _director, skillID, Constant.SKILL_RANGE_MED, 28, _owner, 1000, "LifeLeech");//1s cooldown
 	
 }
 
@@ -183,10 +189,10 @@ LifeLeech.prototype.constructor = LifeLeech;
  * @param target A NanoEntity to fire at
  */
 LifeLeech.prototype._fireForReal = function(target) {
-	if (Director.dummyClient)
+	if (this.director.dummyClient)
 		return;//dummy client does nothing
 		
-	var effect = new LifeLeechEffect(this, target);
+	var effect = new LifeLeechEffect(this.director, this, target);
 	target.addEffect(effect);
 }
 
@@ -195,14 +201,14 @@ LifeLeech.prototype._fireForReal = function(target) {
  * AcidCannon Class
  * A skill used by WarriorCell
  */
-var AcidCannon = function (_owner, skillID) {
-	if (_owner == undefined)
+var AcidCannon = function (_director, _owner, skillID) {
+	if (_director == undefined)
 		return;
 	
 	this.effectDuration; // Duration of the acid area
 	
 	// calls superclass constructor
-	Skill.call(this, skillID, 
+	Skill.call(this, _director, skillID, 
 			Constant.SKILL_RANGE_MED, 
 			30, //total damage
 			_owner,
@@ -242,7 +248,7 @@ AcidCannon.prototype._fireForReal = function(target) {
 AcidCannon.prototype._fireToDestForReal = function(dest) {
 	var ownerPos = this.owner.getPosition();
 	//shoot the acid bomb projectile starting from the skill owner's position
-	var web = new AcidBomb(this, dest, ownerPos.x, ownerPos.y);
+	var web = new AcidBomb(this.director, this, dest, ownerPos.x, ownerPos.y);
 	
 	return true;
 }
@@ -252,15 +258,15 @@ AcidCannon.prototype._fireToDestForReal = function(dest) {
  * WebGun Class
  * A skill used by LeechVirus
  */
-var WebGun = function (_owner, skillID) {
-	if (_owner == undefined)
+var WebGun = function (_director, _owner, skillID) {
+	if (_director == undefined)
 		return;
 	this.effectDuration;
 	
 	// calls superclass constructor
 	//the amount of speed that the target will be reduced by this skill
 	//is stored as damage of this skill
-	Skill.call(this, skillID, Constant.SKILL_RANGE_LONG, Constant.SPEED_NORMAL, _owner, 10000, "WebGun");//10s cooldown
+	Skill.call(this, _director, skillID, Constant.SKILL_RANGE_LONG, Constant.SPEED_NORMAL, _owner, 10000, "WebGun");//10s cooldown
 	
 	this.effectDuration = 3000;//3s
 	
@@ -290,7 +296,7 @@ WebGun.prototype._fireForReal = function(target) {
 WebGun.prototype._fireToDestForReal = function(dest) {
 	var ownerPos = this.owner.getPosition();
 	//shoot the web projectile starting from the skill owner's position
-	var web = new Web(this, dest, ownerPos.x, ownerPos.y);
+	var web = new Web(this.director, this, dest, ownerPos.x, ownerPos.y);
 	
 	return true;
 }

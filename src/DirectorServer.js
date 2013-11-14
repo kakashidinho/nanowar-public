@@ -21,10 +21,8 @@ require(LIB_PATH + "Cell.js");
 require(LIB_PATH + "Virus.js");
 require(LIB_PATH + "PowerUp.js");
 
-/*-------Director instance-------*/	
-var Director = {};
-
-Director.init = function(initFileXML, onInitFinished)
+/*-------Director class -------*/	
+var Director = function(initFileXML, onInitFinished)
 {
 	/*---------Director instance definition-------------*/
 	//private
@@ -45,12 +43,12 @@ Director.init = function(initFileXML, onInitFinished)
 	
 	var locked;//lock some operations during update
 	
-	Director.onUpdate;//update callback function. should be function(lastUpdateTime, currentTime)
-	Director.onEntityDeath ;
-	Director.onPowerUpAppear ;
-	Director.onPowerUpChangedDir;//callback being called when power up item has changed its direction
-	Director.onKillHappen;//callback function called when an enity killed a target
-	Director.onEndGame;
+	this.onUpdate;//update callback function. should be function(lastUpdateTime, currentTime)
+	this.onEntityDeath ;
+	this.onPowerUpAppear ;
+	this.onPowerUpChangedDir;//callback being called when power up item has changed its direction
+	this.onKillHappen;//callback function called when an enity killed a target
+	this.onEndGame;
 	
 	var that = this;
 	
@@ -62,12 +60,12 @@ Director.init = function(initFileXML, onInitFinished)
 	idSeed = Constant.SERVER_MAX_CONNECTIONS;//reserve those smallest numbers for player's id
 	
 	//callback functions
-	Director.onUpdate = undefined;//no update callback
-	Director.onEntityDeath = function(id) {}
-	Director.onPowerUpAppear = function(powerUp) {}
-	Director.onPowerUpChangedDir = function(powerUp) {}
-	Director.onKillHappen = function(killer, killed){}
-	Director.onEndGame = function() {}
+	this.onUpdate = undefined;//no update callback
+	this.onEntityDeath = function(id) {}
+	this.onPowerUpAppear = function(powerUp) {}
+	this.onPowerUpChangedDir = function(powerUp) {}
+	this.onKillHappen = function(killer, killed){}
+	this.onEndGame = function() {}
 	
 	/*------------create xml parser-------------------*/
 	xmlParser = new xml2js.Parser();
@@ -78,12 +76,12 @@ Director.init = function(initFileXML, onInitFinished)
 	virusSpawnPoints = new Array();
 	
 	/*---------method definitions----------------*/
-	Director.startGameLoop = function(frameRate)
+	this.startGameLoop = function(frameRate)
 	{
 		gameInterval = setInterval(function() {gameLoop();}, 1000.0/frameRate);
 	}
 	
-	Director.endGameLoop = function()
+	this.endGameLoop = function()
 	{
 		if (gameInterval !== undefined) {
             clearInterval(gameInterval);
@@ -91,31 +89,31 @@ Director.init = function(initFileXML, onInitFinished)
         }
 	}
 	
-	Director.getCellSpawnPoints = function()
+	this.getCellSpawnPoints = function()
 	{
 		return cellSpawnPoints;
 	}
 	
-	Director.getVirusSpawnPoints = function()
+	this.getVirusSpawnPoints = function()
 	{
 		return virusSpawnPoints;
 	}
 	
-	Director.getMapDuration = function(){
+	this.getMapDuration = function(){
 		return mapDuration;
 	}
 	
-	Director.stop = function(){
+	this.stop = function(){
 		this._baseStop();
-		Director.endGameLoop();
+		this.endGameLoop();
 	}
 	
 	//notification from an entity telling that is hp has changed
-	Director._onHPChanged = function(entity, dhp, isNegative){
+	this._onHPChanged = function(entity, dhp, isNegative){
 		entity.managedWrapper.cumulateHPChange(isNegative? -dhp: dhp);
 	}
 	
-	Director._addEntity = function(entity)
+	this._addEntity = function(entity)
 	{
 		this._baseAddEntity(entity);//call base method
 		
@@ -128,11 +126,11 @@ Director.init = function(initFileXML, onInitFinished)
 	}
 	
 	//the death notification from entity
-	Director._notifyEntityDeath = function(entity){
-		Director.onEntityDeath(entity.getID());
+	this._notifyEntityDeath = function(entity){
+		this.onEntityDeath(entity.getID());
 	}
 	
-	Director._destroyEntity = function(entity){
+	this._destroyEntity = function(entity){
 		this._baseDestroyEntity(entity);//call base method
 	
 		var managedEntity = entity.managedWrapper;
@@ -141,7 +139,7 @@ Director.init = function(initFileXML, onInitFinished)
 	}
 	
 	
-	Director._notifyKillCount = function(killer, victim){
+	this._notifyKillCount = function(killer, victim){
 		this.onKillHappen(killer, victim);//notify outsider
 	}
 	
@@ -177,14 +175,14 @@ Director.init = function(initFileXML, onInitFinished)
 		);
 		
 		//call update callback function
-		if (Director.onUpdate != undefined)
-			Director.onUpdate(lastUpdateTime, currentUpdateTime);
+		if (that.onUpdate != undefined)
+			that.onUpdate(lastUpdateTime, currentUpdateTime);
 			
 		locked = false;//unlock some operations
 		
 		if (mapDuration <= 0)//game ended
 		{
-			Director.onEndGame();
+			that.onEndGame();
 		}
 		
 		//randomly generate power up
@@ -325,10 +323,10 @@ Director.init = function(initFileXML, onInitFinished)
 			switch (powerupClass)
 			{
 			case "HealingDrug":
-				spawn_entity = new HealingDrug(idSeed, startingTile.center.x, startingTile.center.y, dirx, diry);
+				spawn_entity = new HealingDrug(that, idSeed, startingTile.center.x, startingTile.center.y, dirx, diry);
 				break;
 			case "MeatCell":
-				spawn_entity = new MeatCell(idSeed, startingTile.center.x, startingTile.center.y, dirx, diry);
+				spawn_entity = new MeatCell(that, idSeed, startingTile.center.x, startingTile.center.y, dirx, diry);
 				break;
 			}
 			
@@ -336,19 +334,17 @@ Director.init = function(initFileXML, onInitFinished)
 			spawn_entity.setVelChangeListener(
 			{
 				onVelocityChanged : function(powerUp){
-					Director.onPowerUpChangedDir(powerUp);//call calback function
+					that.onPowerUpChangedDir(powerUp);//call calback function
 				}
 			}
 			);
-			
-			Director.onPowerUpChangedDir
 			
 			++idSeed;//increase the id seeding number
 			
 			randomPowerUpWaitTime();//calculate next waiting time
 			
 			//notify listener
-			Director.onPowerUpAppear(spawn_entity);
+			that.onPowerUpAppear(spawn_entity);
 		}
 	}
 	

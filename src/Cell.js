@@ -1,13 +1,14 @@
 "use strict";
 /*----------WarriorCell class (extends PlayableEntity)------------*/
 
-var WarriorCell = function(id, x, y)
+var WarriorCell = function(_director, id, x, y)
 {
-	if (id == undefined)
+	if (_director == undefined)
 		return;//this may be called by prototype inheritance
 	
 	//call super class's initializing method
 	PlayableEntity.call( this,
+				_director,
 				id, //unique ID
 				300, //hit point
 				Constant.CELL, //this object is on cell's side 
@@ -18,9 +19,9 @@ var WarriorCell = function(id, x, y)
 				);
 				
 	//add AcidWeapon skill
-	this.skills.push(new AcidWeapon(this, 0));
+	this.skills.push(new AcidWeapon(_director, this, 0));
 	//add AcidCannon skill. 
-	this.skills.push(new AcidCannon(this, 1));
+	this.skills.push(new AcidCannon(_director, this, 1));
 	
 	this.className = "WarriorCell";
 }

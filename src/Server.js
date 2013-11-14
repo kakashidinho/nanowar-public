@@ -34,6 +34,7 @@ function Server() {
 	this.playerCharMap;	   // player mapping via his character. useful when the player has disconnected but his character is still around in the system
 	this.gameStarted; //game started or not?
 	this.gameInitXML;//the configuration file for the game session
+	this.director;
 }
 
 /*
@@ -234,7 +235,7 @@ Server.prototype.deletePlayer = function(connectionID){
 	{
 		//this player disconnects in the middle of the game
 		//need to send message to game loop
-		Director.postMessage({type: MsgType.PLAYER_DISCONNECT, playerID: player.playerID});
+		this.director.postMessage({type: MsgType.PLAYER_DISCONNECT, playerID: player.playerID});
 	}
 	
 	//clear the ping update interval
@@ -314,7 +315,7 @@ Server.prototype.beginStartGame = function(initFileXML)
 	
 	this.gameInitXML = initFileXML;//store the file name
 	
-	Director.init(initFileXML, function() {
+	this.director = new Director(initFileXML, function() {
 		that.startGame();
 	});
 }
@@ -324,43 +325,43 @@ Server.prototype.startGame = function()
 {
 	var that = this;
 	//director's message handling callback
-	Director.onMessageHandling = function(msg){
+	this.director.onMessageHandling = function(msg){
 		return that.handleMessage(msg);
 	}
 	
 	//director's entity destroyed notification
-	Director.onEntityDestroyed = function(id){
+	this.director.onEntityDestroyed = function(id){
 		that.onEntityDestroyed(id);
 	}
 	
 	//director's entity death notification
-	Director.onEntityDeath = function(id){
+	this.director.onEntityDeath = function(id){
 		that.notifyEntityDeath(id);
 	}
 	
-	Director.onKillHappen = function(killer, killed){
+	this.director.onKillHappen = function(killer, killed){
 		that.changeKillCount(killer, killed);
 	}
 	
-	Director.onPowerUpAppear = function(powerUp){
+	this.director.onPowerUpAppear = function(powerUp){
 		that.notifyPowerUpAppear(powerUp);
 	}
 	
-	Director.onPowerUpChangedDir = function(powerUp){
+	this.director.onPowerUpChangedDir = function(powerUp){
 		that.notifyPowerUpChangedDir(powerUp);
 	}
 	
-	Director.onEndGame = function(){
+	this.director.onEndGame = function(){
 		that.endGame();
 	}
 	
 	//update callback
-	Director.onUpdate = function(lastTime, currentTime) {
+	this.director.onUpdate = function(lastTime, currentTime) {
 		that.update(lastTime, currentTime)
 	}
 	
 	
-	Director.startGameLoop(Constant.FRAME_RATE);
+	this.director.startGameLoop(Constant.FRAME_RATE);
 		
 	//notify clients
 	that.broadcastAll(new StartGameMsg(this.gameInitXML));
@@ -408,10 +409,10 @@ Server.prototype.endGame = function()
 	
 	this.broadcastAll(new EndMsg(virusRank, cellRank));
 	
-	Director.stop();
+	this.director.stop();
 }
 
-//update function being called each frame by Director
+//update function being called each frame by this.director
 Server.prototype.update = function(lastTime, currentTime){
 	var elapsedTime = currentTime - lastTime;
 	for (var i in this.players)
@@ -572,10 +573,10 @@ Server.prototype.spawnPlayerCharacter = function(player){
 	switch(player.className)
 	{
 	case "WarriorCell":
-		player.character = new WarriorCell(player.playerID, 0, 0);
+		player.character = new WarriorCell(this.director, player.playerID, 0, 0);
 		break;
 	case "LeechVirus":
-		player.character = new LeechVirus(player.playerID, 0, 0);
+		player.character = new LeechVirus(this.director, player.playerID, 0, 0);
 		break;
 	}
 	
@@ -593,7 +594,7 @@ Server.prototype.deletePlayerCharacter = function(player){
 Server.prototype.randomPlacePlayerChar = function(player){
 	var spawnPosition = new b2Vec2(0, 0);
 	//list of possible spawn points for the entity
-	var spawnPoints = player.character.getSide() == Constant.VIRUS? Director.getVirusSpawnPoints(): Director.getCellSpawnPoints();
+	var spawnPoints = player.character.getSide() == Constant.VIRUS? this.director.getVirusSpawnPoints(): this.director.getCellSpawnPoints();
 	
 	//random spawning point
 	var rand = Math.random();//between [0..1)
@@ -611,7 +612,7 @@ Server.prototype.randomPlacePlayerChar = function(player){
 			
 			//we already have an old instance
 			//create the new dummy entity for dead reckoning
-			player.charPredict[i] = new MovingEntity( -1, 0, 
+			player.charPredict[i] = new MovingEntity( this.director, -1, 0, 
 					Constant.NEUTRAL, 
 					player.character.getWidth(), player.character.getHeight(), 
 					player.character.getPosition().x, player.character.getPosition().y, 
@@ -624,7 +625,7 @@ Server.prototype.randomPlacePlayerChar = function(player){
 
 Server.prototype.onEntityDestroyed = function(entityID){
 	//delete from "character to player" map
-	var entity = Director.getKnownEntity(entityID);
+	var entity = this.director.getKnownEntity(entityID);
 	if (entity != null && entity.getHashKey() in this.playerCharMap)
 	{
 		delete this.playerCharMap[entity.getHashKey()];
@@ -670,8 +671,8 @@ Server.prototype.changeKillCount = function(killer, killed){
 	}
 }
 
-//this will handle message that Director forwards back to Server.
-//return true if you dont want the Director to handle this message
+//this will handle message that this.director forwards back to Server.
+//return true if you dont want the this.director to handle this message
 Server.prototype.handleMessage = function(msg)
 {
 	var that = this;
@@ -692,10 +693,10 @@ Server.prototype.handleMessage = function(msg)
 			this.broadcast(new EntitySpawnMsg2(player.character));
 			
 			//let player know current game time
-			this.unicast(player.connID, new GameDurationMsg(Director.getMapDuration()));
+			this.unicast(player.connID, new GameDurationMsg(this.director.getMapDuration()));
 			
 			//now let the new player know about other entities
-			var entities = Director.getKnownEntities();
+			var entities = this.director.getKnownEntities();
 			for (var id in entities){
 				var entity = entities[id];
 				if (id != player.playerID)
@@ -705,7 +706,7 @@ Server.prototype.handleMessage = function(msg)
 		break;
 	case MsgType.PLAYER_DISCONNECT://player disconnects in the middle of the game
 		{
-			var entities = Director.getKnownEntities();
+			var entities = this.director.getKnownEntities();
 			if (msg.playerID in entities)
 				entities[msg.playerID].destroy();//destroy this entity
 		}
@@ -721,14 +722,14 @@ Server.prototype.handleMessage = function(msg)
 		{
 			var player = this.players[msg.entityID];
 			//check if the attack range is valid
-			var entities = Director.getKnownEntities();
+			var entities = this.director.getKnownEntities();
 			if (msg.targetID in entities == false || entities[msg.targetID].isAlive() == false ||
 				!entities[msg.entityID].canAttack(msg.skillIdx, entities[msg.targetID]))
 			{
 				//cannot attack because of out of range
 				this.unicast(player.connID, new AttackOutRangeMsg());//tell player
 				
-				//prevent the Director from processing this message
+				//prevent the this.director from processing this message
 				return true;
 			}
 			//check if skill is ready or whether the player's character is alive or not
@@ -737,7 +738,7 @@ Server.prototype.handleMessage = function(msg)
 				//cannot attack because of not ready skill
 				this.unicast(player.connID, new SkillNotReadyMsg());//tell player
 				
-				//prevent the Director from processing this message
+				//prevent the this.director from processing this message
 				return true;
 			}
 			//notify back to client
@@ -751,13 +752,13 @@ Server.prototype.handleMessage = function(msg)
 		{
 			var player = this.players[msg.entityID];
 			//check if the attack range is valid
-			var entities = Director.getKnownEntities();
+			var entities = this.director.getKnownEntities();
 			if (!entities[msg.entityID].canFireTo(msg.skillIdx, msg.destx, msg.desty))
 			{
 				//cannot attack because of out of range
 				this.unicast(player.connID, new AttackOutRangeMsg());//tell player
 				
-				//prevent the Director from processing this message
+				//prevent the this.director from processing this message
 				return true;
 			}
 			//check if skill is ready or whether the player's character is alive or not
@@ -766,7 +767,7 @@ Server.prototype.handleMessage = function(msg)
 				//cannot attack because of not ready skill
 				this.unicast(player.connID, new SkillNotReadyMsg());//tell player
 				
-				//prevent the Director from processing this message
+				//prevent the this.director from processing this message
 				return true;
 			}
 			//notify back to client
@@ -812,7 +813,7 @@ Server.prototype.onMessageFromPlayer = function(player, msg){
 		this.sendMsgViaChannel(this.connections[player.connID].socket, new StartGameMsg(this.gameInitXML));
 		break;
 	default:
-		Director.postMessage(msg);//forward it to the director
+		this.director.postMessage(msg);//forward it to the director
 	}
 }
 
@@ -846,6 +847,7 @@ Server.prototype.start = function (httpServer) {
 		this.availPIDList = new Utils.List();
 		for (var i = 0 ; i < Constant.SERVER_MAX_CONNECTIONS; ++i)
 			this.availPIDList.insertBack(i);
+		this.director = null;
 		this.players = new Object;
 		this.playerCharMap = new Object;
 		this.connections = new Object;

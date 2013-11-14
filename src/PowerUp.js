@@ -1,14 +1,15 @@
 "use strict"
 
 /*---------Consumable (extends MovingEntity)-------*/
-var Consumable = function(id, startx, starty, dirx, diry, spriteModule){
+var Consumable = function(_director, id, startx, starty, dirx, diry, spriteModule){
 	if (typeof startx == 'undefined')
 		return;
 	/*------constructor---------*/
 	//call super class's constructor method
-	MovingEntity.call(this, id, 0, Constant.NEUTRAL, 3, 3, startx, starty, Constant.SPEED_FAST, spriteModule);
+	MovingEntity.call(this, _director, id, 0, Constant.NEUTRAL, 3, 3, startx, starty, Constant.SPEED_FAST, spriteModule);
 	
-	this.bounceEnabled = true;//will bounce back when colliding with obstacle
+	if (!this.director.dummyClient)
+		this.bounceEnabled = true;//will bounce back when colliding with obstacle
 	
 	this.startMoveDir(dirx, diry);
 }
@@ -32,11 +33,11 @@ Consumable.prototype._implUpdate = function(elapsedTime){
 }
 
 /*----------class HealingDrug extends Consumable------------*/
-var HealingDrug = function(id, startx, starty, dirx, diry){
+var HealingDrug = function(_director, id, startx, starty, dirx, diry){
 	this.consumer ;
 
 	//super class constructor
-	Consumable.call(this, id, startx, starty, dirx, diry, "HealingDrug");
+	Consumable.call(this, _director, id, startx, starty, dirx, diry, "HealingDrug");
 	
 	this.consumer = null;
 	
@@ -54,7 +55,7 @@ HealingDrug.prototype._implUpdate = function(elapsedTime){
 	{
 		if (this.consumer.isAlive())
 		{
-			var effect = new HealingEffect(this.consumer, 300);
+			var effect = new HealingEffect(this.director, this.consumer, 300);
 			this.consumer.addEffect(effect);
 		}
 		return true;//I am consumed
@@ -64,7 +65,7 @@ HealingDrug.prototype._implUpdate = function(elapsedTime){
 
 HealingDrug.prototype.onCollideMovingEntity = function(entity){
 	if(this.consumer != null ||//already has consumer
-		Director.dummyClient)//dummy client does nothing
+		this.director.dummyClient)//dummy client does nothing
 		return ;
 	if (entity.getSide() == Constant.CELL)//my consumer is a cell
 		this.consumer = entity;
@@ -72,11 +73,11 @@ HealingDrug.prototype.onCollideMovingEntity = function(entity){
 
 /*----------class MeatCell extends Consumable------------*/
 /*-------HealingDrug equivalent for Viruses--------------*/
-var MeatCell = function(id, startx, starty, dirx, diry){
+var MeatCell = function(_director, id, startx, starty, dirx, diry){
 	this.consumer ;
 
 	//super class constructor
-	Consumable.call(this, id, startx, starty, dirx, diry, "MeatCell");
+	Consumable.call(this, _director, id, startx, starty, dirx, diry, "MeatCell");
 	
 	this.consumer = null;
 	
@@ -94,7 +95,7 @@ MeatCell.prototype._implUpdate = function(elapsedTime){
 	{
 		if (this.consumer.isAlive())
 		{
-			var effect = new HealingEffect(this.consumer, 300);
+			var effect = new HealingEffect(this.director, this.consumer, 300);
 			this.consumer.addEffect(effect);
 		}
 		return true;//I am consumed
@@ -104,7 +105,7 @@ MeatCell.prototype._implUpdate = function(elapsedTime){
 
 MeatCell.prototype.onCollideMovingEntity = function(entity){
 	if(this.consumer != null ||//already has consumer
-		Director.dummyClient)//dummy client does nothing
+		this.director.dummyClient)//dummy client does nothing
 		return ;
 	if (entity.getSide() == Constant.VIRUS)//my consumer is a virus
 		this.consumer = entity;

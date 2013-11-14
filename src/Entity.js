@@ -21,9 +21,10 @@ var EntityHashKeySeed = {
 }	
 	
 /*-----------------nano entity class--------------*/
-var NanoEntity = function(_id, _maxhp, _side, _width, _height, _x, _y, _spriteModule, ground) {
-	if (_id == undefined)//this may be called by prototype inheritance
+var NanoEntity = function(_director, _id, _maxhp, _side, _width, _height, _x, _y, _spriteModule, ground) {
+	if (_director == undefined)//this may be called by prototype inheritance
 		return;
+	this.director;
 	this.id;//id
 	this.hashKey;//guarantee to be unique if 2 entities are created at different time
 	this.body;//b2Body
@@ -41,6 +42,7 @@ var NanoEntity = function(_id, _maxhp, _side, _width, _height, _x, _y, _spriteMo
 	this.className;//the class name
 	
 	/*---------------------------constructor-------------------------------------*/
+	this.director = _director;
 	this.id = _id;
 	this.maxHP = this.HP = _maxhp;
 	this.side = _side;
@@ -77,16 +79,21 @@ var NanoEntity = function(_id, _maxhp, _side, _width, _height, _x, _y, _spriteMo
 	//shape.m_radius = this.collisionRadius = new b2Vec2(_width * 0.5, _height * 0.5).Length();
 	fixDef.shape = shape;
 	
-	this.body = Director._createPhysicsBody(bodyDef, fixDef);//create body object
+	this.body = this.director._createPhysicsBody(bodyDef, fixDef);//create body object
 	this.body.SetUserData(this);
 	
 	this.hashKey = EntityHashKeySeed.nextKey();
 	
 	//add to director's managed list
-	Director._addEntity(this);
+	this.director._addEntity(this);
 }
 
 /*----method definitions-----*/
+
+NanoEntity.prototype.getDirector = function(){
+	return this.director;
+}
+
 
 //may returns null
 NanoEntity.prototype.getSpriteModuleName = function() {
@@ -218,7 +225,7 @@ NanoEntity.prototype.destroy = function()
 {
 	this.setAlive(false);
 	
-	Director._destroyEntity(this);//notify director
+	this.director._destroyEntity(this);//notify director
 }
 
 NanoEntity.prototype.getNewEffectList = function()
@@ -243,7 +250,7 @@ NanoEntity.prototype.increaseHP = function(dhp){
 		var realdDHP = newHP - this.HP;
 		this.HP = newHP;
 		
-		Director._onHPChanged(this, realdDHP, false);//notify director
+		this.director._onHPChanged(this, realdDHP, false);//notify director
 		
 		return realdDHP;
 	}
@@ -259,12 +266,12 @@ NanoEntity.prototype.decreaseHP = function(dhp){
 		var realdDHP = this.HP - newHP;
 		this.HP = newHP;
 		
-		Director._onHPChanged(this, realdDHP, true);//notify director
+		this.director._onHPChanged(this, realdDHP, true);//notify director
 			
-		if (this.HP == 0 && !Director.dummyClient)
+		if (this.HP == 0 && !this.director.dummyClient)
 		{
 			this.setAlive(false);
-			Director._notifyEntityDeath(this);
+			this.director._notifyEntityDeath(this);
 		}
 		
 		return realdDHP;
@@ -312,9 +319,9 @@ NanoEntity.prototype.update = function(elapsedTime){
 
 /*-----------------MovingEntity class (extends NanoEntity)--------------*/
 
-var MovingEntity = function(_id, _maxhp, _side, _width, _height, _x, _y, _oripeed, _sprite)
+var MovingEntity = function(_director, _id, _maxhp, _side, _width, _height, _x, _y, _oripeed, _sprite)
 {
-	if (_id == undefined)//this may be called by prototype inheritance
+	if (_director == undefined)//this may be called by prototype inheritance
 		return;
 	this.maxSpeed;//original speed. (in units per second)
 	this.currentSpeed;//current speed (may be slower than original speed or faster)
@@ -331,7 +338,7 @@ var MovingEntity = function(_id, _maxhp, _side, _width, _height, _x, _y, _oripee
 	
 	/*--------constructor---------*/
 	//call super class's constructor method
-	NanoEntity.call(this, _id, _maxhp, _side, _width, _height, _x, _y, _sprite);
+	NanoEntity.call(this, _director, _id, _maxhp, _side, _width, _height, _x, _y, _sprite);
 	
 	//change the body type to dynamic
 	this.body.SetType(b2Body.b2_dynamicBody);
@@ -375,7 +382,7 @@ MovingEntity.prototype.setVelChangeListener = function(listener){
 MovingEntity.prototype.startMoveTo = function (x, y) {
 	var newDestination = new b2Vec2(x, y);
 	
-	Director._findPath(this.movingPath, this, newDestination);
+	this.director._findPath(this.movingPath, this, newDestination);
 	
 	this.startMoveToNextPointInPath();
 }
@@ -413,7 +420,7 @@ MovingEntity.prototype.updateMovement = function(elapsedTime)
 			var vel = this.getVelocity();
 			console.log("convergence ended position is: " + pos.x + "," + pos.y);
 			console.log("convergence ended velocity is: " + vel.x + "," + vel.y);
-			*/
+			/**/
 			//now follow the correct path
 			this.setPosition(this.afterConversePosition);
 			this.startMoveDir(this.afterConverseDirection.x, this.afterConverseDirection.y);
@@ -660,15 +667,15 @@ MovingEntity.prototype.update = function(elapsedTime){
 
 /*-----------PlayableEntity class (extends MovingEntity)--------------*/
 
-var PlayableEntity = function( _id, _maxhp, _side, _width, _height, _x, _y, _oriSpeed, _sprite)
+var PlayableEntity = function(_director, _id, _maxhp, _side, _width, _height, _x, _y, _oriSpeed, _sprite)
 {
-	if (_id == undefined)//this may be called by prototype inheritance
+	if (_director == undefined)//this may be called by prototype inheritance
 		return;
 	this.skills;//skills set
 	
 	/*------constructor---------*/
 	//call super class's constructor method
-	MovingEntity.call(this, _id, _maxhp, _side, _width, _height, _x, _y, _oriSpeed, _sprite);
+	MovingEntity.call(this, _director, _id, _maxhp, _side, _width, _height, _x, _y, _oriSpeed, _sprite);
 	
 	this.skills = new Array();
 }
@@ -709,7 +716,7 @@ PlayableEntity.prototype.canAttack = function(skillIdx, target){
 PlayableEntity.prototype.fireToDest = function(skillIdx, dest){
 	var skill = this.getSkill(skillIdx);
 	
-	if (Director.dummyClient || //dummy client will do whatever it is told to do
+	if (this.director.dummyClient || //dummy client will do whatever it is told to do
 		this.canFireTo(skillIdx, dest.x, dest.y))
 	{
 		skill.fireToDest(dest);
@@ -722,7 +729,7 @@ PlayableEntity.prototype.fireToDest = function(skillIdx, dest){
 PlayableEntity.prototype.attack = function(skillIdx, target){
 	var skill = this.getSkill(skillIdx);
 	
-	if (Director.dummyClient || //dummy client will do whatever it is told to do
+	if (this.director.dummyClient || //dummy client will do whatever it is told to do
 		this.canAttack(skillIdx, target))
 	{
 		skill.fire(target);

@@ -1,13 +1,14 @@
 "use strict";
 /*----------LeechVirus class (extends PlayableEntity)------------*/
 
-var LeechVirus = function(id, x, y)
+var LeechVirus = function(_director, id, x, y)
 {
-	if (id == undefined)
+	if (_director == undefined)
 		return;//this may be called by prototype inheritance
 	
 	//call super class's initializing method
 	PlayableEntity.call( this,
+				_director,
 				id, //unique id
 				300, //hit point
 				Constant.VIRUS, //this object is on virus's side 
@@ -18,10 +19,10 @@ var LeechVirus = function(id, x, y)
 				);
 				
 	//add LifeLeech skill
-	this.skills.push(new LifeLeech(this, 0));
+	this.skills.push(new LifeLeech(_director, this, 0));
 	
 	//add WebGun skill
-	this.skills.push(new WebGun(this, 1));
+	this.skills.push(new WebGun(_director, this, 1));
 	
 	this.className = "LeechVirus";
 }
