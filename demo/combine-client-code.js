@@ -38799,6 +38799,8 @@ if (typeof global != 'undefined')
 	SKILL_RANGE_LONG: 18,//units in physics
 	HEALTH_BAR_HEIGHT: 0.4,//units in physics
 	SERVER_MAX_CONNECTIONS: 50,
+	SERVER_MAX_ROOMS: 5,
+	SERVER_MAX_PLAYERS_PER_ROOM: 10,
 	SERVER_NAME: "localhost",
 	//SERVER_NAME: "lehoangquyen-i.comp.nus.edu.sg",
 	SERVER_PORT: 8000,
@@ -39436,11 +39438,10 @@ function DirectorBase()
 			this.knownEntity[id].destroy();
 		}
 		
-		//delete all pending bodies
-		this.deleteBodyList.traverse(function(body)
-		{
-			that.physicsWorld.DestroyBody(body);
-		});
+		//delete all  bodies
+		for (var body = this.physicsWorld.GetBodyList(); body != null; body = body.GetNext())
+			this.physicsWorld.DestroyBody(body);
+		this.deleteBodyList.removeAll();
 	}
 	
 	this._createPhysicsBody = function(bodyDef, fixtureDef)
@@ -39796,16 +39797,16 @@ function DirectorBase()
 			
 			switch (msg.className){
 				case 'AcidEffect':
-					effect = new AcidEffect(skill, target);
+					effect = new AcidEffect(that, skill, target);
 					break;
 				case 'AcidEffectLv2':
-					effect = new AcidEffectLv2(skill, target);
+					effect = new AcidEffectLv2(that, skill, target);
 					break;
 				case 'LifeLeechEffect':
-					effect = new LifeLeechEffect(skill, target);
+					effect = new LifeLeechEffect(that, skill, target);
 					break;
 				case 'WebEffect':
-					effect = new WebEffect(skill, target);
+					effect = new WebEffect(that, skill, target);
 					break;
 			}
 			
@@ -39826,7 +39827,7 @@ if (typeof global != 'undefined')
 this code is used by client
 */	
 
-/*-------Director instance on client side-------*/	
+/*-------Director singleton instance on client side-------*/	
 var Director = {
 	caatDirector : null,
 	displayWidth : null,
@@ -39870,17 +39871,18 @@ Director.initMenu = function(canvas, displayWidth, displayHeight, onClassChosenF
 	
 	this.displayStartButton = function(isStartButton){
 		startButton.setVisible(true);
-		startButtonText.setVisible(true);
 		if (isStartButton) {
 			startButtonText.setText('Start');
 		} else {
 			startButtonText.setText('Join');
 		}
+		startButtonText.centerOn(startButton.x + startButton.width/2, startButton.y + startButton.height/2);
 	}
 	
 	this.hideStartButton = function(){
 		startButton.setVisible(false);
-		startButtonText.setVisible(false);
+		startButtonText.setText('Waiting for available game');
+		startButtonText.centerOn(startButton.x + startButton.width/2, startButton.y + startButton.height/2);
 	}
 	
 	this.isInMenu = function(){
@@ -39902,7 +39904,7 @@ Director.initMenu = function(canvas, displayWidth, displayHeight, onClassChosenF
 	ingameScene = caatDirector.createScene();
 	
 	menuContainer = new CAAT.ActorContainer()
-		.setBounds(caatDirector.width/2 - 350, caatDirector.height/2 - 300, 700, 600)
+		.setBounds(0, 0, displayWidth, displayHeight)
 		.setFillStyle('white');
 	
 	startButton = new CAAT.Foundation.UI.ShapeActor().
@@ -39923,12 +39925,12 @@ Director.initMenu = function(canvas, displayWidth, displayHeight, onClassChosenF
 				
 	menuContainer.addChild(startButton);
 	
-	/* start button text */	
+	/* start button text, can be 'start', 'join', or 'waiting for available game' */	
 	startButtonText =  new CAAT.Foundation.UI.TextActor()
-							.setText('Start')
+							.setText('Waiting for available game')
 							.setFont("18px sans-serif")
 							.setTextFillStyle('#000000')
-							.setVisible(false)
+							//.setVisible(false)
 							.enableEvents(false)
 							.centerOn(startButton.x + startButton.width/2, startButton.y + startButton.height/2);
 
@@ -39975,7 +39977,7 @@ Director.initMenu = function(canvas, displayWidth, displayHeight, onClassChosenF
 									onClassChosenFunc('LeechVirus');
 							}
 						)
-						.centerOn(menuContainer.width/2 - 150, 350);
+						.centerOn(menuContainer.width/2 - 150, 300);
 						
 					b1.touchEnd = function() {
 						b1.actionPerformed();
@@ -39993,7 +39995,7 @@ Director.initMenu = function(canvas, displayWidth, displayHeight, onClassChosenF
 									onClassChosenFunc('WarriorCell');
 							}
 						)
-						.centerOn(menuContainer.width/2 + 150, 350);
+						.centerOn(menuContainer.width/2 + 150, 300);
 						
 					b2.touchEnd = function() {
 						b2.actionPerformed();
@@ -41388,9 +41390,10 @@ var EntityHashKeySeed = {
 }	
 	
 /*-----------------nano entity class--------------*/
-var NanoEntity = function(_id, _maxhp, _side, _width, _height, _x, _y, _spriteModule, ground) {
-	if (_id == undefined)//this may be called by prototype inheritance
+var NanoEntity = function(_director, _id, _maxhp, _side, _width, _height, _x, _y, _spriteModule, ground) {
+	if (_director == undefined)//this may be called by prototype inheritance
 		return;
+	this.director;
 	this.id;//id
 	this.hashKey;//guarantee to be unique if 2 entities are created at different time
 	this.body;//b2Body
@@ -41408,6 +41411,7 @@ var NanoEntity = function(_id, _maxhp, _side, _width, _height, _x, _y, _spriteMo
 	this.className;//the class name
 	
 	/*---------------------------constructor-------------------------------------*/
+	this.director = _director;
 	this.id = _id;
 	this.maxHP = this.HP = _maxhp;
 	this.side = _side;
@@ -41444,16 +41448,21 @@ var NanoEntity = function(_id, _maxhp, _side, _width, _height, _x, _y, _spriteMo
 	//shape.m_radius = this.collisionRadius = new b2Vec2(_width * 0.5, _height * 0.5).Length();
 	fixDef.shape = shape;
 	
-	this.body = Director._createPhysicsBody(bodyDef, fixDef);//create body object
+	this.body = this.director._createPhysicsBody(bodyDef, fixDef);//create body object
 	this.body.SetUserData(this);
 	
 	this.hashKey = EntityHashKeySeed.nextKey();
 	
 	//add to director's managed list
-	Director._addEntity(this);
+	this.director._addEntity(this);
 }
 
 /*----method definitions-----*/
+
+NanoEntity.prototype.getDirector = function(){
+	return this.director;
+}
+
 
 //may returns null
 NanoEntity.prototype.getSpriteModuleName = function() {
@@ -41585,7 +41594,7 @@ NanoEntity.prototype.destroy = function()
 {
 	this.setAlive(false);
 	
-	Director._destroyEntity(this);//notify director
+	this.director._destroyEntity(this);//notify director
 }
 
 NanoEntity.prototype.getNewEffectList = function()
@@ -41610,7 +41619,7 @@ NanoEntity.prototype.increaseHP = function(dhp){
 		var realdDHP = newHP - this.HP;
 		this.HP = newHP;
 		
-		Director._onHPChanged(this, realdDHP, false);//notify director
+		this.director._onHPChanged(this, realdDHP, false);//notify director
 		
 		return realdDHP;
 	}
@@ -41626,12 +41635,12 @@ NanoEntity.prototype.decreaseHP = function(dhp){
 		var realdDHP = this.HP - newHP;
 		this.HP = newHP;
 		
-		Director._onHPChanged(this, realdDHP, true);//notify director
+		this.director._onHPChanged(this, realdDHP, true);//notify director
 			
-		if (this.HP == 0 && !Director.dummyClient)
+		if (this.HP == 0 && !this.director.dummyClient)
 		{
 			this.setAlive(false);
-			Director._notifyEntityDeath(this);
+			this.director._notifyEntityDeath(this);
 		}
 		
 		return realdDHP;
@@ -41679,9 +41688,9 @@ NanoEntity.prototype.update = function(elapsedTime){
 
 /*-----------------MovingEntity class (extends NanoEntity)--------------*/
 
-var MovingEntity = function(_id, _maxhp, _side, _width, _height, _x, _y, _oripeed, _sprite)
+var MovingEntity = function(_director, _id, _maxhp, _side, _width, _height, _x, _y, _oripeed, _sprite)
 {
-	if (_id == undefined)//this may be called by prototype inheritance
+	if (_director == undefined)//this may be called by prototype inheritance
 		return;
 	this.maxSpeed;//original speed. (in units per second)
 	this.currentSpeed;//current speed (may be slower than original speed or faster)
@@ -41698,7 +41707,7 @@ var MovingEntity = function(_id, _maxhp, _side, _width, _height, _x, _y, _oripee
 	
 	/*--------constructor---------*/
 	//call super class's constructor method
-	NanoEntity.call(this, _id, _maxhp, _side, _width, _height, _x, _y, _sprite);
+	NanoEntity.call(this, _director, _id, _maxhp, _side, _width, _height, _x, _y, _sprite);
 	
 	//change the body type to dynamic
 	this.body.SetType(b2Body.b2_dynamicBody);
@@ -41742,7 +41751,7 @@ MovingEntity.prototype.setVelChangeListener = function(listener){
 MovingEntity.prototype.startMoveTo = function (x, y) {
 	var newDestination = new b2Vec2(x, y);
 	
-	Director._findPath(this.movingPath, this, newDestination);
+	this.director._findPath(this.movingPath, this, newDestination);
 	
 	this.startMoveToNextPointInPath();
 }
@@ -41780,7 +41789,7 @@ MovingEntity.prototype.updateMovement = function(elapsedTime)
 			var vel = this.getVelocity();
 			console.log("convergence ended position is: " + pos.x + "," + pos.y);
 			console.log("convergence ended velocity is: " + vel.x + "," + vel.y);
-			*/
+			/**/
 			//now follow the correct path
 			this.setPosition(this.afterConversePosition);
 			this.startMoveDir(this.afterConverseDirection.x, this.afterConverseDirection.y);
@@ -42027,15 +42036,15 @@ MovingEntity.prototype.update = function(elapsedTime){
 
 /*-----------PlayableEntity class (extends MovingEntity)--------------*/
 
-var PlayableEntity = function( _id, _maxhp, _side, _width, _height, _x, _y, _oriSpeed, _sprite)
+var PlayableEntity = function(_director, _id, _maxhp, _side, _width, _height, _x, _y, _oriSpeed, _sprite)
 {
-	if (_id == undefined)//this may be called by prototype inheritance
+	if (_director == undefined)//this may be called by prototype inheritance
 		return;
 	this.skills;//skills set
 	
 	/*------constructor---------*/
 	//call super class's constructor method
-	MovingEntity.call(this, _id, _maxhp, _side, _width, _height, _x, _y, _oriSpeed, _sprite);
+	MovingEntity.call(this, _director, _id, _maxhp, _side, _width, _height, _x, _y, _oriSpeed, _sprite);
 	
 	this.skills = new Array();
 }
@@ -42076,7 +42085,7 @@ PlayableEntity.prototype.canAttack = function(skillIdx, target){
 PlayableEntity.prototype.fireToDest = function(skillIdx, dest){
 	var skill = this.getSkill(skillIdx);
 	
-	if (Director.dummyClient || //dummy client will do whatever it is told to do
+	if (this.director.dummyClient || //dummy client will do whatever it is told to do
 		this.canFireTo(skillIdx, dest.x, dest.y))
 	{
 		skill.fireToDest(dest);
@@ -42089,7 +42098,7 @@ PlayableEntity.prototype.fireToDest = function(skillIdx, dest){
 PlayableEntity.prototype.attack = function(skillIdx, target){
 	var skill = this.getSkill(skillIdx);
 	
-	if (Director.dummyClient || //dummy client will do whatever it is told to do
+	if (this.director.dummyClient || //dummy client will do whatever it is told to do
 		this.canAttack(skillIdx, target))
 	{
 		skill.fire(target);
@@ -42136,8 +42145,8 @@ var   b2Vec2 = Box2D.Common.Math.b2Vec2
 	,	b2CircleShape = Box2D.Collision.Shapes.b2CircleShape
 
 /*-----------FakeTarget class (extends NanoEntity)----------*/
-var FakeTarget = function(x, y){
-	NanoEntity.call(this, -1, 0, Constant.NEUTRAL, 1, 1, x, y, null);
+var FakeTarget = function(_director, x, y){
+	NanoEntity.call(this, _director, -1, 0, Constant.NEUTRAL, 1, 1, x, y, null);
 	
 	//change the body's fixture type to sensor
 	this.body.GetFixtureList().SetSensor(true);
@@ -42149,7 +42158,7 @@ FakeTarget.prototype.constructor = FakeTarget;
 	
 /*-----------Projectile class (extends MovingEntity)--------------*/
 
-var Projectile = function (_target, width, height, x, y, oriSpeed, spriteModule) {
+var Projectile = function (_director, _target, width, height, x, y, oriSpeed, spriteModule) {
 	if (typeof _target == 'undefined')
 		return;//this may be called by prototype inheritance
 	
@@ -42159,7 +42168,7 @@ var Projectile = function (_target, width, height, x, y, oriSpeed, spriteModule)
 
     /*------constructor---------*/
     //call super class's constructor method
-    MovingEntity.call(this, -1, 0, Constant.NEUTRAL, width, height, x, y, oriSpeed, spriteModule);
+    MovingEntity.call(this, _director, -1, 0, Constant.NEUTRAL, width, height, x, y, oriSpeed, spriteModule);
     this.Target = _target;
 
 	//change the body's fixture type to sensor
@@ -42224,15 +42233,15 @@ Projectile.prototype.update = function(elapsedTime){
 
 /*-----------Acid class (extends Projectile)--------------*/
 
-var Acid = function (_producer, _target, x, y) {
-	if (_producer == undefined)
+var Acid = function (_director, _producer, _target, x, y) {
+	if (_director == undefined)
 		return;
     this.producer;
 	this.hit ;//does it hit target yet?
     /*------constructor---------*/
     //call super class's constructor method
 
-    Projectile.call(this,_target,1,1,x,y,Constant.SPEED_VERY_FAST,"Acid");
+    Projectile.call(this, _director, _target,1,1,x,y,Constant.SPEED_VERY_FAST,"Acid");
 	
 	this.producer = _producer;
 	this.hit = false;
@@ -42247,9 +42256,9 @@ Acid.prototype.constructor = Acid;
 Acid.prototype.update = function(elapsedTime){
 	if (this.hit)//hit
 	{
-		if (!Director.dummyClient)//dummy client does nothing
+		if (!this.director.dummyClient)//dummy client does nothing
 		{
-			var effect = new AcidEffect(this.producer, this.Target);
+			var effect = new AcidEffect(this.director, this.producer, this.Target);
 			this.Target.addEffect(effect);
 		}
 		this.destroy();
@@ -42271,17 +42280,17 @@ Acid.prototype.onHitTarget = function () {
 
 /*-----------AcidBomb class (extends Projectile)--------------*/
 
-var AcidBomb = function (_producer, destPos, x, y) {
-	if (_producer == undefined)
+var AcidBomb = function (_director, _producer, destPos, x, y) {
+	if (_director == undefined)
 		return;
     this.producer;
 	this.hit ;//does it hit target yet?
     /*------constructor---------*/
 	//first create the fake target for the projectile
-	var fakeTarget = new FakeTarget(destPos.x, destPos.y);
+	var fakeTarget = new FakeTarget(_director, destPos.x, destPos.y);
 	
     //call super class's constructor method
-    Projectile.call(this,fakeTarget,2,2,x,y,Constant.SPEED_FAST,"Acid");
+    Projectile.call(this,_director, fakeTarget,2,2,x,y,Constant.SPEED_FAST,"Acid");
 	
 	this.producer = _producer;
 	this.hit = false;
@@ -42296,7 +42305,7 @@ AcidBomb.prototype.constructor = AcidBomb;
 AcidBomb.prototype.update = function(elapsedTime){
 	if (this.hit)//hit
 	{
-		var effect = new AcidAreaEffect(this.producer, this.producer.getAreaEffectDuration(), this.Target.getPosition().x, this.Target.getPosition().y);
+		var effect = new AcidAreaEffect(this.director, this.producer, this.producer.getAreaEffectDuration(), this.Target.getPosition().x, this.Target.getPosition().y);
 		this.destroy();
 		this.Target.destroy();//destroy fake target
 	}
@@ -42315,17 +42324,17 @@ AcidBomb.prototype.onHitTarget = function () {
 
 /*-----------Web class (extends Projectile)--------------*/
 
-var Web = function (_producer, destPos, x, y) {
-	if (_producer == undefined)
+var Web = function (_director, _producer, destPos, x, y) {
+	if (_director == undefined)
 		return;
     this.producer;
 	this.hit ;//does it hit target yet?
     /*------constructor---------*/
 	//first create the fake target for the projectile
-	var fakeTarget = new FakeTarget(destPos.x, destPos.y);
+	var fakeTarget = new FakeTarget(_director, destPos.x, destPos.y);
 	
     //call super class's constructor method
-    Projectile.call(this,fakeTarget,1.5,1.5,x,y,Constant.SPEED_VERY_FAST,"Web");
+    Projectile.call(this,_director, fakeTarget,1.5,1.5,x,y,Constant.SPEED_VERY_FAST,"Web");
 	
 	this.producer = _producer;
 	this.hit = false;
@@ -42340,7 +42349,7 @@ Web.prototype.constructor = Web;
 Web.prototype.update = function(elapsedTime){
 	if (this.hit)//hit
 	{
-		var effect = new WebAreaEffect(this.producer, this.Target.getPosition().x, this.Target.getPosition().y);
+		var effect = new WebAreaEffect(this.director, this.producer, this.Target.getPosition().x, this.Target.getPosition().y);
 		this.destroy();
 		this.Target.destroy();//destroy fake target
 	}
@@ -42381,7 +42390,7 @@ var   b2Vec2 = Box2D.Common.Math.b2Vec2
 
 /*-----------Effect class (extends NanoEntity)--------------*/
 
-var Effect = function (_producer, _affectedTarget, _duration, width, height, x, y, spriteModule, ground) {
+var Effect = function (_director, _producer, _affectedTarget, _duration, width, height, x, y, spriteModule, ground) {
 	if (typeof _affectedTarget == 'undefined')
 		return;//this may be called by prototype inheritance
 	
@@ -42392,7 +42401,7 @@ var Effect = function (_producer, _affectedTarget, _duration, width, height, x, 
 	
     /*--------constructor---------*/
     //call super class's constructor method
-    NanoEntity.call(this, -1, 0, Constant.NEUTRAL, width, height, x, y, spriteModule, ground == undefined? false: ground);
+    NanoEntity.call(this, _director, -1, 0, Constant.NEUTRAL, width, height, x, y, spriteModule, ground == undefined? false: ground);
 	this.producer = _producer;
     this.duration = _duration;
 	this.affectedTarget = _affectedTarget;
@@ -42463,8 +42472,8 @@ Effect.prototype.update = function(elapsedTime){
 	
 		if (targetAliveBefore != this.affectedTarget.isAlive() && this.producer != null)//I killed him!!
 		{
-			if (!Director.dummyClient)
-				Director._notifyKillCount(this.producer.getOwner(), this.affectedTarget);
+			if (!this.director.dummyClient)
+				this.director._notifyKillCount(this.producer.getOwner(), this.affectedTarget);
 		}
 	}
 	else
@@ -42476,8 +42485,8 @@ Effect.prototype.update = function(elapsedTime){
 
 /*-----------AcidEffect class (extends Effect)--------------*/
 
-var AcidEffect = function (_producer, affectedTarget) {
-	if (_producer == undefined)
+var AcidEffect = function (_director, _producer, affectedTarget) {
+	if (_director == undefined)
 		return;//this may be called by prototype inheritance
 		
     this.damPerMs;//damage per millisecond
@@ -42485,7 +42494,7 @@ var AcidEffect = function (_producer, affectedTarget) {
     /*--------constructor---------*/
     //call super class's constructor method
 
-    Effect.call(this, _producer, affectedTarget, _producer.getEffectDuration(), Constant.EFFECT_SIZE, Constant.EFFECT_SIZE, 0, 0, "AcidEffect");
+    Effect.call(this, _director, _producer, affectedTarget, _producer.getEffectDuration(), Constant.EFFECT_SIZE, Constant.EFFECT_SIZE, 0, 0, "AcidEffect");
 	var damageDuration = this.producer.getEffectDuration();
 	var totalDamage=this.producer.getDamage();
     this.damPerMs=totalDamage/damageDuration;
@@ -42513,7 +42522,7 @@ AcidEffect.prototype._implUpdate = function (elapsedTime) {
 	//can define the affect later, maybe add more function in the nanoentity
 	//since affect will be called in a frequency(framerate), we divide the total damage into piece according to the elapse time
    
-	if (Director.dummyClient == false)
+	if (this.director.dummyClient == false)
 	{
 		//dummy client will not do this damage effect. Instead, it will be done by server
 		var damage=this.damPerMs*effectElapsedTime;
@@ -42527,8 +42536,8 @@ AcidEffect.prototype._implUpdate = function (elapsedTime) {
 
 /*-----------LifeLeechEffect class (extends Effect)--------------*/
 
-var LifeLeechEffect = function (_producer, affectedTarget) {
-	if (_producer == undefined)
+var LifeLeechEffect = function (_director, _producer, affectedTarget) {
+	if (_director == undefined)
 		return;//this may be called by prototype inheritance
 		
     this.leecher;
@@ -42536,7 +42545,7 @@ var LifeLeechEffect = function (_producer, affectedTarget) {
     /*--------constructor---------*/
     //call super class's constructor method
 
-    Effect.call(this, _producer, affectedTarget, 1, Constant.CELL_SIZE, Constant.CELL_SIZE, 0, 0, "LifeLeechEffect");
+    Effect.call(this, _director, _producer, affectedTarget, 1, Constant.CELL_SIZE, Constant.CELL_SIZE, 0, 0, "LifeLeechEffect");
 	this.leecher = _producer.getOwner();
 	
 	this.className = 'LifeLeechEffect';
@@ -42547,7 +42556,7 @@ LifeLeechEffect.prototype = new Effect();
 LifeLeechEffect.prototype.constructor = LifeLeechEffect;
 
 LifeLeechEffect.prototype._implUpdate = function (elapsedTime) {
-	if (Director.dummyClient == false && this.affectedTarget.isAlive())
+	if (this.director.dummyClient == false && this.affectedTarget.isAlive())
 	{
 		var dHP = this.affectedTarget.decreaseHP(this.producer.getDamage());
 		this.leecher.increaseHP(dHP * 0.85);
@@ -42558,12 +42567,12 @@ LifeLeechEffect.prototype._implUpdate = function (elapsedTime) {
 
 
 /*------------------AcidAreaEffect (extends Effect)--------------*/
-var AcidAreaEffect = function (_producer, _duration, x, y) {
+var AcidAreaEffect = function (_director, _producer, _duration, x, y) {
 	this.affectedTargets;//list of targets inside this effect's region
 
     /*--------constructor---------*/
     //call super class's constructor method
-    Effect.call(this, _producer, null, _duration, 4 * Constant.CELL_SIZE, 4 * Constant.CELL_SIZE, x, y, "AcidAreaEffect", true);
+    Effect.call(this, _director, _producer, null, _duration, 4 * Constant.CELL_SIZE, 4 * Constant.CELL_SIZE, x, y, "AcidAreaEffect", true);
 	
 	this.affectedTargets = new Utils.List();
 }
@@ -42576,7 +42585,7 @@ AcidAreaEffect.prototype.constructor = AcidAreaEffect;
 AcidAreaEffect.prototype.enterArea = function(entity){
 	if (entity.getSide() == Constant.NEUTRAL || entity.getSide() == this.producer.getOwner().getSide())
 		return;//not enemy
-	if (Director.dummyClient)
+	if (this.director.dummyClient)
 		return;//dummy client does nothing
 	this.affectedTargets.insertBack(entity);//add to pending affected targets list
 }
@@ -42593,7 +42602,7 @@ AcidAreaEffect.prototype._implUpdate = function (elapsedTime){
 		var entity = this.affectedTargets.getFirstElem();
 		this.affectedTargets.popFront();
 		//inject acid to him
-		var effect = new AcidEffectLv2(this.producer, entity);
+		var effect = new AcidEffectLv2(this.director, this.producer, entity);
 		entity.addEffect(effect);
 	}
 	
@@ -42605,7 +42614,7 @@ AcidAreaEffect.prototype._implUpdate = function (elapsedTime){
 
 /*-----------AcidEffectLv2 class (extends AcidEffect)--------------*/
 //this effect also slow down its target
-var AcidEffectLv2 = function (_producer, affectedTarget) {
+var AcidEffectLv2 = function (_director, _producer, affectedTarget) {
 	if (_producer == undefined)
 		return;//this may be called by prototype inheritance
 		
@@ -42614,7 +42623,7 @@ var AcidEffectLv2 = function (_producer, affectedTarget) {
      /*--------constructor---------*/
     //call super class's constructor method
 
-    AcidEffect.call(this, _producer, affectedTarget);
+    AcidEffect.call(this, _director, _producer, affectedTarget);
 	
 	//reduce the speed of affected target
 	this.speedReducedAmount = affectedTarget.changeSpeed(- Constant.SPEED_NORMAL / 2);
@@ -42639,12 +42648,12 @@ AcidEffectLv2.prototype._implUpdate = function (elapsedTime) {
 }
 
 /*------------------WebAreaEffect (extends Effect)--------------*/
-var WebAreaEffect = function (_producer, x, y) {
+var WebAreaEffect = function (_director, _producer, x, y) {
 	this.affectedTargets;//list of targets inside this effect's region
 
     /*--------constructor---------*/
     //call super class's constructor method
-    Effect.call(this, _producer, null, 200, 5 * Constant.CELL_SIZE, 5 * Constant.CELL_SIZE, x, y, "WebAreaEffect", true);
+    Effect.call(this, _director, _producer, null, 200, 5 * Constant.CELL_SIZE, 5 * Constant.CELL_SIZE, x, y, "WebAreaEffect", true);
 	
 	this.affectedTargets = new Utils.List();
 }
@@ -42657,7 +42666,7 @@ WebAreaEffect.prototype.constructor = WebAreaEffect;
 WebAreaEffect.prototype.enterArea = function(entity){
 	if (entity.getSide() == Constant.NEUTRAL || entity.getSide() == this.producer.getOwner().getSide())
 		return;//not enemy
-	if (Director.dummyClient)
+	if (this.director.dummyClient)
 		return;//dummy client does nothing
 	this.affectedTargets.insertBack(entity);//add to pending affected targets list
 }
@@ -42674,7 +42683,7 @@ WebAreaEffect.prototype._implUpdate = function (elapsedTime){
 		var entity = this.affectedTargets.getFirstElem();
 		this.affectedTargets.popFront();
 		//slow him down
-		var effect = new WebEffect(this.producer, entity);
+		var effect = new WebEffect(this.director, this.producer, entity);
 		entity.addEffect(effect);
 	}
 	
@@ -42685,12 +42694,12 @@ WebAreaEffect.prototype._implUpdate = function (elapsedTime){
 }
 
 /*------------------WebEffect (extends Effect)--------------*/
-var WebEffect = function (_producer, affectedTarget) {
+var WebEffect = function (_director, _producer, affectedTarget) {
 	this.speedReducedAmount;
 	/*--------constructor---------*/
     //call super class's constructor method
 	//8s effect
-    Effect.call(this, _producer, affectedTarget, _producer.getEffectDuration(), Constant.CELL_SIZE, Constant.CELL_SIZE, 0, 0, "WebEffect");
+    Effect.call(this, _director, _producer, affectedTarget, _producer.getEffectDuration(), Constant.CELL_SIZE, Constant.CELL_SIZE, 0, 0, "WebEffect");
 	
 	//reduce the speed of affected target by <speedReduceAmount>
 	this.speedReducedAmount = affectedTarget.changeSpeed(- _producer.getDamage());
@@ -42716,12 +42725,12 @@ WebEffect.prototype._implUpdate = function (elapsedTime){
 }
 
 /*---------HealingEffect extends Effect---------*/
-var HealingEffect = function (affectedTarget, healingAmount) {
+var HealingEffect = function (_director, affectedTarget, healingAmount) {
 	this.hpIncrease;//the amount of hp increase for affectedTarget
 	/*--------constructor---------*/
     //call super class's constructor method
 	//1ms effect
-    Effect.call(this, null, affectedTarget, 1, Constant.CELL_SIZE / 2, Constant.CELL_SIZE / 2, 0, 0, "HealingEffect");
+    Effect.call(this, _director, null, affectedTarget, 1, Constant.CELL_SIZE / 2, Constant.CELL_SIZE / 2, 0, 0, "HealingEffect");
 	
 	this.hpIncrease = healingAmount;
 	
@@ -42735,7 +42744,7 @@ HealingEffect.prototype.constructor = HealingEffect;
 
 HealingEffect.prototype._implUpdate = function (elapsedTime){
 	
-	if (!Director.dummyClient)
+	if (!this.director.dummyClient)
 		this.affectedTarget.increaseHP(this.hpIncrease);
 		
 	this.destroy();//one time effect
@@ -42760,10 +42769,11 @@ if (typeof global != 'undefined')
  * owned by a PlayableEntity instance
  * Subclasses should implement _fireForReal(target:NanoEntity)
  */
-var Skill = function(skillID, _range, _damage, _owner, _maxCooldown, spriteModule) {
-	if (skillID == undefined)
+var Skill = function(_director, skillID, _range, _damage, _owner, _maxCooldown, spriteModule) {
+	if (_director == undefined)
 		return;//this may be called by prototype inheritance
 	// Public fields
+	this.director;
 	this.range; // Effective range of the skill
 	this.damage; // Total damage of the skill
 	this.owner; // A reference to the PlayableEntity that owns this skill
@@ -42774,6 +42784,7 @@ var Skill = function(skillID, _range, _damage, _owner, _maxCooldown, spriteModul
 	this.reducedCooldownByLag;//reduced cooldown because of network delay
 	this.skillID;
 	
+	this.director = _director;
 	this.range = _range;
 	this.damage = _damage;	
 	this.owner = _owner;
@@ -42786,6 +42797,10 @@ var Skill = function(skillID, _range, _damage, _owner, _maxCooldown, spriteModul
 }
 
 // getters
+Skill.prototype.getDirector = function(){
+	return this.director;
+}
+
 Skill.prototype.getOwner = function()
 {
 	return this.owner;
@@ -42882,14 +42897,14 @@ Skill.prototype._fireToDestForReal = function(destination) {
  * AcidWeapon Class
  * A skill used by WarriorCell
  */
-var AcidWeapon = function ( _owner, skillID) {
-	if (_owner == undefined)
+var AcidWeapon = function ( _director, _owner, skillID) {
+	if (_director == undefined)
 		return;
 	// public fields
 	this.effectDuration; // Duration of the damaging effect
 	
 	// calls superclass constructor
-	Skill.call(this, skillID, Constant.SKILL_RANGE_LONG, 30, _owner, 700, "AcidWeapon");//0.7s cooldown
+	Skill.call(this, _director, skillID, Constant.SKILL_RANGE_LONG, 30, _owner, 700, "AcidWeapon");//0.7s cooldown
 	
 	this.effectDuration = 3000;//3s
 }
@@ -42910,19 +42925,19 @@ AcidWeapon.prototype.getEffectDuration = function() {
 AcidWeapon.prototype._fireForReal = function(target) {
 	var ownerPos = this.owner.getPosition();
 	//shoot the acid projectile starting from the skill owner's position
-	var acid = new Acid(this, target, ownerPos.x, ownerPos.y);
+	var acid = new Acid(this.director, this, target, ownerPos.x, ownerPos.y);
 }
 
 /**
  * LifeLeech Class
  * A skill used by LeechVirus
  */
-var LifeLeech = function (_owner, skillID) {
+var LifeLeech = function (_director, _owner, skillID) {
 	if (_owner == undefined)
 		return;
 		
 	// calls superclass constructor
-	Skill.call(this, skillID, Constant.SKILL_RANGE_MED, 28, _owner, 1000, "LifeLeech");//1s cooldown
+	Skill.call(this, _director, skillID, Constant.SKILL_RANGE_MED, 28, _owner, 1000, "LifeLeech");//1s cooldown
 	
 }
 
@@ -42937,10 +42952,10 @@ LifeLeech.prototype.constructor = LifeLeech;
  * @param target A NanoEntity to fire at
  */
 LifeLeech.prototype._fireForReal = function(target) {
-	if (Director.dummyClient)
+	if (this.director.dummyClient)
 		return;//dummy client does nothing
 		
-	var effect = new LifeLeechEffect(this, target);
+	var effect = new LifeLeechEffect(this.director, this, target);
 	target.addEffect(effect);
 }
 
@@ -42949,14 +42964,14 @@ LifeLeech.prototype._fireForReal = function(target) {
  * AcidCannon Class
  * A skill used by WarriorCell
  */
-var AcidCannon = function (_owner, skillID) {
-	if (_owner == undefined)
+var AcidCannon = function (_director, _owner, skillID) {
+	if (_director == undefined)
 		return;
 	
 	this.effectDuration; // Duration of the acid area
 	
 	// calls superclass constructor
-	Skill.call(this, skillID, 
+	Skill.call(this, _director, skillID, 
 			Constant.SKILL_RANGE_MED, 
 			30, //total damage
 			_owner,
@@ -42996,7 +43011,7 @@ AcidCannon.prototype._fireForReal = function(target) {
 AcidCannon.prototype._fireToDestForReal = function(dest) {
 	var ownerPos = this.owner.getPosition();
 	//shoot the acid bomb projectile starting from the skill owner's position
-	var web = new AcidBomb(this, dest, ownerPos.x, ownerPos.y);
+	var web = new AcidBomb(this.director, this, dest, ownerPos.x, ownerPos.y);
 	
 	return true;
 }
@@ -43006,15 +43021,15 @@ AcidCannon.prototype._fireToDestForReal = function(dest) {
  * WebGun Class
  * A skill used by LeechVirus
  */
-var WebGun = function (_owner, skillID) {
-	if (_owner == undefined)
+var WebGun = function (_director, _owner, skillID) {
+	if (_director == undefined)
 		return;
 	this.effectDuration;
 	
 	// calls superclass constructor
 	//the amount of speed that the target will be reduced by this skill
 	//is stored as damage of this skill
-	Skill.call(this, skillID, Constant.SKILL_RANGE_LONG, Constant.SPEED_NORMAL, _owner, 10000, "WebGun");//10s cooldown
+	Skill.call(this, _director, skillID, Constant.SKILL_RANGE_LONG, Constant.SPEED_NORMAL, _owner, 10000, "WebGun");//10s cooldown
 	
 	this.effectDuration = 3000;//3s
 	
@@ -43044,7 +43059,7 @@ WebGun.prototype._fireForReal = function(target) {
 WebGun.prototype._fireToDestForReal = function(dest) {
 	var ownerPos = this.owner.getPosition();
 	//shoot the web projectile starting from the skill owner's position
-	var web = new Web(this, dest, ownerPos.x, ownerPos.y);
+	var web = new Web(this.director, this, dest, ownerPos.x, ownerPos.y);
 	
 	return true;
 }
@@ -43060,13 +43075,14 @@ if (typeof global != 'undefined')
 }"use strict";
 /*----------LeechVirus class (extends PlayableEntity)------------*/
 
-var LeechVirus = function(id, x, y)
+var LeechVirus = function(_director, id, x, y)
 {
-	if (id == undefined)
+	if (_director == undefined)
 		return;//this may be called by prototype inheritance
 	
 	//call super class's initializing method
 	PlayableEntity.call( this,
+				_director,
 				id, //unique id
 				300, //hit point
 				Constant.VIRUS, //this object is on virus's side 
@@ -43077,10 +43093,10 @@ var LeechVirus = function(id, x, y)
 				);
 				
 	//add LifeLeech skill
-	this.skills.push(new LifeLeech(this, 0));
+	this.skills.push(new LifeLeech(_director, this, 0));
 	
 	//add WebGun skill
-	this.skills.push(new WebGun(this, 1));
+	this.skills.push(new WebGun(_director, this, 1));
 	
 	this.className = "LeechVirus";
 }
@@ -43096,13 +43112,14 @@ if (typeof global != 'undefined')
 }"use strict";
 /*----------WarriorCell class (extends PlayableEntity)------------*/
 
-var WarriorCell = function(id, x, y)
+var WarriorCell = function(_director, id, x, y)
 {
-	if (id == undefined)
+	if (_director == undefined)
 		return;//this may be called by prototype inheritance
 	
 	//call super class's initializing method
 	PlayableEntity.call( this,
+				_director,
 				id, //unique ID
 				300, //hit point
 				Constant.CELL, //this object is on cell's side 
@@ -43113,9 +43130,9 @@ var WarriorCell = function(id, x, y)
 				);
 				
 	//add AcidWeapon skill
-	this.skills.push(new AcidWeapon(this, 0));
+	this.skills.push(new AcidWeapon(_director, this, 0));
 	//add AcidCannon skill. 
-	this.skills.push(new AcidCannon(this, 1));
+	this.skills.push(new AcidCannon(_director, this, 1));
 	
 	this.className = "WarriorCell";
 }
@@ -43237,16 +43254,16 @@ Client.prototype.spawnEntity = function(msg){
 	switch(msg.className)
 	{
 	case "WarriorCell":
-		spawn_entity = new WarriorCell(msg.entityID, msg.x, msg.y);
+		spawn_entity = new WarriorCell(Director, msg.entityID, msg.x, msg.y);
 		break;
 	case "LeechVirus":
-		spawn_entity = new LeechVirus(msg.entityID, msg.x, msg.y);
+		spawn_entity = new LeechVirus(Director, msg.entityID, msg.x, msg.y);
 		break;
 	case "HealingDrug":
-		spawn_entity = new HealingDrug(msg.entityID, msg.x, msg.y, msg.dirx, msg.diry);
+		spawn_entity = new HealingDrug(Director, msg.entityID, msg.x, msg.y, msg.dirx, msg.diry);
 		break;
 	case "MeatCell":
-		spawn_entity = new MeatCell(msg.entityID, msg.x, msg.y, msg.dirx, msg.diry);
+		spawn_entity = new MeatCell(Director, msg.entityID, msg.x, msg.y, msg.dirx, msg.diry);
 		break;
 	}
 	
@@ -43263,7 +43280,8 @@ Client.prototype.spawnEntity = function(msg){
 		if (CLIENT_USE_DK)
 		{
 			//create the dummy entity for dead reckoning
-			this.charPredict = new MovingEntity( -1, 0, 
+			this.charPredict = new MovingEntity( Director, 
+				-1, 0, 
 				Constant.NEUTRAL, 
 				this.character.getWidth(), this.character.getHeight(), 
 				this.character.getPosition().x, this.character.getPosition().y, 
@@ -43499,7 +43517,7 @@ Client.prototype.handleMessage = function(msg){
 					{
 						var entities = Director.getKnownEntities();
 						var target = entities[msg.affectedTargetID];
-						var effect = new HealingEffect(target, 0);//2nd parameter is zero, since this is just for displaying
+						var effect = new HealingEffect(Director, target, 0);//2nd parameter is zero, since this is just for displaying
 						target.addEffect(effect);
 						return true;//dont need director to do any more work
 					}
@@ -43671,14 +43689,15 @@ Client.prototype.start = function()
 "use strict"
 
 /*---------Consumable (extends MovingEntity)-------*/
-var Consumable = function(id, startx, starty, dirx, diry, spriteModule){
+var Consumable = function(_director, id, startx, starty, dirx, diry, spriteModule){
 	if (typeof startx == 'undefined')
 		return;
 	/*------constructor---------*/
 	//call super class's constructor method
-	MovingEntity.call(this, id, 0, Constant.NEUTRAL, 3, 3, startx, starty, Constant.SPEED_FAST, spriteModule);
+	MovingEntity.call(this, _director, id, 0, Constant.NEUTRAL, 3, 3, startx, starty, Constant.SPEED_FAST, spriteModule);
 	
-	this.bounceEnabled = true;//will bounce back when colliding with obstacle
+	if (!this.director.dummyClient)
+		this.bounceEnabled = true;//will bounce back when colliding with obstacle
 	
 	this.startMoveDir(dirx, diry);
 }
@@ -43702,11 +43721,11 @@ Consumable.prototype._implUpdate = function(elapsedTime){
 }
 
 /*----------class HealingDrug extends Consumable------------*/
-var HealingDrug = function(id, startx, starty, dirx, diry){
+var HealingDrug = function(_director, id, startx, starty, dirx, diry){
 	this.consumer ;
 
 	//super class constructor
-	Consumable.call(this, id, startx, starty, dirx, diry, "HealingDrug");
+	Consumable.call(this, _director, id, startx, starty, dirx, diry, "HealingDrug");
 	
 	this.consumer = null;
 	
@@ -43724,7 +43743,7 @@ HealingDrug.prototype._implUpdate = function(elapsedTime){
 	{
 		if (this.consumer.isAlive())
 		{
-			var effect = new HealingEffect(this.consumer, 300);
+			var effect = new HealingEffect(this.director, this.consumer, 300);
 			this.consumer.addEffect(effect);
 		}
 		return true;//I am consumed
@@ -43734,7 +43753,7 @@ HealingDrug.prototype._implUpdate = function(elapsedTime){
 
 HealingDrug.prototype.onCollideMovingEntity = function(entity){
 	if(this.consumer != null ||//already has consumer
-		Director.dummyClient)//dummy client does nothing
+		this.director.dummyClient)//dummy client does nothing
 		return ;
 	if (entity.getSide() == Constant.CELL)//my consumer is a cell
 		this.consumer = entity;
@@ -43742,11 +43761,11 @@ HealingDrug.prototype.onCollideMovingEntity = function(entity){
 
 /*----------class MeatCell extends Consumable------------*/
 /*-------HealingDrug equivalent for Viruses--------------*/
-var MeatCell = function(id, startx, starty, dirx, diry){
+var MeatCell = function(_director, id, startx, starty, dirx, diry){
 	this.consumer ;
 
 	//super class constructor
-	Consumable.call(this, id, startx, starty, dirx, diry, "MeatCell");
+	Consumable.call(this, _director, id, startx, starty, dirx, diry, "MeatCell");
 	
 	this.consumer = null;
 	
@@ -43764,7 +43783,7 @@ MeatCell.prototype._implUpdate = function(elapsedTime){
 	{
 		if (this.consumer.isAlive())
 		{
-			var effect = new HealingEffect(this.consumer, 300);
+			var effect = new HealingEffect(this.director, this.consumer, 300);
 			this.consumer.addEffect(effect);
 		}
 		return true;//I am consumed
@@ -43774,7 +43793,7 @@ MeatCell.prototype._implUpdate = function(elapsedTime){
 
 MeatCell.prototype.onCollideMovingEntity = function(entity){
 	if(this.consumer != null ||//already has consumer
-		Director.dummyClient)//dummy client does nothing
+		this.director.dummyClient)//dummy client does nothing
 		return ;
 	if (entity.getSide() == Constant.VIRUS)//my consumer is a virus
 		this.consumer = entity;

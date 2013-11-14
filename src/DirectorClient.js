@@ -2,7 +2,7 @@
 this code is used by client
 */	
 
-/*-------Director instance on client side-------*/	
+/*-------Director singleton instance on client side-------*/	
 var Director = {
 	caatDirector : null,
 	displayWidth : null,
@@ -46,17 +46,18 @@ Director.initMenu = function(canvas, displayWidth, displayHeight, onClassChosenF
 	
 	this.displayStartButton = function(isStartButton){
 		startButton.setVisible(true);
-		startButtonText.setVisible(true);
 		if (isStartButton) {
 			startButtonText.setText('Start');
 		} else {
 			startButtonText.setText('Join');
 		}
+		startButtonText.centerOn(startButton.x + startButton.width/2, startButton.y + startButton.height/2);
 	}
 	
 	this.hideStartButton = function(){
 		startButton.setVisible(false);
-		startButtonText.setVisible(false);
+		startButtonText.setText('Waiting for available game');
+		startButtonText.centerOn(startButton.x + startButton.width/2, startButton.y + startButton.height/2);
 	}
 	
 	this.isInMenu = function(){
@@ -78,7 +79,7 @@ Director.initMenu = function(canvas, displayWidth, displayHeight, onClassChosenF
 	ingameScene = caatDirector.createScene();
 	
 	menuContainer = new CAAT.ActorContainer()
-		.setBounds(caatDirector.width/2 - 350, caatDirector.height/2 - 300, 700, 600)
+		.setBounds(0, 0, displayWidth, displayHeight)
 		.setFillStyle('white');
 	
 	startButton = new CAAT.Foundation.UI.ShapeActor().
@@ -99,12 +100,12 @@ Director.initMenu = function(canvas, displayWidth, displayHeight, onClassChosenF
 				
 	menuContainer.addChild(startButton);
 	
-	/* start button text */	
+	/* start button text, can be 'start', 'join', or 'waiting for available game' */	
 	startButtonText =  new CAAT.Foundation.UI.TextActor()
-							.setText('Start')
+							.setText('Waiting for available game')
 							.setFont("18px sans-serif")
 							.setTextFillStyle('#000000')
-							.setVisible(false)
+							//.setVisible(false)
 							.enableEvents(false)
 							.centerOn(startButton.x + startButton.width/2, startButton.y + startButton.height/2);
 
@@ -151,7 +152,7 @@ Director.initMenu = function(canvas, displayWidth, displayHeight, onClassChosenF
 									onClassChosenFunc('LeechVirus');
 							}
 						)
-						.centerOn(menuContainer.width/2 - 150, 350);
+						.centerOn(menuContainer.width/2 - 150, 300);
 						
 					b1.touchEnd = function() {
 						b1.actionPerformed();
@@ -169,7 +170,7 @@ Director.initMenu = function(canvas, displayWidth, displayHeight, onClassChosenF
 									onClassChosenFunc('WarriorCell');
 							}
 						)
-						.centerOn(menuContainer.width/2 + 150, 350);
+						.centerOn(menuContainer.width/2 + 150, 300);
 						
 					b2.touchEnd = function() {
 						b2.actionPerformed();
