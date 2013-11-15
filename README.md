@@ -23,7 +23,10 @@ To combine the client script files into a file called "combine-client-code.js":
 3. To play the demo game
 ------------------------------
 - Start Game Server:
+
 	Use command "node demo/demo_server.js". Actually, this server script can handle both game messages (through sockjs) and static files serving (eg. HTML, scripts, images serving). However, we notice that the performance of the game will be somewhat hindered by static files serving. Thus, we decide to use a separate HTTP Server to serve static files.
+	
+	The Game Server use port 8000.
 
 - Start the HTTP server for serving static files by:
 	1. On Windows:
