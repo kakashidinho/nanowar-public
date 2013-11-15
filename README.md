@@ -22,7 +22,8 @@ To combine the client script files into a file called "combine-client-code.js":
 
 3. To play the demo game
 ------------------------------
-- Start "node demo/demo_server.js" to start the Game Server. Actually, this server script can handle both game messages (through sockjs) and static files serving (eg. HTML, scripts, images serving). However, we notice that the performance of the game will be somewhat hindered by static files serving. Thus, we decide to use a separate HTTP Server to serve static files.
+- Start Game Server:
+	Use command "node demo/demo_server.js". Actually, this server script can handle both game messages (through sockjs) and static files serving (eg. HTML, scripts, images serving). However, we notice that the performance of the game will be somewhat hindered by static files serving. Thus, we decide to use a separate HTTP Server to serve static files.
 
 - Start the HTTP server for serving static files by:
 	1. On Windows:
@@ -32,9 +33,9 @@ To combine the client script files into a file called "combine-client-code.js":
 	
 	2. Unix like:
 	"cd" to "demo" folder.
-	Use command "python -m SimpleHTTPServer 8081" if Python version below 3,
-	Or "python -m http.server 8081" otherwise.
+	Use command "python -m SimpleHTTPServer 8081" if Python version below .
+	Or use "python -m http.server 8081" otherwise.
 
-This HTTP Server will use port 8081.
+	This HTTP Server will use port 8081.
 
 - On browser, open "http://localhost:8081/demo.html". The "localhost" part can be replaced by your host name or IP.
