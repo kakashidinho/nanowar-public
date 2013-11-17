@@ -25,6 +25,8 @@ Director.initMenu = function(canvas, displayWidth, displayHeight, onClassChosenF
 	var startButton;
 	var startButtonText;
 	var classText;
+	var virusCount = 0;
+	var cellCount = 0;
 	this.displayWidth = displayWidth;
 	this.displayHeight = displayHeight;
 
@@ -69,8 +71,14 @@ Director.initMenu = function(canvas, displayWidth, displayHeight, onClassChosenF
 	}
 	
 	this.updatePlayersInfo = function(msg) {
-		menuContainer.virus_count.setText("Players: " + msg.virusCount.toString());
-		menuContainer.cell_count.setText("Players: " + msg.cellCount.toString());
+		virusCount =  msg.virusCount;
+		cellCount = msg.cellCount;
+		
+		if (menuContainer.virus_count)
+		{
+			menuContainer.virus_count.setText("Players: " + virusCount.toString());
+			menuContainer.cell_count.setText("Players: " + cellCount.toString());
+		}
 	}
 	
 	menuScene = caatDirector.createScene();
@@ -190,6 +198,9 @@ Director.initMenu = function(canvas, displayWidth, displayHeight, onClassChosenF
 					menuContainer.addChild(b2_count);
 					menuContainer.virus_count = b1_count;
 					menuContainer.cell_count = b2_count;
+					
+					menuContainer.virus_count.setText("Players: " + virusCount.toString());
+					menuContainer.cell_count.setText("Players: " + cellCount.toString());
 					
 					menuScene.addChild(menuContainer);
 					
