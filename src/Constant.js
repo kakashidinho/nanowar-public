@@ -12,7 +12,7 @@ var Constant = {
 	SKILL_RANGE_MED: 9,//units in physics
 	SKILL_RANGE_LONG: 18,//units in physics
 	HEALTH_BAR_HEIGHT: 0.4,//units in physics
-	SERVER_MAX_CONNECTIONS: 10,
+	SERVER_MAX_CONNECTIONS: 50,
 	SERVER_NAME: "localhost",
 	//SERVER_NAME: "lehoangquyen-i.comp.nus.edu.sg",
 	SERVER_PORT: 8000,

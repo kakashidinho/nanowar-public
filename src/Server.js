@@ -969,6 +969,6 @@ var Connection = function(_socket, _player) {
 // For node.js require
 if (typeof global != 'undefined')
 {
-	global.Server = Server;
+	global.NanoServer = Server;
 	global.Connection = Connection;
 }

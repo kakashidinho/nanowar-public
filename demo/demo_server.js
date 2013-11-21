@@ -8,53 +8,31 @@ process.chdir(__dirname);
 var http = require('http'),
 	url = require("url"),
 	path = require("path"),
-	fs = require("fs");
-			
+	node_static = require('node-static');
+	
+
+//create static file server
+var fileServer = new node_static.Server();
+
+//create http server		
 var httpServer = http.createServer(function(request, response) {
- 
-	var uri = url.parse(request.url).pathname;
-	if (uri == '/demo/' || uri == '/demo')
-		uri = '/demo.html';
-	var filename = path.join(process.cwd() , uri);
-	
-	console.log('request uri ' + uri);
-	console.log('request ' + filename);
-	
-	path.exists(filename, function(exists) {
-		if(!exists) {
-			if (filename.indexOf('nanowar/info') != -1)
-			{
-				response.writeHead(200, {"Content-Type": "text/plain"});
-				response.write("This is nanowar game session\n");
-				response.end();
-			}
-			else
-			{
-				response.writeHead(404, {"Content-Type": "text/plain"});
-				response.write("404 Not Found\n");
-				response.end();
-			}
-			return;
-		}
-		 
-		fs.readFile(filename, "binary", function(err, file) {
-			if(err) {
-				response.writeHead(500, {"Content-Type": "text/plain"});
-				response.write(err + "\n");
-				response.end();
-				return;
-			}
-			 
-			response.writeHead(200);
-			response.write(file, "binary");
-			response.end();
-		});
-	});
+	request.addListener('end', function () {
+		var uri = url.parse(request.url).pathname;
+		console.log('request uri ' + uri);
+		
+		if (uri == '/demo/' || uri == '/demo' || uri == '/')
+			fileServer.serveFile('./demo.html', 200, {}, request, response);
+		else
+			fileServer.serve(request, response);
+    }).resume();
 });
-var server_ip = "0.0.0.0";
-console.log("server " + server_ip  + 'is listening to ' + Constant.SERVER_PORT);
-httpServer.listen(Constant.SERVER_PORT, server_ip);
+
+//listen to port
+var web_server_ip = process.env.OPENSHIFT_NODEJS_IP || "0.0.0.0";
+var web_server_port = process.env.OPENSHIFT_NODEJS_PORT || Constant.SERVER_PORT;
+console.log("web server " + web_server_ip  + ' is listening to ' + web_server_port);
+httpServer.listen(web_server_port, web_server_ip);
 
 /*------start game server------*/
-var server = new Server();
+var server = new NanoServer();
 server.start(httpServer);

@@ -481,7 +481,10 @@ Client.prototype.initNetwork = function() {
 		{
 			var url = window.location.href;
 			server_name = url.substr(url.indexOf('//') + 2);
-			server_name = server_name.substr(0, Math.min(server_name.indexOf(':'), server_name.indexOf('/')));
+			var port_idx = server_name.indexOf(':');
+			if (port_idx == -1)
+				port_idx = server_name.length;
+			server_name = server_name.substr(0, Math.min(port_idx, server_name.indexOf('/')));
 		}
 		this.socket = new SockJS("http://" + server_name + ":" + Constant.SERVER_PORT + "/nanowar");
 		this.socket.onmessage = function (e) {

@@ -15,9 +15,13 @@ if (typeof window === "undefined") {
 		console.log("using window.performence.webkitNow()");
 		Utils.getTimestamp = function() { return window.performance.webkitNow(); };
 	}
+	else{
+		console.log("using Date.getTime();");
+		Utils.getTimestamp = function() { return new Date().getTime(); };
+	}
 } else {
-	console.log("using Date.now();");
-	Utils.getTimestamp = function() { return new Date().now(); };
+	console.log("using Date.getTime();");
+	Utils.getTimestamp = function() { return new Date().getTime(); };
 }
 
 //queue

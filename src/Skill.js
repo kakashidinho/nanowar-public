@@ -6,7 +6,7 @@
  * owned by a PlayableEntity instance
  * Subclasses should implement _fireForReal(target:NanoEntity)
  */
-var Skill = function(_director, skillID, _range, _damage, _owner, _maxCooldown, spriteModule) {
+var Skill = function(_director, skillID, _range, _damage, _owner, _maxCooldown, spriteModule,soundID) {
 	if (_director == undefined)
 		return;//this may be called by prototype inheritance
 	// Public fields
@@ -17,6 +17,7 @@ var Skill = function(_director, skillID, _range, _damage, _owner, _maxCooldown, 
 	this.cooldown;//milliseconds need to wait before continue firing again
 	this.maxCooldown;
 	this.spriteModule;
+	this.soundID;
 	this.fired;
 	this.reducedCooldownByLag;//reduced cooldown because of network delay
 	this.skillID;
@@ -31,6 +32,7 @@ var Skill = function(_director, skillID, _range, _damage, _owner, _maxCooldown, 
 	this.fired = false;
 	this.reducedCooldownByLag = 0;
 	this.skillID = skillID;
+	this.soundID = soundID? soundID: 'lightgun';
 }
 
 // getters
@@ -104,7 +106,8 @@ Skill.prototype.update = function(elapsedTime) {
 Skill.prototype.fire = function(target) {
 	if (this.cooldown > 0 || this.fired)
 		return;
-		
+	
+	this.director._playSound(this.soundID);
 	this._fireForReal(target);//sub class's specific implementation 
 	
 	this.fired = true;
@@ -116,7 +119,7 @@ Skill.prototype.fire = function(target) {
 Skill.prototype.fireToDest = function(destination) {
 	if (this.cooldown > 0 || this.fired)
 		return;
-		
+	this.director._playSound(this.soundID);
 	this.fired = this._fireToDestForReal(destination);//sub class's specific implementation 
 }
 
@@ -174,7 +177,7 @@ var LifeLeech = function (_director, _owner, skillID) {
 		return;
 		
 	// calls superclass constructor
-	Skill.call(this, _director, skillID, Constant.SKILL_RANGE_MED, 28, _owner, 1000, "LifeLeech");//1s cooldown
+	Skill.call(this, _director, skillID, Constant.SKILL_RANGE_MED, 28, _owner, 1000, "LifeLeech", 'leech');//1s cooldown
 	
 }
 
@@ -213,7 +216,8 @@ var AcidCannon = function (_director, _owner, skillID) {
 			30, //total damage
 			_owner,
 			12000, //12s cooldown
-			"AcidCannon");
+			"AcidCannon",
+			'cannon');
 			
 	this.effectDuration = 6000;//6s
 	

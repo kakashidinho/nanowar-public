@@ -38347,9 +38347,13 @@ if (typeof window === "undefined") {
 		console.log("using window.performence.webkitNow()");
 		Utils.getTimestamp = function() { return window.performance.webkitNow(); };
 	}
+	else{
+		console.log("using Date.getTime();");
+		Utils.getTimestamp = function() { return new Date().getTime(); };
+	}
 } else {
-	console.log("using Date.now();");
-	Utils.getTimestamp = function() { return new Date().now(); };
+	console.log("using Date.getTime();");
+	Utils.getTimestamp = function() { return new Date().getTime(); };
 }
 
 //queue
@@ -38798,7 +38802,7 @@ if (typeof global != 'undefined')
 	SKILL_RANGE_MED: 9,//units in physics
 	SKILL_RANGE_LONG: 18,//units in physics
 	HEALTH_BAR_HEIGHT: 0.4,//units in physics
-	SERVER_MAX_CONNECTIONS: 10,
+	SERVER_MAX_CONNECTIONS: 50,
 	SERVER_NAME: "localhost",
 	//SERVER_NAME: "lehoangquyen-i.comp.nus.edu.sg",
 	SERVER_PORT: 8000,
@@ -39873,6 +39877,7 @@ Director.initMenu = function(canvas, displayWidth, displayHeight, onClassChosenF
 	);
 	
 	var caatDirector = this.caatDirector;
+	caatDirector.setAudioFormatExtensions(['mp3']);
 	
 	this.displayClassName = function(className){
 		classText.setText('Your current class is: ' + className);
@@ -40040,7 +40045,10 @@ Director.initMenu = function(canvas, displayWidth, displayHeight, onClassChosenF
 				}
 			}
 		);
-
+	
+	//init sounds
+	caatDirector.addAudio('music', document.getElementById('music'));
+	caatDirector.audioLoop('music');
 }
 
 Director.loadMap = function(initFileXML, onInitFinished)
@@ -40482,6 +40490,10 @@ Director.loadMap = function(initFileXML, onInitFinished)
 	   
 	}
 	
+	Director._playSound = function(soundID){
+		caatDirector.audioPlay(soundID);
+	}
+	
 	//game loop
 	function gameUpdate(scene_time){
 		var currentUpdateTime = Utils.getTimestamp();
@@ -40901,8 +40913,15 @@ Director.loadMap = function(initFileXML, onInitFinished)
 	function readInitFile()
 	{
 		readXMLFile(initFileXML, function(responseXML){
-			//pre-load all images used in the game
 			var root = responseXML.childNodes[0];
+			//cache all sounds
+			var soundInfos = root.getElementsByTagName("sound");
+			for (var i = 0; i < soundInfos.length; ++i){
+				caatDirector.addAudio(soundInfos[i].getAttribute('id'),
+									  soundInfos[i].getAttribute('url'))
+			}
+			
+			//pre-load all images used in the game
 			var imageGroups = root.getElementsByTagName("images");
 			var images = new Array();
 			
@@ -42817,7 +42836,7 @@ if (typeof global != 'undefined')
  * owned by a PlayableEntity instance
  * Subclasses should implement _fireForReal(target:NanoEntity)
  */
-var Skill = function(_director, skillID, _range, _damage, _owner, _maxCooldown, spriteModule) {
+var Skill = function(_director, skillID, _range, _damage, _owner, _maxCooldown, spriteModule,soundID) {
 	if (_director == undefined)
 		return;//this may be called by prototype inheritance
 	// Public fields
@@ -42828,6 +42847,7 @@ var Skill = function(_director, skillID, _range, _damage, _owner, _maxCooldown, 
 	this.cooldown;//milliseconds need to wait before continue firing again
 	this.maxCooldown;
 	this.spriteModule;
+	this.soundID;
 	this.fired;
 	this.reducedCooldownByLag;//reduced cooldown because of network delay
 	this.skillID;
@@ -42842,6 +42862,7 @@ var Skill = function(_director, skillID, _range, _damage, _owner, _maxCooldown, 
 	this.fired = false;
 	this.reducedCooldownByLag = 0;
 	this.skillID = skillID;
+	this.soundID = soundID? soundID: 'lightgun';
 }
 
 // getters
@@ -42915,7 +42936,8 @@ Skill.prototype.update = function(elapsedTime) {
 Skill.prototype.fire = function(target) {
 	if (this.cooldown > 0 || this.fired)
 		return;
-		
+	
+	this.director._playSound(this.soundID);
 	this._fireForReal(target);//sub class's specific implementation 
 	
 	this.fired = true;
@@ -42927,7 +42949,7 @@ Skill.prototype.fire = function(target) {
 Skill.prototype.fireToDest = function(destination) {
 	if (this.cooldown > 0 || this.fired)
 		return;
-		
+	this.director._playSound(this.soundID);
 	this.fired = this._fireToDestForReal(destination);//sub class's specific implementation 
 }
 
@@ -42985,7 +43007,7 @@ var LifeLeech = function (_director, _owner, skillID) {
 		return;
 		
 	// calls superclass constructor
-	Skill.call(this, _director, skillID, Constant.SKILL_RANGE_MED, 28, _owner, 1000, "LifeLeech");//1s cooldown
+	Skill.call(this, _director, skillID, Constant.SKILL_RANGE_MED, 28, _owner, 1000, "LifeLeech", 'leech');//1s cooldown
 	
 }
 
@@ -43024,7 +43046,8 @@ var AcidCannon = function (_director, _owner, skillID) {
 			30, //total damage
 			_owner,
 			12000, //12s cooldown
-			"AcidCannon");
+			"AcidCannon",
+			'cannon');
 			
 	this.effectDuration = 6000;//6s
 	
@@ -43675,7 +43698,10 @@ Client.prototype.initNetwork = function() {
 		{
 			var url = window.location.href;
 			server_name = url.substr(url.indexOf('//') + 2);
-			server_name = server_name.substr(0, Math.min(server_name.indexOf(':'), server_name.indexOf('/')));
+			var port_idx = server_name.indexOf(':');
+			if (port_idx == -1)
+				port_idx = server_name.length;
+			server_name = server_name.substr(0, Math.min(port_idx, server_name.indexOf('/')));
 		}
 		this.socket = new SockJS("http://" + server_name + ":" + Constant.SERVER_PORT + "/nanowar");
 		this.socket.onmessage = function (e) {

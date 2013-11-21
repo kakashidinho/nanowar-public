@@ -12,6 +12,9 @@
 		<image id="meat-cell" url="meat_cell.png"/>
 		<image id="power-up" url="power-up.png"/>
 	</images>
+	<sound id="cannon" url="shotgun.mp3"/>
+	<sound id="lightgun" url="lightgun.mp3"/>
+	<sound id="leech" url="leech.mp3"/>
 	<spritesFile>sprites_demo.xml</spritesFile>
 	<mapFile>map_demo.xml</mapFile>
 	<mapDuration>300000</mapDuration>

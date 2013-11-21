@@ -113,6 +113,10 @@ var Director = function(initFileXML, onInitFinished)
 		entity.managedWrapper.cumulateHPChange(isNegative? -dhp: dhp);
 	}
 	
+	//dummy function. only client can play sound
+	this._playSound = function(id){
+	}
+	
 	this._addEntity = function(entity)
 	{
 		this._baseAddEntity(entity);//call base method

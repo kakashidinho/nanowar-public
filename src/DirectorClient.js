@@ -41,6 +41,7 @@ Director.initMenu = function(canvas, displayWidth, displayHeight, onClassChosenF
 	);
 	
 	var caatDirector = this.caatDirector;
+	caatDirector.setAudioFormatExtensions(['mp3']);
 	
 	this.displayClassName = function(className){
 		classText.setText('Your current class is: ' + className);
@@ -208,7 +209,10 @@ Director.initMenu = function(canvas, displayWidth, displayHeight, onClassChosenF
 				}
 			}
 		);
-
+	
+	//init sounds
+	caatDirector.addAudio('music', document.getElementById('music'));
+	caatDirector.audioLoop('music');
 }
 
 Director.loadMap = function(initFileXML, onInitFinished)
@@ -650,6 +654,10 @@ Director.loadMap = function(initFileXML, onInitFinished)
 	   
 	}
 	
+	Director._playSound = function(soundID){
+		caatDirector.audioPlay(soundID);
+	}
+	
 	//game loop
 	function gameUpdate(scene_time){
 		var currentUpdateTime = Utils.getTimestamp();
@@ -1069,8 +1077,15 @@ Director.loadMap = function(initFileXML, onInitFinished)
 	function readInitFile()
 	{
 		readXMLFile(initFileXML, function(responseXML){
-			//pre-load all images used in the game
 			var root = responseXML.childNodes[0];
+			//cache all sounds
+			var soundInfos = root.getElementsByTagName("sound");
+			for (var i = 0; i < soundInfos.length; ++i){
+				caatDirector.addAudio(soundInfos[i].getAttribute('id'),
+									  soundInfos[i].getAttribute('url'))
+			}
+			
+			//pre-load all images used in the game
 			var imageGroups = root.getElementsByTagName("images");
 			var images = new Array();
 			
