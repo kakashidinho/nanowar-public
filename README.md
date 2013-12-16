@@ -2,7 +2,8 @@ nanowar
 ========
 1. Prerequisites
 ----------------------------
-- "sockjs", "xml2js", "node-static" modules for nodejs.
+- Server-side javascript (node.js).
+- "sockjs", "xml2js", "node-static" modules for node.js.
 - Python for static files serving.
  
 2. Building the code
